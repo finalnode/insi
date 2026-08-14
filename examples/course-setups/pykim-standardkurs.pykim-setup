@@ -1,0 +1,12 @@
+{
+  "format": "pykim-course-setup-v1",
+  "name": "pykim-standardkurs.pykim-setup",
+  "teacher": "PyKIM-Team",
+  "school": "OSZ KIM",
+  "course": "PyKIM Standardkurs",
+  "repository": "https://github.com/finalnode/PyKIM_Kurs.git",
+  "branch": "main",
+  "scripts_path": "Skripte",
+  "assignments_path": "Aufgaben",
+  "trainers_path": "Trainer"
+}

@@ -1,0 +1,252 @@
+format: 1
+exercises:
+  - id: quadrat-5
+    title: Quadrat mit Kantenlänge 5
+    tests:
+      - type: square
+        start: [50, 50]
+        side: 5
+    optimization:
+      optimal_lines: 10
+
+  - id: treppe-5
+    title: Treppe mit 5 Stufen
+    tests:
+      - type: position
+        position: [75, 75]
+        success: KIM steht am unteren Ende der Treppe.
+        failure: KIM steht noch nicht am unteren Ende der Treppe.
+        hint: Jede Stufe führt KIM 5 Pixel nach rechts und 5 Pixel nach unten.
+      - type: pixels
+        exact: false
+        stairs: {start: [50, 50], steps: 5, size: 5}
+        success: Alle 5 Stufen sind vollständig gezeichnet.
+        failure: Mindestens eine der 5 Stufen ist noch unvollständig.
+        hint: Wiederhole eine waagerechte und eine senkrechte Bewegung fünfmal.
+      - type: no-extra-pixels
+        stairs: {start: [50, 50], steps: 5, size: 5}
+        hint: Pro Wiederholung werden nur zwei Bewegungen benötigt.
+      - type: pixel-count
+        count: 51
+        success: Die Treppe besitzt genau die richtige Länge.
+        hint: Beginne die Farbspur am Startpunkt und lasse sie bis zum Ende an.
+      - type: loop
+        success: Du verwendest eine Schleife und vermeidest Wiederholungen.
+        failure: Die Zeichnung stimmt vielleicht, aber dein Code lässt sich noch kürzen.
+        hint: Schreibe die zwei Bewegungen in eine for-Schleife mit range(5).
+    optimization: {optimal_lines: 8}
+
+  - id: punktlinie-8
+    title: Punktlinie mit 8 Punkten
+    tests:
+      - type: pixels
+        cells:
+          - [20, 20, purple]
+          - [22, 20, purple]
+          - [24, 20, purple]
+          - [26, 20, purple]
+          - [28, 20, purple]
+          - [30, 20, purple]
+          - [32, 20, purple]
+          - [34, 20, purple]
+        success: Die acht violetten Punkte liegen exakt an den richtigen Stellen.
+        failure: Die Punktlinie enthält falsche, fehlende oder zusätzliche Pixel.
+        hint: Beginne bei (20, 20), male einen Pixel und gehe dann 2 Schritte weiter.
+      - type: position
+        position: [36, 20]
+        success: KIM steht hinter dem letzten Punkt an der richtigen Endposition.
+        hint: Wiederhole auch nach dem achten Punkt die Bewegung um 2 Schritte.
+      - type: loop
+        success: Du verwendest eine Schleife für die acht Wiederholungen.
+        failure: Die Punktlinie wurde noch ohne Schleife formuliert.
+        hint: Setze paint(), paint_stop() und right(2) in eine for-Schleife.
+    optimization: {optimal_lines: 10}
+
+  - id: vier-quadrate
+    title: Vier Quadrate in einer Reihe
+    tests:
+      - type: pixels
+        paths:
+          - {start: [20, 20], end: [40, 20], color: purple}
+          - {start: [20, 25], end: [40, 25], color: purple}
+          - {start: [20, 20], end: [20, 25], color: purple}
+          - {start: [25, 20], end: [25, 25], color: purple}
+          - {start: [30, 20], end: [30, 25], color: purple}
+          - {start: [35, 20], end: [35, 25], color: purple}
+          - {start: [40, 20], end: [40, 25], color: purple}
+        success: Alle vier violetten Quadrate sind vollständig und korrekt verbunden.
+        failure: Die vier Quadrate stimmen noch nicht exakt mit der Vorlage überein.
+        hint: Jedes Quadrat hat die Kantenlänge 5 und beginnt am Ende des vorherigen.
+      - type: position
+        position: [40, 20]
+        success: KIM steht am rechten oberen Ende der Quadratreihe.
+        hint: Gehe nach jedem Quadrat 5 Pixel zum Start des nächsten Quadrats.
+      - type: function
+        success: Du hast das Zeichnen eines Quadrats in eine Funktion ausgelagert.
+        hint: "Definiere beispielsweise def zeichne_quadrat():."
+      - type: loop
+        success: Du wiederholst die vier Quadrate mit einer Schleife.
+        hint: Rufe deine Quadratfunktion in einer for-Schleife viermal auf.
+    optimization: {optimal_lines: 14}
+
+  - id: schachbrett-8
+    title: Zweifarbiges 8-mal-8-Schachbrett
+    tests:
+      - type: pixels
+        checkerboard:
+          start: [20, 20]
+          size: [8, 8]
+          colors: [purple, orange]
+        success: Alle 64 Schachbrettfelder besitzen Position und Farbe der Vorlage.
+        failure: Felder, Farben oder Größe des Schachbretts stimmen noch nicht.
+        hint: Nutze purple für gerade und orange für ungerade Koordinatensummen.
+      - type: nested-loop
+        success: Du durchläufst Zeilen und Spalten mit verschachtelten Schleifen.
+        hint: Verwende eine Schleife für y und darin eine zweite für x.
+      - type: condition
+        success: Eine Bedingung wählt die Farbe jedes Feldes aus.
+        hint: Prüfe mit modulo 2, ob x + y gerade oder ungerade ist.
+      - type: function
+        success: Das Zeichnen eines Feldes ist in einer Funktion gekapselt.
+        hint: Definiere eine Funktion mit x, y und color als Parametern.
+    optimization: {optimal_lines: 16}
+
+  - id: tonleiter-c-dur
+    title: C-Dur-Tonleiter
+    tests:
+      - type: audio
+        events: [[C4, 1], [D4, 1], [E4, 1], [F4, 1], [G4, 1], [A4, 1], [B4, 1], [C5, 1]]
+        success: Die C-Dur-Tonleiter enthält alle acht Töne in der richtigen Reihenfolge.
+        failure: Tonhöhen, Reihenfolge oder Tonlängen stimmen noch nicht.
+        hint: Spiele C4 bis C5 mit jeweils einem Beat.
+      - type: loop
+        success: Du spielst die Tonleiter mithilfe einer Schleife.
+        failure: Die Tonleiter wurde noch ohne Schleife formuliert.
+        hint: Speichere die Notennamen in einer Liste und durchlaufe sie mit for.
+    optimization: {optimal_lines: 6}
+
+  - id: rhythmus-motiv
+    title: Rhythmisches Tonmotiv
+    tests:
+      - type: audio
+        events: [[C4, 1], [E4, 1], [G4, 2], [null, 1], [C4, 1], [E4, 1], [G4, 2], [null, 1]]
+        success: Das Motiv wird zweimal mit den richtigen Ton- und Pausenlängen gespielt.
+        failure: Das Motiv oder seine Wiederholung stimmt noch nicht vollständig.
+        hint: Spiele C4 (1), E4 (1), G4 (2), Pause (1) zweimal.
+      - type: function
+        success: Das Motiv ist in einer eigenen Funktion gekapselt.
+        hint: "Definiere beispielsweise def spiele_motiv():."
+      - type: loop
+        success: Eine Schleife übernimmt die Wiederholung.
+        hint: Rufe die Motivfunktion in einer for-Schleife zweimal auf.
+    optimization: {optimal_lines: 10}
+
+  - id: farben-melodie
+    title: Melodie aus Farben
+    tests:
+      - type: pixels
+        cells: [[20, 20, red], [21, 20, green], [22, 20, cyan], [23, 20, yellow]]
+        success: Die vier Farbfelder liegen in der richtigen Reihenfolge.
+        failure: Positionen, Farben oder zusätzliche Pixel stimmen noch nicht.
+        hint: Male bei y=20 ab x=20 red, green, cyan und yellow.
+      - type: audio
+        events: [[C4, 1], [E4, 1], [G4, 1], [C5, 2]]
+        success: Jede Farbe erzeugt den vorgesehenen Ton.
+        failure: Die Farbmelodie besitzt noch falsche Töne oder Tonlängen.
+        hint: red=C4, green=E4, cyan=G4 und yellow=C5 mit zwei Beats.
+      - type: loop
+        success: Eine Schleife besucht alle vier Farbfelder.
+        hint: Gehe viermal über das aktuelle Feld und danach einen Schritt nach rechts.
+      - type: condition
+        calls: [get_color]
+        success: Du liest die Farbe und wählst den Ton mit einer Bedingung.
+        failure: Farbabfrage und if-Bedingung sind noch nicht vollständig erkennbar.
+        hint: Speichere get_color() und vergleiche die Farbe mit if/elif.
+    optimization: {optimal_lines: 21}
+
+  - id: interaktive-steuerung
+    title: Interaktive Steuerung
+    tests:
+      - type: function
+        name: update
+        success: Dein Programm besitzt eine update()-Funktion für die Spiellogik.
+        failure: Eine update()-Funktion wurde noch nicht erkannt.
+        hint: "Definiere def update(): und frage dort die Tasten ab."
+      - type: function
+        name: draw
+        success: Dein Programm trennt die Darstellung in eine draw()-Funktion.
+        failure: Eine draw()-Funktion wurde noch nicht erkannt.
+        hint: "Definiere def draw(): und zeichne dort Welt und KIM."
+      - type: calls
+        names: [btn]
+        success: Die Bewegung reagiert auf world.btn().
+        failure: Es wurde noch keine dauerhafte Tastenabfrage erkannt.
+        hint: "Nutze beispielsweise if world.btn('right'):."
+      - type: calls
+        names: [cls, run]
+        success: Die Anzeige wird geleert und die Spielschleife gestartet.
+        failure: world.cls() oder world.run(...) fehlt noch.
+        hint: Leere in draw() die Anzeige und übergib update und draw an world.run.
+    optimization: {optimal_lines: 17}
+
+  - id: musik-pixel-klasse
+    title: Eigene MusikPixel-Klasse
+    tests:
+      - type: class
+        name: MusikPixel
+        base: Pixel
+        success: MusikPixel erbt von der PyKIM-Klasse Pixel.
+        failure: Die Klasse MusikPixel mit Pixel als Basisklasse fehlt noch.
+        hint: "Beginne mit class MusikPixel(Pixel):."
+      - type: super-init
+        class: MusikPixel
+        success: Der Konstruktor erweitert den geerbten Pixelzustand.
+      - type: methods
+        class: MusikPixel
+        names: [update, draw]
+        success: MusikPixel überschreibt update() und draw() mit eigenem Verhalten.
+        failure: Die Klasse überschreibt update() und draw() noch nicht vollständig.
+      - type: calls
+        names: [spawn]
+        success: Du erzeugst deine Unterklasse mit world.spawn().
+        failure: Es wurde noch keine MusikPixel-Instanz mit world.spawn() erzeugt.
+        hint: "Nutze world.spawn(MusikPixel, 'MIA', ...)."
+    optimization: {optimal_lines: 22}
+
+  - id: mehrere-pixel
+    title: Drei Pixel gemeinsam bewegen
+    tests:
+      - type: pixel-names
+        names: [KIM, MIA, LEO]
+        success: Die Welt enthält genau KIM, MIA und LEO.
+        failure: Die Welt enthält noch nicht genau die drei geforderten Pixel.
+        hint: Erzeuge MIA und LEO mit world.new_pixel(...).
+      - type: positions
+        positions: {KIM: [50, 30], MIA: [30, 40], LEO: [50, 25]}
+        success: Alle drei Pixel stehen an ihrer richtigen Endposition.
+        hint: Prüfe die parallelen und die sequenziellen Bewegungen getrennt.
+      - type: pixels
+        paths:
+          - {start: [20, 20], end: [35, 20], color: purple}
+          - {start: [60, 20], end: [45, 20], color: orange}
+          - {start: [40, 60], end: [40, 40], color: cyan}
+          - {start: [35, 20], end: [35, 30], color: purple}
+          - {start: [45, 20], end: [45, 40], color: orange}
+          - {start: [40, 40], end: [50, 40], color: cyan}
+          - {start: [35, 30], end: [50, 30], color: purple}
+          - {start: [45, 40], end: [30, 40], color: orange}
+          - {start: [50, 40], end: [50, 25], color: cyan}
+        success: Alle farbigen Linien stimmen exakt mit der Vorlage überein.
+        failure: Die gezeichneten Pixel oder ihre Farben weichen von der Vorlage ab.
+        hint: KIM zeichnet purple, MIA orange und LEO cyan.
+      - type: visibility
+        pixel: LEO
+        visible: false
+        success: LEO ist am Ende versteckt und seine Spur bleibt sichtbar.
+        failure: LEO ist am Ende noch sichtbar.
+        hint: Rufe leo.hide() erst nach den Bewegungen auf.
+      - type: parallel
+        success: Du verwendest mindestens einen world.parallel()-Block.
+        failure: Die Bewegungen werden noch nicht parallel ausgeführt.
+        hint: "Setze gleichzeitige Bewegungen in with world.parallel():."
+    optimization: {optimal_lines: 22}

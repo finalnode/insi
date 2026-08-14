@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "insi"
+version = "0.5.5"
+description = "Offline-first desktop learning environment for modular computer science courses"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "in:si contributors" }]
+dependencies = [
+  "PyKIM>=0.5.5",
+  "certifi>=2024.2.2",
+  "cryptography>=39,<47",
+  "nicegui[native]>=3,<4",
+  "PyYAML>=6,<7",
+  "Send2Trash>=1.8,<2",
+  "tomli>=2; python_version < '3.11'",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+build = [
+  "pillow>=10,<13",
+  "pyinstaller>=6,<7",
+  "pywebview[gtk]>=5,<7; sys_platform == 'linux'",
+  # pythonnet 3.1.0 bleibt für normale Windows-Installationen kompatibel.
+  "pythonnet==3.0.5; sys_platform == 'win32'",
+]
+
+[project.scripts]
+insi = "insi.app:main"
+insi-teacher = "insi.submission.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["insi*"]
+
+[tool.setuptools.package-data]
+insi = [
+  "assets/*.png",
+  "content-manifest.json",
+  "course_catalog.json",
+  "Skripte/imperativ/*.md",
+  "Skripte/oop/*.md",
+  "Skripte/README.md",
+  "Aufgaben/imperativ/*.md",
+  "Aufgaben/oop/*.md",
+  "Trainer/*.yml",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra -m 'not e2e'"
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+  "e2e: browserloser NiceGUI-Gesamtworkflow (explizit mit -m e2e starten)",
+  "anyio: asynchroner Test über AnyIO",
+  "nicegui_main_file(path): Einstiegspunkt für NiceGUIs User-Simulation",
+]

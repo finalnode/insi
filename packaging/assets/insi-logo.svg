@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
+  <title id="title">in:si</title>
+  <desc id="description">Die Buchstaben in stehen über si. Die i sind orange, n ist grün und s ist blau.</desc>
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#25272a" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect x="56" y="56" width="912" height="912" rx="190" fill="#fffdfb" stroke="#5f6164" stroke-width="42" filter="url(#shadow)"/>
+  <g font-family="Arial Rounded MT Bold, Arial, sans-serif" font-size="370" font-weight="800" text-anchor="middle">
+    <text x="345" y="474" fill="#f36b2b">i</text>
+    <text x="625" y="474" fill="#35a853">n</text>
+    <text x="390" y="820" fill="#2385c7">s</text>
+    <text x="665" y="820" fill="#f36b2b">i</text>
+  </g>
+</svg>
