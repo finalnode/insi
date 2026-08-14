@@ -1,19 +1,20 @@
 import pytest
 import pykim
-import pykim.trainer.exercises as exercise_registry
 
 from pykim import down, left, paint, paint_path, right, set_x, set_y, up
-from pykim.trainer.runner import check_exercise
+from insi.training.runner import check_exercise
 from pykim.trainer.optimization import evaluate_stairs
 from pykim.trainer import ExerciseBuilder
 from pykim.trainer.authoring import audit_exercise, generate_exercise_source
-from pykim.trainer.exercises import exercise_names, get_exercise
+from pykim.trainer.definitions import load_exercises
+from insi.training.registry import exercise_names, get_exercise
+from insi.library import PACKAGED_CONTENT_ROOT
 
 
-def test_builtin_exercises_work_without_searchable_package_directory(monkeypatch):
-    """Die Registry benötigt keine dynamisch importierten Python-Trainer."""
+def test_exercises_come_from_course_data_instead_of_pykim_package():
+    """Die in:si-Registry lädt konkrete Aufgaben aus dem aktiven Kurs."""
 
-    exercises = exercise_registry._discover_exercises()
+    exercises = load_exercises(PACKAGED_CONTENT_ROOT / "Trainer")
 
     assert "farben-melodie" in exercises
     assert set(exercises) == set(exercise_names())
@@ -533,7 +534,7 @@ c = 3
     assert report.optimization is not None
     assert report.optimization.score == 100
 
-    from pykim.trainer.feedback import print_report
+    from insi.training.feedback import print_report
     print_report(report)
     assert "Optimierung: 100 %" in capsys.readouterr().out
 
@@ -664,7 +665,7 @@ def test_prepare_loads_the_declarative_world(monkeypatch):
         "tests": [{"type": "color-count", "color": "red", "count": 0}],
     })
     monkeypatch.setattr(
-        "pykim.trainer.exercises.get_exercise", lambda name: exercise
+        "insi.training.registry.get_exercise", lambda name: exercise
     )
 
     pykim.prepare("sammeln")
@@ -724,7 +725,7 @@ def test_yaml_answer_trainer_is_valid_but_not_executable(tmp_path):
 
 
 def test_yaml_answer_trainer_rejects_unknown_fields(tmp_path):
-    from pykim.trainer.definitions import load_exercises
+    from insi.training.activities import load_activities
 
     (tmp_path / "antwort.yml").write_text(
         "format: 1\nid: begruendung\ntitle: Begründe\nmode: answer\ntests: []\n",
@@ -732,7 +733,7 @@ def test_yaml_answer_trainer_rejects_unknown_fields(tmp_path):
     )
 
     with pytest.raises(ValueError, match="Unbekannte Felder für Antwortaufgabe"):
-        load_exercises(tmp_path)
+        load_activities(tmp_path)
 
 
 def test_yaml_function_cases_check_live_student_function():

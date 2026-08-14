@@ -224,7 +224,7 @@ def install_course_archive_content(bundle: CourseArchive) -> Path:
             destination.write_bytes(data)
         _validate_content(staging, manifest)
 
-        from pykim.trainer.activities import load_activities
+        from insi.training.activities import load_activities
         from pykim.trainer.definitions import load_exercises
 
         trainer_directory = staging / bundle.setup.trainers_path

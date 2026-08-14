@@ -2,7 +2,7 @@
 
 from .library import TaskAssignment as Assignment
 from .library import task_assignment
-from pykim.trainer.exercises import exercise_names
+from insi.training.registry import exercise_names
 
 
 ASSIGNMENTS = {name: task_assignment(name) for name in exercise_names()}

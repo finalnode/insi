@@ -6,7 +6,7 @@ import html
 import json
 import re
 
-from pykim.trainer.activities import Activity
+from insi.training.activities import Activity
 from pykim.trainer.models import CheckReport, CheckResult
 
 from .progress import load_progress, record_attempt, save_task_answer

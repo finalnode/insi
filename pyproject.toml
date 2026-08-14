@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "insi"
-version = "0.5.5"
+version = "0.6.0"
 description = "Offline-first desktop learning environment for modular computer science courses"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "in:si contributors" }]
 dependencies = [
-  "PyKIM>=0.5.5",
+  "PyKIM>=0.6.0",
   "certifi>=2024.2.2",
   "cryptography>=39,<47",
   "nicegui[native]>=3,<4",
@@ -33,6 +33,9 @@ build = [
 [project.scripts]
 insi = "insi.app:main"
 insi-teacher = "insi.submission.cli:main"
+
+[project.entry-points."pykim.trainer_provider"]
+insi = "insi.training.provider:provider"
 
 [tool.setuptools.packages.find]
 where = ["src"]

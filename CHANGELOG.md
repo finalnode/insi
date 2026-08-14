@@ -2,6 +2,8 @@
 
 ## Unveröffentlicht
 
+## 0.6.0 – 2026-08-14
+
 - sichtbare Desktop-Lernumgebung von PyKIM Suite zu **in:si** umbenannt;
   ausführbare Dateien, App-Bundle und Release-Artefakte verwenden den sicheren
   technischen Namen `insi`.
@@ -21,6 +23,9 @@
   Lizenz, Kursrepository, Verantwortliche und Aufgabenquellen bündelt.
 - Kurs-, Aktivitäts- und Trainerregistrys beim Inhaltswechsel explizit auf
   denselben geprüften Stand umgestellt.
+- konkrete Trainerregistrys, Zuordnungs-/Parsons-Aktivitäten, Konsolenfeedback
+  und Versuchsspeicherung aus PyKIM nach `insi.training` verschoben; PyKIM wird
+  nur noch über eine optionale Provider-Schnittstelle angebunden.
 - farbbasierte Hindernisse, Hintergrundfarben, Nachbarschaftserkennung und
   vorbereitete Spielfelder ergänzt.
 - einsammelbare Farbfelder samt automatisch prüfbaren Sammelaufgaben ergänzt.

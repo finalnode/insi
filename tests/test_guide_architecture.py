@@ -87,3 +87,21 @@ def test_pykim_core_does_not_depend_on_insi_application():
             offenders.append(path.relative_to(core).as_posix())
 
     assert offenders == []
+
+
+def test_course_training_state_belongs_to_insi_instead_of_pykim():
+    import pykim
+
+    trainer = Path(pykim.__file__).resolve().parent / "trainer"
+    application_modules = {
+        "activities.py",
+        "content.py",
+        "feedback.py",
+        "progress.py",
+        "runner.py",
+    }
+
+    assert not application_modules.intersection(
+        path.name for path in trainer.glob("*.py")
+    )
+    assert not (trainer / "exercises" / "__init__.py").exists()

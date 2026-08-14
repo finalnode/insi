@@ -272,7 +272,7 @@ def create_course(path: str | Path, student_name: str = "") -> dict[str, object]
 def provision_course_exercises(path: str | Path) -> dict[str, list[str]]:
     """Lege Starterdateien ausschließlich aus dem aktivierten Kursinhalt an."""
     from .library import PARADIGMS, task_documents
-    from pykim.trainer.exercises import exercise_names
+    from insi.training.registry import exercise_names
 
     course = Path(path).expanduser().resolve()
     trainable = set(exercise_names())

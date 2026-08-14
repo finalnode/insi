@@ -713,13 +713,9 @@ def test_archive_import_is_offline_and_name_collisions_create_a_second_course(
     # Tests stellen wir deshalb den mitgelieferten Inhalt ausdrücklich wieder her.
     clear_course_selection()
     monkeypatch.setenv("PYKIM_CONTENT_DIR", str(PACKAGED_CONTENT_ROOT))
-    from pykim.trainer.activities import refresh_activities
-    from insi.assignments import refresh_assignments
-    from pykim.trainer.exercises import refresh_exercises
+    from insi.registries import activate_content_registries
 
-    refresh_exercises()
-    refresh_activities()
-    refresh_assignments()
+    activate_content_registries(PACKAGED_CONTENT_ROOT)
 
 
 def test_course_deletion_uses_system_trash_and_forgets_course(tmp_path, monkeypatch):
@@ -810,7 +806,7 @@ def test_browser_playground_starts_with_plain_python_and_has_reset_action():
 
 
 def test_every_exercise_has_a_complete_assignment():
-    from pykim.trainer.exercises import exercise_names
+    from insi.training.registry import exercise_names
 
     assert set(ASSIGNMENTS) == set(exercise_names())
     assert get_assignment("quadrat-5").summary
@@ -929,7 +925,7 @@ def test_packaged_learning_content_is_valid_markedown():
 
 
 def test_markdown_library_covers_all_trainers_and_both_learning_paths():
-    from pykim.trainer.exercises import exercise_names
+    from insi.training.registry import exercise_names
 
     assert set(task_names()) == set(exercise_names())
     assert script_chapters("imperativ")
@@ -1722,7 +1718,7 @@ def test_trainer_records_an_attempt_when_course_is_configured(
     pykim.left(5)
     pykim.up(5)
 
-    from pykim.trainer.runner import check_exercise
+    from insi.training.runner import check_exercise
 
     check_exercise("quadrat-5", "right(5)")
     capsys.readouterr()
@@ -1749,7 +1745,7 @@ def test_trainer_does_not_record_progress_in_example_mode(tmp_path, monkeypatch)
     monkeypatch.setenv("PYKIM_COURSE_DIR", str(course))
     monkeypatch.setenv("PYKIM_PROGRESS_MODE", "disabled")
 
-    from pykim.trainer.runner import check_exercise
+    from insi.training.runner import check_exercise
 
     check_exercise("quadrat-5", "")
 

@@ -532,7 +532,7 @@ def sync_certificate_content(configuration, timeout: float = 20.0) -> Path:
                     destination.write_bytes(data)
             _validate_content(staging, manifest)
             from pykim.trainer.definitions import load_exercises
-            from pykim.trainer.activities import load_activities
+            from insi.training.activities import load_activities
 
             trainer_directory = staging / configuration.trainers_path
             if trainer_directory.is_dir():

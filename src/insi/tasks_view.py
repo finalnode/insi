@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import json
 
-from pykim.trainer.activities import get_activity
 from insi.assignments import get_assignment
-from pykim.trainer.exercises import exercise_names, get_exercise
+from insi.training.registry import exercise_names, get_activity, get_exercise
 
 from insi.activity_view import (
     current_parsons_order,
