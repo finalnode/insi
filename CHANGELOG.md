@@ -13,9 +13,10 @@
 - übliche Repository-Dokumente wie `README.md`, `CHANGELOG.md` oder
   `SECURITY.md` bei der Kursanalyse standardmäßig ignoriert und aus bereits
   importierten Skript- und Aufgabenlisten ausgeblendet.
-- in:si als separat paketierbares Unterprojekt unter `insi/` vorbereitet und
-  den bisherigen Suite-Namespace `pykim.guide` entfernt; PyKIM hängt weder von
-  der Anwendung noch von ihrer Kursverwaltung ab.
+- in:si mit gefilterter Historie in das eigenständige Repository
+  `finalnode/insi` überführt und den bisherigen Suite-Namespace `pykim.guide`
+  entfernt; PyKIM hängt weder von der Anwendung noch von ihrer Kursverwaltung
+  ab.
 - Footerlinks in eine gemeinsame Quellenübersicht überführt, die Software,
   Lizenz, Kursrepository, Verantwortliche und Aufgabenquellen bündelt.
 - Kurs-, Aktivitäts- und Trainerregistrys beim Inhaltswechsel explizit auf

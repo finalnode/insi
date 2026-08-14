@@ -18,24 +18,24 @@ verwenden.
 ## in:si herunterladen
 
 > **Desktop-Version 0.5.5 – letzte Veröffentlichung unter dem bisherigen Namen
-> PyKIM Suite. Kommende Builds tragen sichtbar den Namen in:si und technisch
-> den Dateinamen `insi`.**
+> PyKIM Suite. Die nächste Veröffentlichung wird aus diesem Repository gebaut,
+> trägt sichtbar den Namen in:si und technisch den Dateinamen `insi`.**
 
 | Betriebssystem | Architektur | Download |
 |---|---|---|
-| Windows | x86_64 | **[Windows-App herunterladen (.zip)](https://github.com/finalnode/insi/releases/tag/v0.5.5)** |
-| macOS | Apple Silicon (`arm64`) | **[macOS-App für M1/M2/M3/M4 herunterladen (.dmg)](https://github.com/finalnode/insi/releases/tag/v0.5.5)** |
-| macOS | Intel (`x86_64`) | **[macOS-App für Intel herunterladen (.dmg)](https://github.com/finalnode/insi/releases/tag/v0.5.5)** |
-| Linux | x86_64 | **[Linux-App herunterladen (.tar.gz)](https://github.com/finalnode/insi/releases/tag/v0.5.5)** |
+| Windows | x86_64 | **[Windows-App herunterladen (.zip)](https://github.com/finalnode/insi/releases)** |
+| macOS | Apple Silicon (`arm64`) | **[macOS-App für M1/M2/M3/M4 herunterladen (.dmg)](https://github.com/finalnode/insi/releases)** |
+| macOS | Intel (`x86_64`) | **[macOS-App für Intel herunterladen (.dmg)](https://github.com/finalnode/insi/releases)** |
+| Linux | x86_64 | **[Linux-App herunterladen (.tar.gz)](https://github.com/finalnode/insi/releases)** |
 
 **Direkt mit dem Beispielkurs starten:**
 
 - **[PyKIM-Standardkurs herunterladen (.pykim-setup)](https://raw.githubusercontent.com/finalnode/insi/main/examples/course-setups/pykim-standardkurs.pykim-setup)** – nach dem App-Start in der Kursauswahl hochladen
 - **[Inhalte des Beispielkurses ansehen](https://github.com/finalnode/PyKIM_Kurs)** – Skripte, Aufgaben und automatische Trainer
 
-Die Builds werden durch GitHub Actions geprüft und anschließend dauerhaft im
-[GitHub Release v0.5.5](https://github.com/finalnode/insi/releases/tag/v0.5.5)
-bereitgestellt. Die Apps sind derzeit noch nicht signiert oder notarisiert.
+Die Builds werden durch GitHub Actions geprüft und anschließend dauerhaft unter
+[GitHub Releases](https://github.com/finalnode/insi/releases) bereitgestellt.
+Die Apps sind derzeit noch nicht signiert oder notarisiert.
 
 Zum Projekt gehören zwei eng verbundene Teile:
 
@@ -138,14 +138,14 @@ Simplicissima         didaktisches Dach
 
 ## Projektperspektive: in:si und PyKIM-Modul
 
-in:si verbindet derzeit noch Lernplattform, Kursverwaltung und
-Python-Pixelwelt in einem Repository. Für die weitere Entwicklung ist eine klare
-Trennung vorgesehen:
+in:si, das PyKIM-Modul und die frei verfügbaren Kursinhalte leben in getrennten
+Repositories. Dadurch kann die Lernumgebung unterschiedliche Themen tragen,
+ohne die Python-Pixelwelt oder einzelne Kurse fest einzubauen:
 
 | Baustein | Zukünftige Verantwortung |
 |---|---|
 | **in:si** | Allgemeine Lernumgebung für unterschiedliche Themen der Informatik |
-| **PyKIM-Modul** | Installierbares Pythonmodul für Pixelwelt, Bewegung, Farbe, Audio und Tests |
+| **[PyKIM-Modul](https://github.com/finalnode/PyKIM)** | Installierbares Pythonmodul für Pixelwelt, Bewegung, Farbe, Audio und Tests |
 | **Kursrepositories** | Unabhängige Skripte, Aufgaben, Hinweise, Quellen und Trainerdefinitionen |
 | **Kurskatalog** | Auffindbarkeit und Installation frei verfügbarer Kurse |
 
@@ -1044,7 +1044,7 @@ Jeder kompakte Eintrag zeigt Niveaustufe und thematische Tags. Beim Aufklappen
 erscheinen Kurzbeschreibung, Herausgeber, Repository und Installationsaktion.
 
 Die Suite enthält eine offline verfügbare Katalogkopie und kann über
-**Katalog aktualisieren** die aktuelle Registry aus dem PyKIM-Repository laden.
+**Katalog aktualisieren** die aktuelle Registry aus dem in:si-Repository laden.
 Jeder Eintrag wird mit denselben Regeln wie eine hochgeladene Setupdatei
 validiert: unterstützt werden ausschließlich öffentliche GitHub-Repositories
 mit sicheren Branch- und Inhaltspfaden.
@@ -1667,7 +1667,7 @@ python tools/package_desktop_app.py
 Nach dem Entpacken wird die Suite gestartet mit:
 
 ```bash
-'insi/insi'
+./insi/insi
 ```
 
 Das Release-Archiv heißt beispielsweise:
