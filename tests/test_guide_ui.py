@@ -3,7 +3,7 @@
 import pytest
 
 pytest.importorskip("nicegui")
-pytest_plugins = ("nicegui.testing.user_plugin", "anyio.pytest_plugin")
+pytest_plugins = ("nicegui.testing.user_plugin",)
 
 @pytest.fixture
 def anyio_backend():
