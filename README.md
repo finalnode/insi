@@ -358,6 +358,25 @@ Spätere didaktische Ausbaustufen umfassen Peer Review, Kompetenzmodelle und
 weitergehende Zusammenarbeit. Sie werden erst auf der stabilisierten lokalen
 Kurs- und Benutzerarchitektur aufgebaut.
 
+Ebenfalls geplant ist ein **Kursbaukasten aus wiederverwendbaren
+Inhaltsbibliotheken** für Lehrkräfte. Versionierte Quellen aus Repositories oder
+Archiven sollen Aufgaben, Skriptkapitel und weitere Kursbausteine zusammen mit
+Metadaten, Tags, Bewertung, Hinweisen, Quellen, Lizenzen und
+Trainerdefinitionen bereitstellen. Das Kursstudio soll diese Bausteine
+durchsuchbar machen, in der späteren Schüleransicht als Vorschau darstellen und
+eine freie Zusammenstellung und Bearbeitung zu Kapiteln und Mischkursen
+ermöglichen. Beim Export werden die ausgewählten Versionen vollständig in den
+Kurs übernommen, damit er reproduzierbar und offlinefähig bleibt; geschützte
+Trainerdaten und Student Workspaces bleiben dabei klar von den bearbeitbaren
+Kursinhalten getrennt.
+
+Das Kursstudio soll außerdem einen verständlichen Git-Arbeitsablauf anbieten:
+Lehrkräfte können einen Kurs als Repository anlegen oder ein vorhandenes
+Repository verbinden, Änderungen prüfen und versionieren sowie sie nach
+ausdrücklicher Bestätigung committen und zu einem frei wählbaren Git-Hoster
+übertragen. ZIP-Export und rein lokale Kurse bleiben gleichwertige Wege, damit
+Git keine Voraussetzung für die Arbeit mit in:si wird.
+
 ## Simplicissima
 
 in:si ist die Informatik-Lernumgebung von **Simplicissima**. Die didaktische
