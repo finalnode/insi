@@ -2,6 +2,8 @@
 
 ## Unveröffentlicht
 
+## 0.6.0 – 2026-08-14
+
 - sichtbare Desktop-Lernumgebung von PyKIM Suite zu **in:si** umbenannt;
   ausführbare Dateien, App-Bundle und Release-Artefakte verwenden den sicheren
   technischen Namen `insi`.
