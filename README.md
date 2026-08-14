@@ -367,6 +367,9 @@ Die nächsten technischen Etappen sind:
 - robuste USB- und Absturzwiederherstellung;
 - Kurs- und Paketvertrauen mit Prüfsummen und Berechtigungen;
 - versionierte Daten- und Kursmigrationen;
+- das neutrale Kursinstallationsformat `.insi-setup`: neue Kurse und Exporte
+  verwenden die neue Endung, während vorhandene `.pykim-setup`-Dateien
+  weiterhin importiert und kontrolliert migriert werden;
 - Datenschutzübersicht sowie verpflichtende Lizenz-, Quellen- und
   Verantwortlichkeitsangaben;
 - validierte PyKIM-Sprachpakete, die kanonische Lernbefehle mit lokalen
@@ -395,6 +398,11 @@ Repository verbinden, Änderungen prüfen und versionieren sowie sie nach
 ausdrücklicher Bestätigung committen und zu einem frei wählbaren Git-Hoster
 übertragen. ZIP-Export und rein lokale Kurse bleiben gleichwertige Wege, damit
 Git keine Voraussetzung für die Arbeit mit in:si wird.
+
+Die Umstellung der sichtbaren Setupdatei ist von einer späteren Migration der
+internen `.pykim`-Datenpfade zu trennen. Fortschritt, Projekte, Sicherungen und
+bereits installierte Kurse dürfen bei einer solchen Migration weder verloren
+gehen noch unbeabsichtigt überschrieben werden.
 
 ## Simplicissima
 
