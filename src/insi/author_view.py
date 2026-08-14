@@ -8,7 +8,7 @@ from pykim.trainer.authoring import (
     audit_exercise,
     generate_exercise_source,
 )
-from pykim.trainer.exercises import exercise_names, get_exercise
+from insi.training.registry import exercise_names, get_exercise
 
 from .components import section_heading
 from .library import task_assignment, task_document

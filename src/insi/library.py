@@ -272,8 +272,7 @@ def task_sources(content: str) -> tuple[TaskSource, ...]:
 
 def task_names() -> tuple[str, ...]:
     """Liefere automatisch und interaktiv prüfbare Aufgabenkennungen."""
-    from pykim.trainer.activities import activity_names
-    from pykim.trainer.exercises import exercise_names
+    from insi.training.registry import activity_names, exercise_names
 
     trainable = set(exercise_names()) | set(activity_names())
     return tuple(

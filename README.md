@@ -236,6 +236,65 @@ kleiner Application Composer; Zustände und Dienste werden über einen explizite
 `AppContext` an getrennte Views übergeben. Architekturtests verhindern, dass
 erneut eine zentrale, mehrere tausend Zeilen große `main()` entsteht.
 
+Die generische Trainingsschicht liegt unter `insi.training`: Sie verwaltet den
+aktiven Kurs, Zuordnungs- und Parsons-Aktivitäten, Feedback und Versuche.
+Fachmodule liefern ausschließlich ihre domänenspezifischen Prüfbausteine. Für
+PyKIM geschieht diese lose Kopplung über den Entry-Point
+`pykim.trainer_provider`; konkrete YAML-Definitionen bleiben beim Kurs.
+
+### Wer besitzt welche Trainerdaten?
+
+| Bestandteil | Verantwortlich |
+|---|---|
+| konkrete Aufgaben, Hinweise und `Trainer/*.yml` | Kursquelle |
+| aktiver Kurs, Registry, Feedback, Versuche und Lernstand | in:si |
+| PyKIM-Welt und PyKIM-spezifische Prüfregeln | PyKIM-Fachmodul |
+| Schülercode und eigene Projekte | getrennter Student Workspace |
+
+Eine Trainerdatei im Kurs beschreibt nur Sollwerte und führt selbst keinen
+Pythoncode aus. Ein minimales Beispiel sieht so aus:
+
+```yaml
+format: 1
+exercises:
+  - id: rote-linie
+    title: Rote Linie
+    tests:
+      - type: pixels
+        paths:
+          - {start: [20, 20], end: [30, 20], color: red}
+        success: Die rote Linie ist vollständig.
+        failure: Die Linie fehlt oder liegt noch nicht richtig.
+        hint: Beginne bei (20, 20) und bewege KIM zehn Schritte nach rechts.
+```
+
+Der Ablauf beim Öffnen und Bearbeiten eines Kurses ist bewusst gerichtet:
+
+```text
+Kursquelle mit Trainer/*.yml
+        ↓
+in:si aktiviert genau diesen Kurs in insi.training
+        ↓
+Schülerprogramm ruft run(check="rote-linie") auf
+        ↓
+PyKIMs neutrale Provider-Schnittstelle fragt in:si
+        ↓
+PyKIM-Prüfregel bewertet die Welt; in:si zeigt Feedback und speichert den Versuch
+```
+
+in:si registriert diese Verbindung als normalen Python-Entry-Point:
+
+```toml
+[project.entry-points."pykim.trainer_provider"]
+insi = "insi.training.provider:provider"
+```
+
+Dadurch kann PyKIM auch ohne in:si verwendet werden und in:si später weitere
+Fachmodule für Python, SQLite, HTML/CSS oder andere Informatikthemen anbinden.
+Kursquelle, Anwendung und Student Workspace bleiben getrennt: Ein Kursupdate
+darf veröffentlichte Inhalte ersetzen, aber niemals bearbeitete Schülerprojekte
+oder deren Fortschritt überschreiben.
+
 Wichtige Grenzen:
 
 - in:si darf PyKIM als Fachmodul verwenden;

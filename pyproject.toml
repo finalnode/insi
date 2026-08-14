@@ -34,6 +34,9 @@ build = [
 insi = "insi.app:main"
 insi-teacher = "insi.submission.cli:main"
 
+[project.entry-points."pykim.trainer_provider"]
+insi = "insi.training.provider:provider"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["insi*"]

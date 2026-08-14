@@ -13,7 +13,7 @@ import insi
 from insi.course import exercise_file, get_student_name
 from insi.progress import load_progress
 from insi.system import system_user_name
-from pykim.trainer.exercises import exercise_names
+from insi.training.registry import exercise_names
 
 from .crypto import CertificateInfo, certificate_info, encrypt_payload
 from .fingerprints import code_fingerprints

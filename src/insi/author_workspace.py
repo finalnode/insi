@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml
 
-from pykim.trainer.exercises import get_exercise
+from insi.training.registry import get_exercise
 from pykim.trainer.definitions import exercise_from_data
 
 from .library import task_document

@@ -1,6 +1,6 @@
 import pytest
 
-from pykim.trainer.activities import activity_from_data, annotated_code_blocks
+from insi.training.activities import activity_from_data, annotated_code_blocks
 from insi.activity_view import parsons_html
 from insi.theme import configure_theme
 

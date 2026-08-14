@@ -201,6 +201,10 @@ def execution_environment(
     paths = [str(Path(path).expanduser().resolve()) for path in pythonpath]
     existing = environment.get("PYTHONPATH", "")
     paths.extend(part for part in existing.split(os.pathsep) if part)
+    # Auch ein nicht installiertes Entwickler-Checkout muss den optionalen
+    # in:si-Trainer-Provider in Kindprozessen auflösen können. In gebündelten
+    # Apps zeigt derselbe Pfad auf das PyInstaller-Paketverzeichnis.
+    paths.append(str(Path(__file__).resolve().parents[1]))
     if paths:
         environment["PYTHONPATH"] = os.pathsep.join(dict.fromkeys(paths))
     else:
@@ -219,7 +223,7 @@ def execution_environment(
             environment["PYKIM_COURSE_DIR"] = str(course)
         selected_content = str(active_content_root(PACKAGED_CONTENT_ROOT))
         environment["PYKIM_CONTENT_DIR"] = selected_content
-        environment["PYKIM_TRAINER_CONTENT_DIR"] = selected_content
+        environment["PYKIM_TRAINER_PROVIDER"] = "insi.training.provider:provider"
     except (OSError, ValueError):
         # Diagnose- und Autorenwerkzeuge dürfen auch ohne eingerichteten Kurs
         # mit der explizit übergebenen Prozessumgebung laufen.

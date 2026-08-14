@@ -4,19 +4,16 @@ from pathlib import Path
 import pytest
 
 
-# PyKIM selbst enthält nach der Pakettrennung keine Suite-Kursinhalte mehr.
-# Tests wählen den in:si-Beispielinhalt über denselben öffentlichen
-# Dateisystemvertrag, den die Anwendung für Schülerprozesse verwendet.
-os.environ.setdefault(
-    "PYKIM_TRAINER_CONTENT_DIR",
-    str(Path(__file__).resolve().parents[1] / "src" / "insi"),
-)
 # Der lokale Entwicklungsrechner kann einen neueren Inhaltsstand aktiviert
 # haben. Tests starten reproduzierbar immer mit dem im Checkout enthaltenen
 # Beispielkurs und überschreiben diesen Pfad nur gezielt pro Test.
 os.environ.setdefault(
     "PYKIM_CONTENT_DIR",
     str(Path(__file__).resolve().parents[1] / "src" / "insi"),
+)
+os.environ.setdefault(
+    "PYKIM_TRAINER_PROVIDER",
+    "insi.training.provider:provider",
 )
 
 from pykim.testing import reset_world

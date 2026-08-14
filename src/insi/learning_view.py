@@ -2,8 +2,7 @@
 
 import re
 
-from pykim.trainer.exercises import get_exercise
-from pykim.trainer.activities import get_activity
+from insi.training.registry import get_activity, get_exercise
 
 from .library import task_names
 from .progress import load_progress, revealed_hint_count, save_revealed_hint_count
