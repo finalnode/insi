@@ -157,6 +157,17 @@ def activity_from_data(
     return Activity(name, title, mode, blocks=blocks, solution=tuple(solution))
 
 
+def _validate_answer(data: dict) -> None:
+    unknown = set(data) - {"id", "title", "mode"}
+    if unknown:
+        raise ValueError(
+            "Unbekannte Felder für Antwortaufgabe: "
+            + ", ".join(sorted(unknown))
+        )
+    _text(data.get("id"), "id")
+    _text(data.get("title"), "title")
+
+
 def load_activities(
     path: str | Path,
     assignments_path: str | Path | None = None,
@@ -168,6 +179,9 @@ def load_activities(
         if not isinstance(data, dict) or data.get("format") != 1:
             continue
         definition = {key: value for key, value in data.items() if key != "format"}
+        if definition.get("mode") == "answer":
+            _validate_answer(definition)
+            continue
         markdown = None
         if definition.get("mode") == "parsons" and assignments is not None:
             matches = [item for item in assignments.rglob(f"{definition.get('id')}.md")]

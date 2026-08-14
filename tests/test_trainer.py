@@ -725,7 +725,7 @@ def test_yaml_answer_trainer_is_valid_but_not_executable(tmp_path):
 
 
 def test_yaml_answer_trainer_rejects_unknown_fields(tmp_path):
-    from pykim.trainer.definitions import load_exercises
+    from insi.training.activities import load_activities
 
     (tmp_path / "antwort.yml").write_text(
         "format: 1\nid: begruendung\ntitle: Begründe\nmode: answer\ntests: []\n",
@@ -733,7 +733,7 @@ def test_yaml_answer_trainer_rejects_unknown_fields(tmp_path):
     )
 
     with pytest.raises(ValueError, match="Unbekannte Felder für Antwortaufgabe"):
-        load_exercises(tmp_path)
+        load_activities(tmp_path)
 
 
 def test_yaml_function_cases_check_live_student_function():
