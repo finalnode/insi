@@ -5,6 +5,10 @@ Informatikkurse. Sie verbindet Kursverwaltung, Lerntexte, interaktive Aufgaben,
 automatische Trainer, Lernstand, Projekte und Autorenwerkzeuge in einer
 gemeinsamen, offline nutzbaren Anwendung.
 
+Der Name **in:si** steht für **informatica simplicissima**: Informatik soll so
+zugänglich wie möglich vermittelt werden, ohne echte Sprachen, Dateien und
+Werkzeuge hinter einer vereinfachten Lernoberfläche zu verstecken.
+
 in:si ist nicht auf eine Programmiersprache festgelegt. Ein Kurs entscheidet,
 welche Inhalte, Werkzeuge und Fachmodule benötigt werden. Der derzeitige
 Beispielkurs verwendet [PyKIM](https://github.com/finalnode/PyKIM) für einen
@@ -37,7 +41,22 @@ Die Setupdatei wird nach dem App-Start in der Kursauswahl hochgeladen. in:si
 lädt anschließend die öffentlichen Kursinhalte und richtet einen lokalen
 Arbeitsbereich ein.
 
-## Was in:si leistet
+## Funktionsumfang in Version 0.6.0
+
+Die folgenden Funktionen sind bereits implementiert. Spätere Vorhaben sind
+getrennt unter [Roadmap](#roadmap-noch-nicht-implementiert) aufgeführt.
+
+### Plattform und Betrieb
+
+- native Desktop-Builds für Windows, Linux sowie macOS auf Intel und Apple
+  Silicon;
+- lokale, nach der Kursinstallation offline nutzbare Lernumgebung;
+- Browserbetrieb als wählbare Alternative und als Rückfallebene, falls ein
+  natives Fenster nicht geöffnet werden kann;
+- konsequente Trennung zwischen aktualisierbarer Kursquelle und persönlichem
+  Student Workspace;
+- lokal verwaltete Kurse, Projekte, Lernstände und persönliche Erweiterungen;
+- beendbare Prozesse für gestartete Beispiele und Schülerprogramme.
 
 ### Für Lernende
 
@@ -61,8 +80,8 @@ Arbeitsbereich ein.
 - Lerntexte und Aufgaben in annotiertem Markdown (**M@rkdown**) schreiben;
 - Hinweise, Tags, Quellen, Lizenz und verantwortliche Stelle hinterlegen;
 - automatische Trainer deklarativ als YAML erstellen und validieren;
-- Kurse als portables ZIP-Archiv exportieren oder über ein Git-Repository
-  veröffentlichen;
+- Kurse als portables ZIP-Archiv exportieren und eine Repositoryadresse als
+  Kursmetadatum hinterlegen;
 - Setupdateien für eine einfache Installation verteilen.
 
 ### Kursverwaltung
@@ -338,7 +357,7 @@ Ergebnisse liegen unter `dist/releases/`. Unter Windows sind zwei
 WebView-Fenster laufen getrennt. Falls das native Fenster nicht erscheint,
 öffnet in:si die Oberfläche im Standardbrowser und schreibt eine Startdiagnose.
 
-## Roadmap
+## Roadmap (noch nicht implementiert)
 
 Die nächsten technischen Etappen sind:
 
@@ -379,8 +398,9 @@ Git keine Voraussetzung für die Arbeit mit in:si wird.
 
 ## Simplicissima
 
-in:si ist die Informatik-Lernumgebung von **Simplicissima**. Die didaktische
-Leitidee lautet:
+in:si ist die Informatik-Lernumgebung von **Simplicissima**. Der ausgeschriebene
+Name **informatica simplicissima** verbindet das Fach unmittelbar mit der
+didaktischen Leitidee:
 
 > So viel vereinfachen wie nötig, so wenig abstrahieren wie möglich.
 
