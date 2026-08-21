@@ -1,6 +1,85 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.7.0 – unveröffentlicht
+
+- in:si von MIT auf `AGPL-3.0-or-later` umgestellt; bereits veröffentlichte
+  MIT-Versionen, PyKIM, externe Kurse und Drittanbieterbestandteile behalten
+  ihre jeweiligen Lizenzen. Hauptlizenz und Lizenzabgrenzung werden nun auch
+  in die Desktop-Pakete aufgenommen.
+- deutsche und englische Offline-Dokumentation für Lernende, Lehrkräfte und
+  Kursautorinnen beziehungsweise Kursautoren ergänzt und über **Hilfe** direkt
+  in der App zugänglich gemacht.
+- den Quellen-/Lizenzdialog um Copyright, Gewährleistungsausschluss und lokal
+  lesbare AGPL-, Umfangs- und Drittanbietertexte erweitert.
+- die TOAST-Toolbar innerhalb des Editorrahmens begrenzt, Pluginaktionen vor
+  den optionalen Scrollbereich verschoben und das Annotationsmenü aus dem
+  scrollbaren Editor-DOM gelöst.
+- einen strikten, transitiven Laufzeit-Lizenzcheck in alle Desktop-Builds
+  aufgenommen und vorhandene Paketmetadaten samt Lizenzdateien in die
+  Distribution übernommen.
+- App-, Inhalts- und Kursrepositoryprüfungen auf ausdrücklich manuell
+  ausgelöste GitHub-Abfragen umgestellt; die Oberfläche erklärt den
+  Netzwerkzugriff vor der Prüfung.
+- den lokalen Systembenutzernamen vollständig aus verschlüsselten
+  Lernstandsexporten entfernt. Ohne bewusst eingetragenen Namen oder Kürzel
+  bleibt das Identitätsfeld leer.
+- eine technische Datenschutz- und Datenbestandsübersicht mit Speicherorten,
+  Netzwerkzielen, Exportinhalten, Empfängern sowie Lösch- und
+  Aufbewahrungswegen ergänzt.
+
+- die Trainingsschicht von PyKIM-Datenmodellen entkoppelt und einen
+  fachmodulneutralen Engine-Vertrag für Abgaben, Ergebnisse und Starterdateien
+  eingeführt. PyKIM ist als kompatibler Adapter angebunden; weitere Engines
+  können sich über `insi.trainer_backends` registrieren und Quelltext,
+  Einstiegspunkte oder ganze Projektverzeichnisse auswerten.
+- das versionierte Format `insi-trainer-v1` mit expliziter Engine eingeführt;
+  vorhandene numerische PyKIM-Definitionen bleiben kompatibel. Freie Antworten,
+  Zuordnungen und Parsons-Puzzles werden als Core-Aktivitäten gemeinsam
+  registriert.
+- den MIT-lizenzierten TOAST UI Editor samt deutscher Oberfläche und
+  Lizenztexten vollständig offline gebündelt. Kursinhalte und
+  Projektdokumentationen lassen sich visuell oder direkt als Markdown
+  bearbeiten; gespeichert wird ausschließlich portables Markdown.
+- Schwierigkeit, Tags, gestufte Hinweise und Quellen im Kursstudio aus dem
+  sichtbaren Aufgabentext gelöst und als visuelle Formularfelder angebunden;
+  ein eigenes TOAST-Plugin stellt kursabhängige Annotationen direkt in der
+  Editor-Toolbar sowie live validierte, anklickbare Zeilenmeldungen bereit.
+  Projektdokumentationen der Lernenden bleiben ohne Kursannotation-Menü.
+
+- einen zentralen, capability-basierten Sandbox-Runner eingeführt: externer
+  Kurs- und Schülercode startet nur noch mit einem verifizierten OS-Adapter;
+  ohne Adapter verweist in:si auf die konfigurierte IDE und fällt nicht still
+  auf einen ungeschützten Prozess zurück.
+- unter Linux Bubblewrap mit getrennten Datei-, Prozess- und
+  Netzwerk-Namespaces angebunden; der Runner sieht nur Programm, Runtime,
+  aktive Kursinhalte und ausdrücklich freigegebene Workspace-Dateien. Netzwerk
+  ist standardmäßig gesperrt, grafische Starts benötigen Wayland. Ein echter
+  Selbsttest prüft Datei-, Netzwerk- und Namespace-Isolation; der Desktop-Build
+  prüft zusätzlich Prozess-, RAM-, CPU- und temporäre Schreibgrenzen sowie ein
+  Pyxel-Fenster über einen isolierten headless Weston.
+- unter Windows einen nativen Broker ergänzt, der Schülercode in einem eigenen
+  AppContainer ohne Netzwerkfähigkeit startet. Temporäre ACL-Freigaben zeigen
+  ausschließlich auf Runtime, ausgewählte Lesedateien und vorgesehene
+  Schreibbereiche; ein Job Object begrenzt CPU, RAM und Prozessanzahl und
+  beendet beim Schließen den gesamten Prozessbaum. Ein echter Windows-CI-Test
+  prüft Hostdatei-, Netzwerk-, Prozess- und Schreibgrenzen sowie die
+  Pyxel-Grafikinitialisierung.
+- unter macOS einen nativen Seatbelt-Adapter ergänzt, der pro Start nur
+  ausgewählte Lese- und Schreibpfade freigibt, Netzwerkzugriff blockiert und
+  seine Wirksamkeit vor der Freigabe mit einem echten Isolationstest prüft. Die
+  macOS-CI testet zusätzlich Prozess-, RAM-, CPU- und Schreibgrenzen; ein
+  optionaler manueller Test öffnet ein Pyxel-Fenster im Seatbelt-Profil.
+- Prozessaufsicht für Lauf- und CPU-Zeit, Arbeitsspeicher, Kindprozessanzahl,
+  Ausgabe sowie neu geschriebenes Datenvolumen ergänzt; bei einer Verletzung
+  wird die gesamte Prozessgruppe mit sichtbarem Grund beendet.
+- sichere Dateiimporte für globale, kursweite und projektbezogene Ressourcen
+  ergänzt. Lerncode liest globale und kursweite Dateien nur, während
+  ausschließlich das aktuelle Projekt beziehungsweise ein privater Laufbereich
+  schreibbar ist.
+- Projekte vor jedem integrierten Start automatisch versioniert, symbolische
+  Links abgelehnt und höchstens zehn lokale Projektstände behalten.
+- Lernfortschritt für Aufgabenläufe über eine private Laufkopie entkoppelt und
+  nur validierte neue Trainer-Versuche in den Host-Lernstand zurückgeführt.
 
 - neue Kurssetups und portable Kursarchive verwenden das neutrale Format
   `.insi-setup` (`insi-course-setup-v1`); vorhandene `.pykim-setup`-Dateien

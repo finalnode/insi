@@ -1,7 +1,9 @@
 """Katalog der mitinstallierten PyKIM-Beispielprogramme."""
 
 import ast
-import subprocess
+import tempfile
+import shutil
+import threading
 from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
@@ -11,8 +13,8 @@ from .execution import script_example_manager
 from .execution_security import (
     builtin_policy,
     execution_environment,
-    popen_isolation_options,
 )
+from .sandbox import sandbox_popen
 
 
 @dataclass(frozen=True)
@@ -79,24 +81,36 @@ def _example(name: str) -> ExampleProgram:
 def launch_example(name: str) -> Path:
     """Starte ausschließlich ein Programm aus dem installierten Beispielkatalog."""
     example = _example(name)
-    policy = builtin_policy(example.path.parent)
+    run_root = Path(tempfile.mkdtemp(prefix="insi-example-"))
+    policy = builtin_policy(
+        run_root,
+        readable_roots=(example.path.parent,),
+        writable_roots=(run_root,),
+        allow_gui=True,
+    )
     environment = execution_environment(
         policy,
         overrides={"PYKIM_PROGRESS_MODE": "disabled"},
     )
-    subprocess.Popen(
+    process = sandbox_popen(
         [*python_command(), str(example.path)],
-        cwd=example.path.parent,
+        policy=policy,
+        cwd=run_root,
         env=environment,
-        **popen_isolation_options(),
     )
+
+    def cleanup() -> None:
+        process.wait()
+        shutil.rmtree(run_root, ignore_errors=True)
+
+    threading.Thread(target=cleanup, daemon=True).start()
     return example.path
 
 
 def start_example(name: str) -> str:
     """Starte ein geprüftes Galeriebeispiel und liefere seine Laufkennung."""
     example = _example(name)
-    return script_example_manager.start(example.source)
+    return script_example_manager.start(example.source, trusted=True)
 
 
 def copy_example_to_course(name: str, course: str | Path) -> tuple[Path, bool]:

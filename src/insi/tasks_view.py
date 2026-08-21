@@ -20,6 +20,7 @@ from insi.course import (
 )
 from insi.course_setup import course_setup_info
 from insi.execution import execution_manager
+from insi.sandbox import sandbox_status
 from insi.library import (
     PARADIGMS,
     render_task_markdown,
@@ -61,6 +62,19 @@ def render_tasks_panel(
     journal = progress.get("journal", {})
     answers = progress.get("answers", {})
     ui.label("Aufgaben und Testfälle").classes("text-2xl font-bold")
+    protection = sandbox_status()
+    if not protection.available:
+        ui.label(
+            "Integrierte Programmläufe sind gesperrt, weil keine geprüfte "
+            "Betriebssystem-Sandbox verfügbar ist. Bearbeiten und Starten in "
+            "der konfigurierten IDE bleibt möglich."
+        ).classes("text-sm text-orange-8")
+    elif not protection.gui_available:
+        ui.label(
+            "Fensterläufe benötigen eine geschützte Wayland-Sitzung. "
+            "Headless-Prüfungen bleiben verfügbar; Animationen werden in der "
+            "externen IDE gestartet."
+        ).classes("text-sm text-orange-8")
     current_paradigm = None
     tasks_course = get_course_directory()
     has_course_setup = (
@@ -361,6 +375,10 @@ def render_tasks_panel(
                         on_click=launch_parsons_preview,
                         icon="open_in_new",
                     ).props("outline color=primary")
+                    if not protection.available:
+                        parsons_run_button.disable()
+                    if not protection.gui_available:
+                        parsons_preview_button.disable()
                     parsons_preview_button.set_visibility(False)
                 continue
             if target is not None:
@@ -593,6 +611,8 @@ def render_tasks_panel(
                         on_click=save_and_start_task,
                         icon="play_arrow",
                     )
+                    if not protection.available or not protection.gui_available:
+                        run_button.disable()
                     stop_button = ui.button(
                         "Stoppen", on_click=stop_task, icon="stop",
                     ).props("outline")

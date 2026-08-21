@@ -2,6 +2,7 @@
 
 from .execution import script_example_manager
 from .library import script_code_examples
+from .sandbox import SandboxUnavailableError
 
 
 def register_script_api(app) -> None:
@@ -19,7 +20,10 @@ def register_script_api(app) -> None:
                 status_code=403,
                 detail="Dieses Beispiel gehört nicht zum Skript.",
             )
-        return {"job_id": script_example_manager.start(source.rstrip())}
+        try:
+            return {"job_id": script_example_manager.start(source.rstrip())}
+        except SandboxUnavailableError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
 
     @app.get("/api/script/status/{job_id}")
     async def script_example_status(job_id: str) -> dict[str, object]:

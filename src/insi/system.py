@@ -7,6 +7,8 @@ import shutil
 import subprocess
 import sys
 import os
+import tempfile
+import threading
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -15,9 +17,11 @@ from .execution_security import (
     course_code_policy,
     execution_environment,
     limited_output,
-    popen_isolation_options,
     student_policy,
 )
+from .progress import merge_sandbox_progress, prepare_sandbox_progress
+from .sandbox import sandbox_popen, sandbox_run
+from .workspace_files import sandbox_readable_roots
 from tempfile import NamedTemporaryFile
 from urllib.request import Request
 
@@ -231,17 +235,36 @@ def run_student_program(path: str | Path, course: str | Path) -> Path:
 
     python = selected_runtime(course).executable
     root = Path(course).expanduser().resolve()
-    policy = student_policy(root)
+    run_root = Path(tempfile.mkdtemp(prefix="insi-task-"))
+    progress_path = run_root / "progress.json"
+    baseline = prepare_sandbox_progress(progress_path, root)
+    policy = student_policy(
+        run_root,
+        readable_roots=sandbox_readable_roots(root, target),
+        writable_roots=(run_root,),
+        allow_gui=True,
+    )
     environment = execution_environment(
         policy,
         pythonpath=(root,),
+        overrides={
+            "INSI_PROGRESS_FILE": str(progress_path),
+            "INSI_RUN_FILES": str(run_root),
+        },
     )
-    subprocess.Popen(
+    process = sandbox_popen(
         [*command_for(python), str(target)],
-        cwd=target.parent,
+        policy=policy,
+        cwd=run_root,
         env=environment,
-        **popen_isolation_options(),
     )
+
+    def cleanup() -> None:
+        process.wait()
+        merge_sandbox_progress(progress_path, root, baseline_attempts=baseline)
+        shutil.rmtree(run_root, ignore_errors=True)
+
+    threading.Thread(target=cleanup, daemon=True).start()
     return target
 
 
@@ -253,20 +276,35 @@ def execute_student_program(path: str | Path, course: str | Path) -> ProgramResu
     from .runtime import selected_runtime
 
     root = Path(course).expanduser().resolve()
-    policy = student_policy(root)
+    run_root = Path(tempfile.mkdtemp(prefix="insi-task-"))
+    progress_path = run_root / "progress.json"
+    baseline = prepare_sandbox_progress(progress_path, root)
+    policy = student_policy(
+        run_root,
+        readable_roots=sandbox_readable_roots(root, target),
+        writable_roots=(run_root,),
+    )
     environment = execution_environment(
         policy,
         pythonpath=(root,),
+        overrides={
+            "INSI_PROGRESS_FILE": str(progress_path),
+            "INSI_RUN_FILES": str(run_root),
+        },
     )
-    completed = subprocess.run(
-        [*command_for(selected_runtime(course).executable), str(target)],
-        cwd=target.parent,
-        capture_output=True,
-        text=True,
-        env=environment,
-        timeout=policy.timeout_seconds,
-        **popen_isolation_options(),
-    )
+    try:
+        completed = sandbox_run(
+            [*command_for(selected_runtime(course).executable), str(target)],
+            policy=policy,
+            cwd=run_root,
+            capture_output=True,
+            text=True,
+            env=environment,
+            timeout=policy.timeout_seconds,
+        )
+    finally:
+        merge_sandbox_progress(progress_path, root, baseline_attempts=baseline)
+        shutil.rmtree(run_root, ignore_errors=True)
     stdout, stdout_truncated = limited_output(
         completed.stdout, policy.max_output_chars
     )
@@ -277,7 +315,9 @@ def execute_student_program(path: str | Path, course: str | Path) -> ProgramResu
         completed.returncode,
         stdout,
         stderr,
-        stdout_truncated or stderr_truncated,
+        bool(getattr(completed, "output_truncated", False))
+        or stdout_truncated
+        or stderr_truncated,
     )
 
 
@@ -299,14 +339,14 @@ def execute_script_example(source: str, timeout: int = 15) -> ProgramResult:
             overrides={"PYKIM_PROGRESS_MODE": "disabled"},
         )
         try:
-            completed = subprocess.run(
+            completed = sandbox_run(
                 [*python_command(), "-u", str(temporary_path)],
+                policy=policy,
                 cwd=temporary_path.parent,
                 capture_output=True,
                 text=True,
                 timeout=timeout,
                 env=environment,
-                **popen_isolation_options(),
             )
             stdout, stdout_truncated = limited_output(
                 completed.stdout, policy.max_output_chars
@@ -318,7 +358,9 @@ def execute_script_example(source: str, timeout: int = 15) -> ProgramResult:
                 completed.returncode,
                 stdout,
                 stderr,
-                stdout_truncated or stderr_truncated,
+                bool(getattr(completed, "output_truncated", False))
+                or stdout_truncated
+                or stderr_truncated,
             )
         except subprocess.TimeoutExpired as error:
             stdout = error.stdout.decode() if isinstance(error.stdout, bytes) else error.stdout or ""

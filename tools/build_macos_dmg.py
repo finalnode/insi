@@ -11,6 +11,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from build_macos_app import apply_adhoc_signature
+
 try:
     import tomllib
 except ModuleNotFoundError:
@@ -61,6 +63,10 @@ def main(arguments: list[str] | None = None) -> int:
             staging / application.name,
             symlinks=True,
         )
+        # File-provider metadata can reappear on an app stored below ~/Documents
+        # after the app build has finished.  Clean and sign the actual payload
+        # in the system temp directory immediately before hdiutil reads it.
+        apply_adhoc_signature(staging / application.name)
         os.symlink("/Applications", staging / "Applications")
         subprocess.run(
             [

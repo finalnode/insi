@@ -61,6 +61,16 @@ def main(arguments: list[str] | None = None) -> int:
             check=True,
         )
 
+    subprocess.run(
+        [
+            sys.executable,
+            str(project / "tools" / "audit_runtime_licenses.py"),
+            "--strict",
+        ],
+        cwd=project,
+        check=True,
+    )
+
     work = project / "build" / platform_name
     destination = project / "dist" / platform_name
     if not options.skip_clean:

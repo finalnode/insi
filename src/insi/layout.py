@@ -12,6 +12,8 @@ from insi.course_setup import course_setup_info
 from insi.navigation import create_navigation
 from insi.system import open_path, system_user_name
 from .desktop import browser_favicon
+from .documentation import documentation_text
+from .legal import legal_document_text
 from .sources import source_references
 
 
@@ -47,9 +49,9 @@ def render_workspace_header(ui, course_selection) -> WorkspaceLayout:
                 ui.label(course_setup.course).classes("insi-course-title")
             ui.space()
             ui.label(f"Hallo, {student_name}").classes("text-sm")
-            update_badge = ui.badge("Updates werden geprüft …", color="grey")
+            update_badge = ui.badge("Updates prüfen", color="grey")
             update_badge.classes("cursor-pointer").props(
-                "title='Verfügbare Updates anzeigen' role=button tabindex=0"
+                "title='Updates manuell über GitHub prüfen' role=button tabindex=0"
             )
             ui.button(
                 "Kurs wechseln",
@@ -95,6 +97,78 @@ def render_workspace_footer(ui) -> None:
         setup = None
     references = source_references(setup)
 
+    documentation: dict[str, str] = {}
+    documentation_error = ""
+    try:
+        documentation = {
+            "de": documentation_text("de"),
+            "en": documentation_text("en"),
+        }
+    except (OSError, ValueError) as error:
+        documentation_error = str(error)
+
+    with ui.dialog() as documentation_dialog, ui.card().classes(
+        "w-full max-w-5xl insi-documentation-dialog"
+    ):
+        with ui.row().classes("w-full items-center gap-2"):
+            ui.icon("menu_book", color="primary", size="md")
+            ui.label("Dokumentation · Documentation").classes("text-xl font-bold")
+        if documentation_error:
+            ui.label(documentation_error).classes("text-negative")
+        else:
+            with ui.tabs().classes("w-full") as documentation_tabs:
+                german_tab = ui.tab("Deutsch")
+                english_tab = ui.tab("English")
+            with ui.tab_panels(
+                documentation_tabs, value=german_tab, animated=False
+            ).classes("w-full insi-documentation-panels"):
+                with ui.tab_panel(german_tab):
+                    ui.markdown(documentation["de"]).classes("prose max-w-none")
+                with ui.tab_panel(english_tab):
+                    ui.markdown(documentation["en"]).classes("prose max-w-none")
+        with ui.row().classes("w-full justify-end"):
+            ui.button("Schließen", on_click=documentation_dialog.close).props("flat")
+
+    legal_texts: dict[str, str] = {}
+    legal_error = ""
+    try:
+        legal_texts = {
+            "agpl": legal_document_text("agpl"),
+            "scope": legal_document_text("scope"),
+            "third-party": legal_document_text("third-party"),
+        }
+    except (OSError, ValueError) as error:
+        legal_error = str(error)
+
+    with ui.dialog() as legal_dialog, ui.card().classes(
+        "w-full max-w-5xl insi-legal-dialog"
+    ):
+        with ui.row().classes("w-full items-center gap-2"):
+            ui.icon("gavel", color="primary", size="md")
+            ui.label("Lizenz und rechtliche Hinweise").classes("text-xl font-bold")
+        if legal_error:
+            ui.label(legal_error).classes("text-negative")
+        else:
+            with ui.tabs().classes("w-full") as legal_tabs:
+                agpl_tab = ui.tab("AGPL-3.0+")
+                scope_tab = ui.tab("Lizenzumfang")
+                third_party_tab = ui.tab("Drittanbieter")
+            with ui.tab_panels(legal_tabs, value=agpl_tab).classes(
+                "w-full insi-legal-panels"
+            ):
+                with ui.tab_panel(agpl_tab):
+                    ui.textarea(value=legal_texts["agpl"]).props(
+                        "readonly outlined rows=22"
+                    ).classes("w-full insi-license-text")
+                with ui.tab_panel(scope_tab):
+                    ui.markdown(legal_texts["scope"]).classes("prose max-w-none")
+                with ui.tab_panel(third_party_tab):
+                    ui.markdown(legal_texts["third-party"]).classes(
+                        "prose max-w-none"
+                    )
+        with ui.row().classes("w-full justify-end"):
+            ui.button("Schließen", on_click=legal_dialog.close).props("flat")
+
     with ui.dialog() as sources_dialog, ui.card().classes("w-full max-w-2xl"):
         with ui.row().classes("w-full items-center gap-2"):
             ui.icon("source", color="primary", size="md")
@@ -107,6 +181,19 @@ def render_workspace_footer(ui) -> None:
                 ui.label(f"Verantwortlich: {setup.teacher}")
                 if setup.school:
                     ui.label(f"Organisation: {setup.school}")
+        ui.separator()
+        with ui.column().classes("w-full gap-1"):
+            ui.label("Copyright © 2026 in:si contributors").classes("font-bold")
+            ui.label(
+                "in:si ist freie Software unter AGPL-3.0-or-later. "
+                "Weitergabe und Änderungen sind nach den Lizenzbedingungen "
+                "erlaubt; die Software kommt ohne Gewährleistung."
+            ).classes("text-sm text-grey-8")
+            ui.button(
+                "Lizenztexte offline lesen",
+                icon="gavel",
+                on_click=legal_dialog.open,
+            ).props("outline dense")
         ui.separator()
         with ui.column().classes("w-full gap-2"):
             for reference in references:
@@ -142,10 +229,15 @@ def render_workspace_footer(ui) -> None:
                 ).props(
                     f'flat dense color=white title="Kursordner öffnen: {configured}"'
                 ).classes("insi-footer-course-path")
-            with ui.row().classes("items-center gap-4"):
+            with ui.row().classes("items-center gap-2 no-wrap"):
                 ui.label(f"Version {__version__}").classes(
                     "pykim-footer-version"
                 )
+                ui.button(
+                    "Hilfe",
+                    icon="menu_book",
+                    on_click=documentation_dialog.open,
+                ).props("flat dense color=white").classes("pykim-footer-link")
                 ui.button(
                     "Quellen",
                     icon="source",

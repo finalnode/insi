@@ -6,7 +6,6 @@ import json
 import hashlib
 import os
 import re
-import subprocess
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,8 +13,13 @@ from pathlib import Path
 from .interpreter import command_for
 from .execution_security import (
     execution_environment,
-    popen_isolation_options,
     student_policy,
+)
+from .sandbox import sandbox_popen
+from .workspace_files import (
+    project_files_directory,
+    sandbox_readable_roots,
+    snapshot_project,
 )
 from tempfile import NamedTemporaryFile
 
@@ -263,16 +267,27 @@ def launch_project(project: StudentProject, course: str | Path) -> Path:
     from .runtime import selected_runtime
 
     python = selected_runtime(course_root).executable
-    policy = student_policy(course_root)
+    project_files = project_files_directory(project.directory, create=True)
+    snapshot_project(project.directory, course_root)
+    policy = student_policy(
+        project.directory,
+        readable_roots=sandbox_readable_roots(course_root),
+        writable_roots=(project.directory,),
+        allow_gui=project.kind in {"pykim", "pyxel"},
+    )
     environment = execution_environment(
         policy,
         pythonpath=(course_root,),
+        overrides={
+            "INSI_PROJECT_FILES": str(project_files),
+            "PYKIM_PROGRESS_MODE": "disabled",
+        },
     )
-    subprocess.Popen(
+    sandbox_popen(
         [*command_for(python), str(project.entrypoint)],
+        policy=policy,
         cwd=project.directory,
         env=environment,
-        **popen_isolation_options(),
     )
     return project.entrypoint
 

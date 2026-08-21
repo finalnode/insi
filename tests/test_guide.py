@@ -167,6 +167,8 @@ from insi.system import (
     system_user_name,
 )
 from insi.sources import source_references
+from insi.legal import legal_document_path, legal_document_text
+from insi.documentation import documentation_text
 from insi.assignments import ASSIGNMENTS, get_assignment
 from pykim.trainer.models import CheckReport, CheckResult, OptimizationResult
 from pykim.trainer.authoring import generate_exercise_source
@@ -302,6 +304,10 @@ def test_footer_sources_collect_software_course_and_assignment_sources(
     assert any(item.kind == "software" for item in references)
     assert any(item.kind == "license" for item in references)
     assert any(
+        item.kind == "privacy" and item.url.endswith("/DATENSCHUTZ.md")
+        for item in references
+    )
+    assert any(
         item.kind == "course"
         and item.url == "https://github.com/finalnode/PyKIM_Kurs"
         for item in references
@@ -311,6 +317,26 @@ def test_footer_sources_collect_software_course_and_assignment_sources(
         for item in references
     )
     assert all(item.label != "Versteckt" for item in references)
+
+
+def test_legal_documents_are_available_offline():
+    assert legal_document_text("agpl").lstrip().startswith(
+        "GNU AFFERO GENERAL PUBLIC LICENSE"
+    )
+    assert "AGPL-3.0-or-later" in legal_document_text("scope")
+    assert "TOAST UI Editor" in legal_document_text("third-party")
+    assert legal_document_path("agpl").name == "LICENSE"
+
+    with pytest.raises(ValueError, match="Unbekannter Rechtstext"):
+        legal_document_text("../README.md")
+
+
+def test_documentation_is_available_offline_in_both_languages():
+    assert "# Erste Schritte mit in:si" in documentation_text("de")
+    assert "# Getting started with in:si" in documentation_text("en")
+
+    with pytest.raises(ValueError, match="Unbekannte Dokumentsprache"):
+        documentation_text("fr")
 
 
 def test_packaged_course_catalog_contains_the_public_standard_course():
@@ -1145,7 +1171,7 @@ def test_script_example_uses_unbuffered_python(monkeypatch):
         calls.append((command, kwargs))
         return Completed()
 
-    monkeypatch.setattr("insi.system.subprocess.run", run)
+    monkeypatch.setattr("insi.system.sandbox_run", run)
 
     result = execute_script_example("print(28)\nprint(19)")
 
@@ -1351,7 +1377,7 @@ def test_project_launch_uses_selected_runtime_and_project_working_directory(
         lambda course=None: RuntimeCandidate(str(python), "3.13", "Test", True, True, True),
     )
     monkeypatch.setattr(
-        "insi.projects.subprocess.Popen",
+        "insi.projects.sandbox_popen",
         lambda command, cwd=None, env=None, **_options: calls.append(
             (command, cwd, env)
         ),
@@ -1383,9 +1409,14 @@ def test_all_packaged_examples_run_headless():
 
 def test_running_example_explicitly_disables_progress(monkeypatch):
     calls = []
+
+    class Process:
+        def wait(self):
+            return 0
+
     monkeypatch.setattr(
-        "insi.examples.subprocess.Popen",
-        lambda command, **kwargs: calls.append((command, kwargs)),
+        "insi.examples.sandbox_popen",
+        lambda command, **kwargs: (calls.append((command, kwargs)) or Process()),
     )
 
     launch_example("interaktive_steuerung_aufgabe")
@@ -1397,7 +1428,7 @@ def test_gallery_example_uses_observable_execution_manager(monkeypatch):
     calls = []
     monkeypatch.setattr(
         "insi.examples.script_example_manager.start",
-        lambda source: calls.append(source) or "job-123",
+        lambda source, **_options: calls.append(source) or "job-123",
     )
 
     assert start_example("paint_line") == "job-123"
@@ -2270,10 +2301,14 @@ def test_run_student_program_is_limited_to_python_files_in_course(
     task.parent.mkdir(parents=True)
     task.write_text("print('ok')", encoding="utf-8")
     calls = []
+    class Process:
+        def wait(self):
+            return 0
+
     monkeypatch.setattr(
-        "insi.system.subprocess.Popen",
-        lambda command, cwd=None, env=None, **_options: calls.append(
-            (command, cwd, env)
+        "insi.system.sandbox_popen",
+        lambda command, cwd=None, env=None, **_options: (
+            calls.append((command, cwd, env)) or Process()
         ),
     )
     monkeypatch.setattr(
@@ -2285,7 +2320,8 @@ def test_run_student_program_is_limited_to_python_files_in_course(
 
     assert run_student_program(task, course) == task
     assert calls[0][0][1] == str(task)
-    assert calls[0][1] == task.parent
+    assert calls[0][1] != task.parent
+    assert calls[0][1].name.startswith("insi-task-")
     assert str(course.resolve()) in calls[0][2]["PYTHONPATH"].split(__import__("os").pathsep)
 
     outside = tmp_path / "outside.py"
@@ -2317,7 +2353,7 @@ def test_execute_student_program_captures_output(tmp_path, monkeypatch):
 
     calls = []
     monkeypatch.setattr(
-        "insi.system.subprocess.run",
+        "insi.system.sandbox_run",
         lambda command, **kwargs: (calls.append((command, kwargs)) or Completed()),
     )
     monkeypatch.setattr(

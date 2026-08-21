@@ -198,7 +198,7 @@ def get_student_name(course: str | Path | None = None) -> str:
 
 
 def starter_source(exercise_name: str) -> str:
-    """Erzeuge eine bewusst lösungsfreie Schülerdatei."""
+    """Erzeuge den kompatiblen PyKIM-Starter auch vor Registry-Aktivierung."""
     return (
         f'"""PyKIM-Aufgabe: {exercise_name}\n\n'
         "Die Aufgabenstellung und Hilfen findest du unter in:si.\n"
@@ -278,7 +278,7 @@ def create_course(path: str | Path, student_name: str = "") -> dict[str, object]
 def provision_course_exercises(path: str | Path) -> dict[str, list[str]]:
     """Lege Starterdateien ausschließlich aus dem aktivierten Kursinhalt an."""
     from .library import PARADIGMS, task_documents
-    from insi.training.registry import exercise_names
+    from insi.training.registry import exercise_names, exercise_starter_files
 
     course = Path(path).expanduser().resolve()
     trainable = set(exercise_names())
@@ -291,17 +291,22 @@ def provision_course_exercises(path: str | Path) -> dict[str, list[str]]:
             exercise = document.name
             if exercise not in trainable:
                 continue
-            target = section_directory / f"{exercise.replace('-', '_')}.py"
-            if target.exists():
-                existing.append(str(target.relative_to(course)))
-                continue
-            legacy = next(
-                (candidate for candidate in course.rglob(target.name) if candidate != target),
-                None,
-            )
-            if legacy is not None:
-                shutil.copy2(legacy, target)
-            else:
-                target.write_text(starter_source(exercise), encoding="utf-8")
-            created.append(str(target.relative_to(course)))
+            for starter in exercise_starter_files(exercise):
+                relative = Path(starter.relative_path)
+                if relative.is_absolute() or ".." in relative.parts:
+                    raise ValueError("Die Trainer-Engine lieferte einen unsicheren Starterpfad.")
+                target = section_directory / relative
+                if target.exists():
+                    existing.append(str(target.relative_to(course)))
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                legacy = next(
+                    (candidate for candidate in course.rglob(target.name) if candidate != target),
+                    None,
+                )
+                if legacy is not None and len(relative.parts) == 1:
+                    shutil.copy2(legacy, target)
+                else:
+                    target.write_text(starter.content, encoding="utf-8")
+                created.append(str(target.relative_to(course)))
     return {"created": created, "existing": existing}

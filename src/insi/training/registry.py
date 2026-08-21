@@ -5,16 +5,22 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from pykim.trainer.definitions import load_exercises
-from pykim.trainer.models import Exercise
-
 from .activities import Activity, load_activities
+from .backends import (
+    evaluate as backend_evaluate,
+    load_backend_exercises,
+    register_backend,
+    starter_files as backend_starter_files,
+)
+from .contracts import CheckReportLike, ExerciseLike, StarterFile, Submission
+from .pykim_backend import backend as pykim_backend
 
 
 TRAINER_PROVIDER_ENV = "PYKIM_TRAINER_PROVIDER"
 TRAINER_PROVIDER_SPEC = "insi.training.provider:provider"
 
-_EXERCISES: dict[str, Exercise] = {}
+_EXERCISES: dict[str, ExerciseLike] = {}
+_EXERCISE_ENGINES: dict[str, str] = {}
 _ACTIVITIES: dict[str, Activity] = {}
 _ACTIVE_ROOT: Path | None = None
 
@@ -29,12 +35,13 @@ def activate(
     root = Path(content_root).expanduser().resolve()
     trainers = root / trainers_path
     assignments = root / assignments_path
-    exercises = load_exercises(trainers) if trainers.is_dir() else {}
+    exercises, engines = load_backend_exercises(trainers)
     activities = (
         load_activities(trainers, assignments) if trainers.is_dir() else {}
     )
-    global _EXERCISES, _ACTIVITIES, _ACTIVE_ROOT
+    global _EXERCISES, _EXERCISE_ENGINES, _ACTIVITIES, _ACTIVE_ROOT
     _EXERCISES = exercises
+    _EXERCISE_ENGINES = engines
     _ACTIVITIES = activities
     _ACTIVE_ROOT = root
     # Schülerprozesse und aus in:si gestartete IDEs erben die optionale
@@ -56,7 +63,7 @@ def exercise_names() -> tuple[str, ...]:
     return tuple(sorted(_EXERCISES))
 
 
-def get_exercise(name: str) -> Exercise:
+def get_exercise(name: str) -> ExerciseLike:
     _ensure_active()
     try:
         return _EXERCISES[name]
@@ -77,12 +84,51 @@ def get_activity(name: str) -> Activity | None:
     return _ACTIVITIES.get(name)
 
 
+def exercise_engine(name: str) -> str:
+    get_exercise(name)
+    return _EXERCISE_ENGINES[name]
+
+
+def exercise_starter_files(name: str) -> tuple[StarterFile, ...]:
+    exercise = get_exercise(name)
+    return backend_starter_files(exercise_engine(name), exercise)
+
+
+def evaluate_submission(name: str, submission: Submission) -> CheckReportLike:
+    """Prüfe eine Abgabe über die für die Aufgabe registrierte Engine."""
+    exercise = get_exercise(name)
+    return backend_evaluate(exercise_engine(name), exercise, submission)
+
+
+def trainable_names() -> tuple[str, ...]:
+    _ensure_active()
+    return tuple(sorted(set(_EXERCISES) | set(_ACTIVITIES)))
+
+
+def validate_training_directory(
+    trainers: str | Path,
+    assignments: str | Path | None = None,
+) -> None:
+    """Validiere alle Engines und Core-Aktivitäten ohne Registry-Aktivierung."""
+    directory = Path(trainers)
+    load_backend_exercises(directory)
+    load_activities(directory, assignments)
+
+
+register_backend(pykim_backend)
+
+
 __all__ = [
     "TRAINER_PROVIDER_ENV",
     "TRAINER_PROVIDER_SPEC",
     "activate",
     "activity_names",
     "exercise_names",
+    "exercise_engine",
+    "exercise_starter_files",
+    "evaluate_submission",
     "get_activity",
     "get_exercise",
+    "trainable_names",
+    "validate_training_directory",
 ]

@@ -66,7 +66,7 @@ def test_certificate_export_decrypt_and_tamper_detection(tmp_path, monkeypatch):
     submission = create_encrypted_submission(course)
     payload = decrypt_submission(submission, private_key, "sehr-geheim")
 
-    assert payload["identity"]["student_name"] == "Ada Lovelace"
+    assert payload["identity"] == {"student_name": "Ada Lovelace"}
     assert payload["summary"]["total"] == 11
     assert len(payload["exercises"]) == 11
     assert all(item["fingerprints_verified"] for item in payload["exercises"])
@@ -196,6 +196,18 @@ def test_submission_payload_excludes_journal_by_default(tmp_path, monkeypatch):
 
     assert "journal" not in build_submission_payload(course)
     assert "journal" in build_submission_payload(course, include_journal=True)
+
+
+def test_submission_payload_never_falls_back_to_system_user(tmp_path, monkeypatch):
+    monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setattr("getpass.getuser", lambda: "private-login")
+    course = tmp_path / "course"
+    create_course(course)
+
+    payload = build_submission_payload(course)
+
+    assert payload["identity"] == {"student_name": ""}
+    assert "private-login" not in json.dumps(payload)
 
 
 def test_teacher_report_reads_moodle_download_folder(tmp_path, monkeypatch):

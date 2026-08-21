@@ -2,10 +2,9 @@
 
 import os
 
-from pykim.trainer.models import CheckReport
-
+from .contracts import CheckReportLike, Submission
 from .feedback import print_report
-from .registry import get_exercise
+from .registry import evaluate_submission
 from insi.progress import record_attempt
 
 
@@ -13,9 +12,11 @@ def check_exercise(
     name: str,
     source: str,
     namespace: dict[str, object] | None = None,
-) -> CheckReport:
-    exercise = get_exercise(name)
-    report = exercise.checker(source, namespace)
+) -> CheckReportLike:
+    report = evaluate_submission(
+        name,
+        Submission(kind="source", text=source, context={"namespace": namespace}),
+    )
     print_report(report)
     if os.environ.get("PYKIM_PROGRESS_MODE") == "disabled":
         return report

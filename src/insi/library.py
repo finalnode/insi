@@ -272,9 +272,9 @@ def task_sources(content: str) -> tuple[TaskSource, ...]:
 
 def task_names() -> tuple[str, ...]:
     """Liefere automatisch und interaktiv prüfbare Aufgabenkennungen."""
-    from insi.training.registry import activity_names, exercise_names
+    from insi.training.registry import trainable_names
 
-    trainable = set(exercise_names()) | set(activity_names())
+    trainable = set(trainable_names())
     return tuple(
         document.name
         for paradigm in PARADIGMS

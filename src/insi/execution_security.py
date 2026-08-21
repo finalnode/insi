@@ -1,15 +1,13 @@
 """Gemeinsame Sicherheitsrichtlinie für ausgeführten Lern- und Kurscode.
 
-Die Richtlinie ist bewusst ehrlich: Ein getrennter Prozess ist noch keine
-Sandbox. Sie reduziert heute unbeabsichtigte Datenweitergabe und begrenzt
-Laufzeit sowie Ausgabe. Echte Dateisystem- und Netzwerkgrenzen werden später
-von betriebssystemspezifischen Adaptern umgesetzt.
+Die Richtlinie beschreibt die Fähigkeiten eines Starts unabhängig vom
+Betriebssystem. Der Sandbox-Runner setzt sie nur mit einem verifizierten
+Adapter um; andernfalls wird fremder Code nicht innerhalb von in:si gestartet.
 """
 
 from __future__ import annotations
 
 import os
-import platform
 import signal
 import subprocess
 from dataclasses import dataclass
@@ -20,6 +18,10 @@ from typing import Mapping
 
 DEFAULT_TIMEOUT_SECONDS = 300.0
 DEFAULT_MAX_OUTPUT_CHARS = 1_000_000
+DEFAULT_MAX_MEMORY_BYTES = 512 * 1024 * 1024
+DEFAULT_MAX_PROCESSES = 16
+DEFAULT_MAX_WRITTEN_BYTES = 100 * 1024 * 1024
+DEFAULT_MAX_CPU_SECONDS = 120.0
 
 
 class CodeOrigin(str, Enum):
@@ -37,17 +39,32 @@ class ExecutionPolicy:
     origin: CodeOrigin
     workspace: Path
     writable_roots: tuple[Path, ...]
+    readable_roots: tuple[Path, ...] = ()
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
     max_output_chars: int = DEFAULT_MAX_OUTPUT_CHARS
-    allow_network: bool = True
+    max_memory_bytes: int = DEFAULT_MAX_MEMORY_BYTES
+    max_processes: int = DEFAULT_MAX_PROCESSES
+    max_written_bytes: int = DEFAULT_MAX_WRITTEN_BYTES
+    max_cpu_seconds: float = DEFAULT_MAX_CPU_SECONDS
+    allow_network: bool = False
+    allow_gui: bool = False
 
     def __post_init__(self) -> None:
         workspace = self.workspace.expanduser().resolve()
         roots = tuple(root.expanduser().resolve() for root in self.writable_roots)
+        readable = tuple(root.expanduser().resolve() for root in self.readable_roots)
         if self.timeout_seconds <= 0:
             raise ValueError("Die Laufzeitgrenze muss größer als null sein.")
         if self.max_output_chars <= 0:
             raise ValueError("Die Ausgabegrenze muss größer als null sein.")
+        if self.max_memory_bytes <= 0:
+            raise ValueError("Die Speichergrenze muss größer als null sein.")
+        if self.max_processes <= 0:
+            raise ValueError("Die Prozessgrenze muss größer als null sein.")
+        if self.max_written_bytes <= 0:
+            raise ValueError("Die Schreibgrenze muss größer als null sein.")
+        if self.max_cpu_seconds <= 0:
+            raise ValueError("Die CPU-Grenze muss größer als null sein.")
         if not roots:
             raise ValueError("Mindestens ein vorgesehener Schreibbereich ist nötig.")
         related = any(
@@ -58,41 +75,7 @@ class ExecutionPolicy:
             raise ValueError("Der Arbeitsordner muss zu einem Schreibbereich gehören.")
         object.__setattr__(self, "workspace", workspace)
         object.__setattr__(self, "writable_roots", roots)
-
-
-@dataclass(frozen=True)
-class ExecutionProtection:
-    """Tatsächlich aktive Schutzmerkmale der aktuellen Implementierung."""
-
-    process_separated: bool
-    environment_sanitized: bool
-    runtime_limited: bool
-    output_limited: bool
-    filesystem_isolated: bool
-    network_isolated: bool
-    os_sandbox_active: bool
-    platform: str
-
-    @property
-    def summary(self) -> str:
-        if self.os_sandbox_active:
-            return "Betriebssystem-Sandbox aktiv."
-        return (
-            "Prozess begrenzt; Dateisystem und Netzwerk sind noch nicht durch "
-            "eine Betriebssystem-Sandbox isoliert."
-        )
-
-
-ACTIVE_PROTECTION = ExecutionProtection(
-    process_separated=True,
-    environment_sanitized=True,
-    runtime_limited=True,
-    output_limited=True,
-    filesystem_isolated=False,
-    network_isolated=False,
-    os_sandbox_active=False,
-    platform=platform.system() or "Unbekannt",
-)
+        object.__setattr__(self, "readable_roots", readable)
 
 
 _EXACT_SECRET_NAMES = {
@@ -117,61 +100,119 @@ _UNSAFE_PYTHON_ENVIRONMENT = {
     "PYTHONINSPECT",
     "PYTHONSTARTUP",
 }
+_ALLOWED_ENVIRONMENT = {
+    "COLORTERM",
+    "COMSPEC",
+    "DISPLAY",
+    "LANG",
+    "LANGUAGE",
+    "NUMBER_OF_PROCESSORS",
+    "PATH",
+    "PATHEXT",
+    "PROCESSOR_ARCHITECTURE",
+    "PULSE_SERVER",
+    "SSL_CERT_DIR",
+    "SSL_CERT_FILE",
+    "SYSTEMROOT",
+    "TERM",
+    "TEMP",
+    "TMP",
+    "TMPDIR",
+    "TZ",
+    "WAYLAND_DISPLAY",
+    "WINDIR",
+    "XDG_RUNTIME_DIR",
+}
+_ALLOWED_ENVIRONMENT_PREFIXES = ("LC_", "PYXEL_", "SDL_")
 
 
 def student_policy(
     workspace: str | Path,
     *,
+    readable_roots: tuple[str | Path, ...] = (),
+    writable_roots: tuple[str | Path, ...] | None = None,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
     max_output_chars: int = DEFAULT_MAX_OUTPUT_CHARS,
+    max_memory_bytes: int = DEFAULT_MAX_MEMORY_BYTES,
+    max_processes: int = DEFAULT_MAX_PROCESSES,
+    max_written_bytes: int = DEFAULT_MAX_WRITTEN_BYTES,
+    max_cpu_seconds: float = DEFAULT_MAX_CPU_SECONDS,
+    allow_gui: bool = False,
 ) -> ExecutionPolicy:
-    """Erzeuge die heutige Richtlinie für einen Student Workspace.
-
-    Der Schreibbereich ist bereits für einen späteren Sandbox-Adapter
-    festgelegt. Ohne aktiven Adapter ist er noch keine technische Grenze.
-    Dadurch können Projekte später innerhalb des Workspaces etwa SQLite-Dateien
-    verwenden, ohne pauschal schreibgeschützt zu werden.
-    """
+    """Erzeuge die verbindliche Richtlinie für einen Student Workspace."""
 
     root = Path(workspace).expanduser().resolve()
+    writable = (root,) if writable_roots is None else tuple(
+        Path(path).expanduser().resolve() for path in writable_roots
+    )
     return ExecutionPolicy(
         CodeOrigin.STUDENT,
         root,
-        (root,),
+        writable,
+        tuple(Path(path).expanduser().resolve() for path in readable_roots),
         timeout_seconds=timeout_seconds,
         max_output_chars=max_output_chars,
+        max_memory_bytes=max_memory_bytes,
+        max_processes=max_processes,
+        max_written_bytes=max_written_bytes,
+        max_cpu_seconds=max_cpu_seconds,
+        allow_gui=allow_gui,
     )
 
 
 def course_code_policy(
     workspace: str | Path,
     *,
+    readable_roots: tuple[str | Path, ...] = (),
+    writable_roots: tuple[str | Path, ...] | None = None,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
     max_output_chars: int = DEFAULT_MAX_OUTPUT_CHARS,
+    max_memory_bytes: int = DEFAULT_MAX_MEMORY_BYTES,
+    max_processes: int = DEFAULT_MAX_PROCESSES,
+    max_written_bytes: int = DEFAULT_MAX_WRITTEN_BYTES,
+    max_cpu_seconds: float = DEFAULT_MAX_CPU_SECONDS,
+    allow_gui: bool = False,
 ) -> ExecutionPolicy:
     root = Path(workspace).expanduser().resolve()
+    writable = (root,) if writable_roots is None else tuple(
+        Path(path).expanduser().resolve() for path in writable_roots
+    )
     return ExecutionPolicy(
         CodeOrigin.COURSE,
         root,
-        (root,),
+        writable,
+        tuple(Path(path).expanduser().resolve() for path in readable_roots),
         timeout_seconds=timeout_seconds,
         max_output_chars=max_output_chars,
+        max_memory_bytes=max_memory_bytes,
+        max_processes=max_processes,
+        max_written_bytes=max_written_bytes,
+        max_cpu_seconds=max_cpu_seconds,
+        allow_gui=allow_gui,
     )
 
 
 def builtin_policy(
     workspace: str | Path,
     *,
+    readable_roots: tuple[str | Path, ...] = (),
+    writable_roots: tuple[str | Path, ...] | None = None,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
     max_output_chars: int = DEFAULT_MAX_OUTPUT_CHARS,
+    allow_gui: bool = False,
 ) -> ExecutionPolicy:
     root = Path(workspace).expanduser().resolve()
+    writable = (root,) if writable_roots is None else tuple(
+        Path(path).expanduser().resolve() for path in writable_roots
+    )
     return ExecutionPolicy(
         CodeOrigin.BUILTIN,
         root,
-        (root,),
+        writable,
+        tuple(Path(path).expanduser().resolve() for path in readable_roots),
         timeout_seconds=timeout_seconds,
         max_output_chars=max_output_chars,
+        allow_gui=allow_gui,
     )
 
 
@@ -188,19 +229,22 @@ def execution_environment(
 ) -> dict[str, str]:
     """Erzeuge eine kompatible Umgebung ohne typische Zugangsdaten.
 
-    HOME und grafische Sitzungsvariablen bleiben vorerst erhalten, weil Pyxel
-    und native Fenster sie benötigen. Das ist ausdrücklich keine
-    Dateisystemisolation.
+    Es wird nur eine kleine Kompatibilitätsliste für Sprache, Terminal und
+    grafische Sitzungen übernommen. HOME, D-Bus, Agenten, Proxys und der
+    Host-PYTHONPATH werden nicht an Lerncode weitergereicht.
     """
 
     environment = {
         name: value
         for name, value in os.environ.items()
-        if not _looks_sensitive(name) and name not in _UNSAFE_PYTHON_ENVIRONMENT
+        if (
+            name in _ALLOWED_ENVIRONMENT
+            or name.startswith(_ALLOWED_ENVIRONMENT_PREFIXES)
+        )
+        and not _looks_sensitive(name)
+        and name not in _UNSAFE_PYTHON_ENVIRONMENT
     }
     paths = [str(Path(path).expanduser().resolve()) for path in pythonpath]
-    existing = environment.get("PYTHONPATH", "")
-    paths.extend(part for part in existing.split(os.pathsep) if part)
     # Auch ein nicht installiertes Entwickler-Checkout muss den optionalen
     # in:si-Trainer-Provider in Kindprozessen auflösen können. In gebündelten
     # Apps zeigt derselbe Pfad auf das PyInstaller-Paketverzeichnis.
@@ -221,6 +265,12 @@ def execution_environment(
         course = get_course_directory()
         if course is not None:
             environment["PYKIM_COURSE_DIR"] = str(course)
+            from .workspace_files import course_files_directory
+
+            environment["INSI_COURSE_FILES"] = str(course_files_directory(course))
+        from .workspace_files import global_files_directory
+
+        environment["INSI_GLOBAL_FILES"] = str(global_files_directory())
         selected_content = str(active_content_root(PACKAGED_CONTENT_ROOT))
         environment["PYKIM_CONTENT_DIR"] = selected_content
         environment["PYKIM_TRAINER_PROVIDER"] = "insi.training.provider:provider"
@@ -248,6 +298,10 @@ def terminate_process(process: subprocess.Popen[object], *, force: bool = False)
 
     if process.poll() is not None:
         return
+    terminate_tree = getattr(process, "terminate_tree", None)
+    if callable(terminate_tree):
+        terminate_tree(force=force)
+        return
     if os.name != "nt":
         try:
             os.killpg(process.pid, signal.SIGKILL if force else signal.SIGTERM)
@@ -270,10 +324,14 @@ def limited_output(value: str, limit: int) -> tuple[str, bool]:
 
 
 __all__ = [
-    "ACTIVE_PROTECTION",
     "CodeOrigin",
+    "DEFAULT_MAX_CPU_SECONDS",
+    "DEFAULT_MAX_MEMORY_BYTES",
     "ExecutionPolicy",
-    "ExecutionProtection",
+    "DEFAULT_MAX_OUTPUT_CHARS",
+    "DEFAULT_MAX_PROCESSES",
+    "DEFAULT_MAX_WRITTEN_BYTES",
+    "DEFAULT_TIMEOUT_SECONDS",
     "builtin_policy",
     "course_code_policy",
     "execution_environment",

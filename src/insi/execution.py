@@ -5,6 +5,7 @@ import threading
 import os
 import tempfile
 import uuid
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -12,13 +13,16 @@ from .interpreter import python_command
 from .execution_security import (
     DEFAULT_MAX_OUTPUT_CHARS,
     DEFAULT_TIMEOUT_SECONDS,
+    builtin_policy,
     course_code_policy,
     execution_environment,
     limited_output,
-    popen_isolation_options,
     student_policy,
     terminate_process,
 )
+from .progress import merge_sandbox_progress, prepare_sandbox_progress
+from .sandbox import SandboxedProcess, sandbox_popen
+from .workspace_files import sandbox_readable_roots
 
 
 @dataclass(frozen=True)
@@ -29,11 +33,12 @@ class ExecutionResult:
     stopped: bool = False
     timed_out: bool = False
     output_truncated: bool = False
+    limit_reason: str | None = None
 
 
 class ExecutionManager:
     def __init__(self) -> None:
-        self._processes: dict[Path, subprocess.Popen[str]] = {}
+        self._processes: dict[Path, SandboxedProcess] = {}
         self._stopped: set[Path] = set()
         self._lock = threading.Lock()
 
@@ -64,54 +69,73 @@ class ExecutionManager:
     ) -> ExecutionResult:
         target = self._target(path, course)
         root = Path(course).expanduser().resolve()
+        run_root = Path(tempfile.mkdtemp(prefix="insi-task-"))
+        progress_path = run_root / "progress.json"
+        progress_baseline = prepare_sandbox_progress(progress_path, root)
         policy = student_policy(
-            root,
+            run_root,
+            readable_roots=sandbox_readable_roots(root, target),
+            writable_roots=(run_root,),
             timeout_seconds=timeout_seconds,
             max_output_chars=max_output_chars,
+            allow_gui=not headless,
         )
+        overrides = {
+            "INSI_PROGRESS_FILE": str(progress_path),
+            "INSI_RUN_FILES": str(run_root),
+        }
+        if headless:
+            overrides["PYKIM_HEADLESS"] = "1"
         environment = execution_environment(
             policy,
             pythonpath=(root,),
-            overrides={"PYKIM_HEADLESS": "1"} if headless else None,
+            overrides=overrides,
         )
         with self._lock:
             previous = self._processes.get(target)
             if previous is not None and previous.poll() is None:
+                shutil.rmtree(run_root, ignore_errors=True)
                 raise RuntimeError("Diese Aufgabe läuft bereits.")
-            process = subprocess.Popen(
-                [*python_command(), str(target)],
-                cwd=target.parent,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                env=environment,
-                **popen_isolation_options(),
-            )
+            try:
+                process = sandbox_popen(
+                    [*python_command(), str(target)],
+                    policy=policy,
+                    cwd=run_root,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    env=environment,
+                )
+            except Exception:
+                shutil.rmtree(run_root, ignore_errors=True)
+                raise
             self._processes[target] = process
             self._stopped.discard(target)
         try:
-            timed_out = False
-            try:
-                stdout, stderr = process.communicate(timeout=policy.timeout_seconds)
-            except subprocess.TimeoutExpired:
-                timed_out = True
-                terminate_process(process)
-                try:
-                    stdout, stderr = process.communicate(timeout=3)
-                except subprocess.TimeoutExpired:
-                    terminate_process(process, force=True)
-                    stdout, stderr = process.communicate()
+            stdout, stderr, timed_out, capture_truncated = (
+                process.communicate_bounded(timeout=policy.timeout_seconds)
+            )
+            if timed_out:
                 timeout_message = (
                     f"Das Programm wurde nach {policy.timeout_seconds:g} Sekunden "
                     "automatisch beendet."
                 )
                 stderr = f"{stderr}\n{timeout_message}".strip()
+            if capture_truncated and len(stdout) >= policy.max_output_chars:
+                stdout += "\n"
+            if capture_truncated and len(stderr) >= policy.max_output_chars:
+                stderr += "\n"
             stdout, stdout_truncated = limited_output(
                 stdout, policy.max_output_chars
             )
             stderr, stderr_truncated = limited_output(
                 stderr, policy.max_output_chars
             )
+            if process.violation_reason:
+                stderr = (
+                    f"{stderr}\nDas Programm wurde beendet: "
+                    f"{process.violation_reason}"
+                ).strip()
             with self._lock:
                 stopped = target in self._stopped
             return ExecutionResult(
@@ -120,9 +144,16 @@ class ExecutionManager:
                 stderr,
                 stopped,
                 timed_out,
-                stdout_truncated or stderr_truncated,
+                capture_truncated or stdout_truncated or stderr_truncated,
+                process.violation_reason,
             )
         finally:
+            merge_sandbox_progress(
+                progress_path,
+                root,
+                baseline_attempts=progress_baseline,
+            )
+            shutil.rmtree(run_root, ignore_errors=True)
             with self._lock:
                 self._processes.pop(target, None)
                 self._stopped.discard(target)
@@ -131,20 +162,40 @@ class ExecutionManager:
         """Starte ein Pyxel-Fenster, ohne die Suite auf dessen Ende warten zu lassen."""
         target = self._target(path, course)
         root = Path(course).expanduser().resolve()
-        policy = student_policy(root)
-        environment = execution_environment(policy, pythonpath=(root,))
+        run_root = Path(tempfile.mkdtemp(prefix="insi-preview-"))
+        progress_path = run_root / "progress.json"
+        progress_baseline = prepare_sandbox_progress(progress_path, root)
+        policy = student_policy(
+            run_root,
+            readable_roots=sandbox_readable_roots(root, target),
+            writable_roots=(run_root,),
+            allow_gui=True,
+        )
+        environment = execution_environment(
+            policy,
+            pythonpath=(root,),
+            overrides={
+                "INSI_PROGRESS_FILE": str(progress_path),
+                "INSI_RUN_FILES": str(run_root),
+            },
+        )
         with self._lock:
             previous = self._processes.get(target)
             if previous is not None and previous.poll() is None:
+                shutil.rmtree(run_root, ignore_errors=True)
                 raise RuntimeError("Die Vorschau dieser Aufgabe läuft bereits.")
-            process = subprocess.Popen(
-                [*python_command(), str(target)],
-                cwd=target.parent,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                env=environment,
-                **popen_isolation_options(),
-            )
+            try:
+                process = sandbox_popen(
+                    [*python_command(), str(target)],
+                    policy=policy,
+                    cwd=run_root,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    env=environment,
+                )
+            except Exception:
+                shutil.rmtree(run_root, ignore_errors=True)
+                raise
             self._processes[target] = process
             self._stopped.discard(target)
 
@@ -159,6 +210,12 @@ class ExecutionManager:
                     terminate_process(process, force=True)
                     process.wait()
             finally:
+                merge_sandbox_progress(
+                    progress_path,
+                    root,
+                    baseline_attempts=progress_baseline,
+                )
+                shutil.rmtree(run_root, ignore_errors=True)
                 with self._lock:
                     if self._processes.get(target) is process:
                         self._processes.pop(target, None)
@@ -192,7 +249,7 @@ execution_manager = ExecutionManager()
 
 @dataclass
 class ScriptExampleJob:
-    process: subprocess.Popen[str]
+    process: SandboxedProcess
     path: Path
     stdout: str = ""
     stderr: str = ""
@@ -215,30 +272,33 @@ class ScriptExampleManager:
         *,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         max_output_chars: int = DEFAULT_MAX_OUTPUT_CHARS,
+        trusted: bool = False,
     ) -> str:
         descriptor, filename = tempfile.mkstemp(prefix="pykim-script-", suffix=".py")
         path = Path(filename)
         with os.fdopen(descriptor, "w", encoding="utf-8") as target:
             target.write(source.rstrip() + "\n")
-        policy = course_code_policy(
+        policy_factory = builtin_policy if trusted else course_code_policy
+        policy = policy_factory(
             path.parent,
             timeout_seconds=timeout_seconds,
             max_output_chars=max_output_chars,
+            allow_gui=True,
         )
         environment = execution_environment(
             policy,
             overrides={"PYKIM_PROGRESS_MODE": "disabled"},
         )
         try:
-            process = subprocess.Popen(
+            process = sandbox_popen(
                 [*python_command(), "-u", str(path)],
+                policy=policy,
                 cwd=path.parent,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
                 env=environment,
-                **popen_isolation_options(),
             )
         except Exception:
             path.unlink(missing_ok=True)
@@ -290,6 +350,12 @@ class ScriptExampleManager:
                     message = (
                         f"\nDas Beispiel wurde nach {policy.timeout_seconds:g} "
                         "Sekunden automatisch beendet.\n"
+                    )
+                    job.stderr = (job.stderr + message)[-policy.max_output_chars:]
+                if job.process.violation_reason:
+                    message = (
+                        "\nDas Beispiel wurde beendet: "
+                        f"{job.process.violation_reason}\n"
                     )
                     job.stderr = (job.stderr + message)[-policy.max_output_chars:]
                 job.finished = True

@@ -2,10 +2,10 @@
 
 from .library import TaskAssignment as Assignment
 from .library import task_assignment
-from insi.training.registry import exercise_names
+from insi.training.registry import trainable_names
 
 
-ASSIGNMENTS = {name: task_assignment(name) for name in exercise_names()}
+ASSIGNMENTS = {name: task_assignment(name) for name in trainable_names()}
 
 
 def refresh_assignments(
@@ -19,7 +19,7 @@ def refresh_assignments(
             content_root=content_root,
             assignments_path=assignments_path,
         )
-        for name in exercise_names()
+        for name in trainable_names()
     }
     # Bereits importierte Referenzen müssen denselben Kursstand sehen. Ein
     # Rebinding würde unter anderem Views und Erweiterungen auf dem alten

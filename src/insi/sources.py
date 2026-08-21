@@ -12,6 +12,10 @@ from .updates import active_content_root
 
 APPLICATION_SOURCE_URL = "https://github.com/finalnode/insi"
 APPLICATION_LICENSE_URL = "https://github.com/finalnode/insi/blob/main/LICENSE"
+APPLICATION_PRIVACY_URL = "https://github.com/finalnode/insi/blob/main/DATENSCHUTZ.md"
+PYKIM_SOURCE_URL = "https://github.com/finalnode/PyKIM"
+PYKIM_LICENSE_URL = "https://github.com/finalnode/PyKIM/blob/main/LICENSE"
+TOAST_EDITOR_LICENSE_URL = "https://github.com/nhn/tui.editor/blob/master/LICENSE"
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,8 +58,22 @@ def _course_task_sources(setup: CourseSetup) -> tuple[SourceReference, ...]:
 def source_references(setup: CourseSetup | None) -> tuple[SourceReference, ...]:
     """Sammle Software-, Kurs- und Aufgabenquellen ohne Dubletten."""
     references = [
-        SourceReference("Quellcode von in:si und PyKIM", APPLICATION_SOURCE_URL, "software"),
-        SourceReference("MIT-Lizenz von in:si und PyKIM", APPLICATION_LICENSE_URL, "license"),
+        SourceReference("Quellcode von in:si", APPLICATION_SOURCE_URL, "software"),
+        SourceReference(
+            "AGPL-3.0-or-later von in:si", APPLICATION_LICENSE_URL, "license"
+        ),
+        SourceReference("Quellcode von PyKIM", PYKIM_SOURCE_URL, "software"),
+        SourceReference("MIT-Lizenz von PyKIM", PYKIM_LICENSE_URL, "license"),
+        SourceReference(
+            "Datenschutz und lokaler Datenbestand",
+            APPLICATION_PRIVACY_URL,
+            "privacy",
+        ),
+        SourceReference(
+            "MIT-Lizenz des TOAST UI Editors",
+            TOAST_EDITOR_LICENSE_URL,
+            "license",
+        ),
     ]
     if setup is not None:
         if setup.repository:

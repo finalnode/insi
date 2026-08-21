@@ -8,6 +8,8 @@ import re
 
 import yaml
 
+from .backends import TRAINER_FORMAT
+
 @dataclass(frozen=True)
 class MatchingPair:
     id: str
@@ -157,15 +159,18 @@ def activity_from_data(
     return Activity(name, title, mode, blocks=blocks, solution=tuple(solution))
 
 
-def _validate_answer(data: dict) -> None:
+def _answer_from_data(data: dict) -> Activity:
     unknown = set(data) - {"id", "title", "mode"}
     if unknown:
         raise ValueError(
             "Unbekannte Felder für Antwortaufgabe: "
             + ", ".join(sorted(unknown))
         )
-    _text(data.get("id"), "id")
-    _text(data.get("title"), "title")
+    return Activity(
+        _text(data.get("id"), "id"),
+        _text(data.get("title"), "title"),
+        "answer",
+    )
 
 
 def load_activities(
@@ -174,13 +179,28 @@ def load_activities(
 ) -> dict[str, Activity]:
     result = {}
     assignments = Path(assignments_path) if assignments_path is not None else None
-    for source in sorted(Path(path).glob("*.yml")):
+    root = Path(path)
+    sources = list(sorted(root.glob("*.yml")))
+    core_directory = root / "core"
+    if core_directory.is_dir():
+        sources.extend(sorted(core_directory.glob("*.yml")))
+    for source in sources:
         data = yaml.safe_load(source.read_text(encoding="utf-8"))
-        if not isinstance(data, dict) or data.get("format") != 1:
+        if (
+            not isinstance(data, dict)
+            or data.get("format") not in {1, TRAINER_FORMAT}
+            or data.get("engine") not in {None, "core", "pykim"}
+        ):
             continue
-        definition = {key: value for key, value in data.items() if key != "format"}
+        definition = {
+            key: value for key, value in data.items()
+            if key not in {"format", "engine"}
+        }
         if definition.get("mode") == "answer":
-            _validate_answer(definition)
+            activity = _answer_from_data(definition)
+            if activity.name in result:
+                raise ValueError(f"Die Aktivitätskennung {activity.name!r} ist doppelt.")
+            result[activity.name] = activity
             continue
         markdown = None
         if definition.get("mode") == "parsons" and assignments is not None:

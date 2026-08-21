@@ -125,7 +125,7 @@ def render_overview(ui) -> None:
     with ui.grid(columns=2).classes("w-full gap-4"):
         for name in task_names():
             activity = get_activity(name)
-            exercise = None if activity is not None and activity.mode == "matching" else get_exercise(name)
+            exercise = None if activity is not None else get_exercise(name)
             attempt = latest.get(name)
             with ui.card().classes("w-full"):
                 ui.label(activity.title if exercise is None else exercise.title).classes("font-bold")

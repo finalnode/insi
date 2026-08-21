@@ -491,13 +491,11 @@ def install_course_archive_content(bundle: CourseArchive) -> Path:
             destination.write_bytes(data)
         _validate_content(staging, manifest)
 
-        from insi.training.activities import load_activities
-        from pykim.trainer.definitions import load_exercises
+        from insi.training.registry import validate_training_directory
 
         trainer_directory = staging / bundle.setup.trainers_path
         if trainer_directory.is_dir():
-            load_exercises(trainer_directory)
-            load_activities(
+            validate_training_directory(
                 trainer_directory,
                 staging / bundle.setup.assignments_path,
             )
