@@ -249,6 +249,17 @@ class BubblewrapAdapter:
         return _existing_roots(candidates)
 
     @staticmethod
+    def _resolved_command(command: Sequence[str]) -> tuple[str, ...]:
+        if not command:
+            return ()
+        executable = shutil.which(str(command[0])) or str(command[0])
+        try:
+            executable = str(Path(executable).expanduser().resolve(strict=True))
+        except (OSError, RuntimeError):
+            executable = str(command[0])
+        return (executable, *(str(argument) for argument in command[1:]))
+
+    @staticmethod
     def _gui_roots(environment: Mapping[str, str]) -> tuple[Path, ...]:
         candidates: list[Path] = []
         runtime = environment.get("XDG_RUNTIME_DIR")
@@ -328,7 +339,9 @@ class BubblewrapAdapter:
                     arguments.extend(("--ro-bind", str(root), str(root)))
             for root in writable:
                 arguments.extend(("--bind", str(root), str(root)))
-            arguments.extend(("--chdir", str(cwd), "--", *map(str, command)))
+            arguments.extend(
+                ("--chdir", str(cwd), "--", *self._resolved_command(command))
+            )
             child_environment = dict(environment)
             child_environment.update(
                 {
