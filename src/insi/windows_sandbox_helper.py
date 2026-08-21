@@ -66,6 +66,8 @@ def decode_payload(value: str) -> dict[str, Any]:
         for key, item in environment.items()
     ):
         raise ValueError("Die Windows-Sandboxumgebung ist ungültig.")
+    if not isinstance(data.get("allow_gui"), bool):
+        raise ValueError("Die Windows-Sandbox-GUI-Richtlinie ist ungültig.")
     violation_file = data.get("violation_file")
     if violation_file is not None and (
         not isinstance(violation_file, str) or not violation_file
@@ -513,16 +515,17 @@ class _WindowsBroker:
             ),
             "SetInformationJobObject",
         )
-        ui_limits = wintypes.DWORD(self.JOB_OBJECT_UILIMIT_ALL)
-        self._check_bool(
-            self.kernel32.SetInformationJobObject(
-                job,
-                self.JOB_OBJECT_BASIC_UI_RESTRICTIONS,
-                ctypes.byref(ui_limits),
-                ctypes.sizeof(ui_limits),
-            ),
-            "SetInformationJobObject(UI)",
-        )
+        if not self.payload["allow_gui"]:
+            ui_limits = wintypes.DWORD(self.JOB_OBJECT_UILIMIT_ALL)
+            self._check_bool(
+                self.kernel32.SetInformationJobObject(
+                    job,
+                    self.JOB_OBJECT_BASIC_UI_RESTRICTIONS,
+                    ctypes.byref(ui_limits),
+                    ctypes.sizeof(ui_limits),
+                ),
+                "SetInformationJobObject(UI)",
+            )
 
         invalid_handle = ctypes.c_void_p(-1).value
         port = self.kernel32.CreateIoCompletionPort(invalid_handle, None, 0, 1)
