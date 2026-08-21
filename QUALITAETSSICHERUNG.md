@@ -62,6 +62,12 @@ Normale Tests:
 pytest
 ```
 
+Die Linux-Sicherheitsjobs verwenden derzeit den weiterhin unterstützten
+GitHub-Runner `ubuntu-22.04`. Der Runner `ubuntu-24.04` verweigert Bubblewrap in
+der gehosteten CI beim Konfigurieren des isolierten Loopback-Interfaces. Die
+Prüfung wird deshalb nicht übersprungen oder abgeschwächt, sondern auf dem
+Runner ausgeführt, der den echten Netzwerk-Namespace bereitstellen kann.
+
 Der UI-Gesamtworkflow benötigt NiceGUI und lokale Prozess-Semaphoren:
 
 ```bash
