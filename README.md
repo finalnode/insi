@@ -1,5 +1,9 @@
 # <img src="packaging/macos/assets/app-icon-master.png" alt="in:si-Logo" width="72" align="center"> in:si
 
+[![Desktop-Builds](https://github.com/finalnode/insi/actions/workflows/build-desktop.yml/badge.svg?branch=main)](https://github.com/finalnode/insi/actions/workflows/build-desktop.yml)
+[![Aktuelles Release](https://img.shields.io/github/v/release/finalnode/insi?label=Download)](https://github.com/finalnode/insi/releases/latest)
+[![Lizenz: MIT](https://img.shields.io/badge/Lizenz-MIT-blue.svg)](LICENSE)
+
 **in:si 0.6.0** ist eine lokale Desktop-Lernumgebung für modulare
 Informatikkurse. Sie bringt Kursinstallation, Lerntexte, interaktive Aufgaben,
 automatische Tests, Lernstand, Projekte und Autorenwerkzeuge in eine gemeinsame
@@ -138,14 +142,17 @@ Noch offene Arbeiten stehen ausschließlich in der [Roadmap](#roadmap-noch-nicht
 
 | Betriebssystem | Architektur | Download |
 |---|---|---|
-| Windows | x86_64 | **[Windows-App herunterladen](https://github.com/finalnode/insi/releases/tag/v0.6.0)** |
-| Linux | x86_64 | **[Linux-App herunterladen](https://github.com/finalnode/insi/releases/tag/v0.6.0)** |
-| macOS | Apple Silicon (`arm64`) | **[macOS-App für Apple Silicon herunterladen](https://github.com/finalnode/insi/releases/tag/v0.6.0)** |
-| macOS | Intel (`x86_64`) | **[macOS-App für Intel herunterladen](https://github.com/finalnode/insi/releases/tag/v0.6.0)** |
+| Windows | x86_64 | **[ZIP direkt herunterladen](https://github.com/finalnode/insi/releases/download/v0.6.0/insi-0.6.0-windows-x86_64.zip)** |
+| Linux | x86_64 | **[TAR.GZ direkt herunterladen](https://github.com/finalnode/insi/releases/download/v0.6.0/insi-0.6.0-linux-x86_64.tar.gz)** |
+| macOS | Apple Silicon (`arm64`) | **[DMG direkt herunterladen](https://github.com/finalnode/insi/releases/download/v0.6.0/insi-0.6.0-macos-arm64.dmg)** |
+| macOS | Intel (`x86_64`) | **[DMG direkt herunterladen](https://github.com/finalnode/insi/releases/download/v0.6.0/insi-0.6.0-macos-x86_64.dmg)** |
 
-Die Pakete werden durch GitHub Actions auf dem jeweiligen Zielsystem gebaut und
-unter [GitHub Releases](https://github.com/finalnode/insi/releases)
-bereitgestellt.
+Jede Änderung auf `main` wird durch
+[GitHub Actions](https://github.com/finalnode/insi/actions/workflows/build-desktop.yml)
+auf allen vier Zielsystemen getestet und gebaut. Dauerhaft veröffentlichte,
+direkt herunterladbare Pakete stehen unter
+[GitHub Releases](https://github.com/finalnode/insi/releases); sie entstehen aus
+einem Versionstag wie `v0.6.0`.
 
 ### PyKIM-Beispielkurs
 
