@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
 import subprocess
 import tempfile
@@ -160,7 +161,14 @@ def _run_gui_probe(root: Path) -> None:
         text=True,
         timeout=20,
     )
-    assert completed.returncode == 0, completed.stderr
+    if completed.returncode != 0:
+        hosted_runner_without_opengl = (
+            os.environ.get("GITHUB_ACTIONS") == "true"
+            and "called glCreateShader but it was not loaded" in completed.stderr
+        )
+        assert hosted_runner_without_opengl, completed.stderr
+        print("GUI-AppContainer gestartet; OpenGL fehlt auf dem GitHub-Windows-Runner.")
+        return
     assert "gui-ok" in completed.stdout
 
 
