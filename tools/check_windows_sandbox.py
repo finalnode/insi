@@ -92,7 +92,10 @@ def _run_process_limit_probe(root: Path) -> None:
         timeout=20,
     )
     assert completed.returncode != 0
-    assert "Prozessgrenze" in completed.stderr, completed.stderr
+    assert (
+        "Prozessgrenze" in completed.stderr
+        or "WinError 1816" in completed.stderr
+    ), completed.stderr
 
 
 def _run_write_limit_probe(root: Path) -> None:
