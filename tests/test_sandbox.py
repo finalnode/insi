@@ -281,6 +281,7 @@ def test_windows_broker_payload_rejects_tampering_and_invalid_limits(tmp_path):
         "environment": {},
         "readable_roots": [],
         "writable_roots": [str(tmp_path)],
+        "allow_gui": False,
         "limits": {
             "timeout_seconds": 1,
             "max_cpu_seconds": 1,
@@ -466,6 +467,7 @@ def test_windows_broker_declares_fail_closed_kernel_controls():
         assert expected in source
     assert "GetAppContainerFolderPath(\n            self.sid_string" in source
     assert 'self._icacls(parent, ["/grant:r", f"*{self.sid_string}:RX"])' in source
+    assert 'if not self.payload["allow_gui"]:' in source
 
 
 @pytest.mark.parametrize(
