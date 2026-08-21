@@ -194,10 +194,17 @@ Die Projektansicht soll nicht zu einem allgemeinen Aufgabenmanager werden.
 Planung und Kompetenzzuordnung dienen unmittelbar dem Lernprojekt: Eine Karte
 kann etwa auf Quellcode, Dokumentation, einen Test oder eine Reflexion zeigen.
 Kompetenzmodelle bleiben optional und werden vom jeweiligen Kurs definiert.
+Ausgewählte Ergebnisse sollen außerdem bewusst aus ihrem ursprünglichen Kurs in
+einen persönlichen globalen Bestand übernommen werden können. So lässt sich
+beispielsweise eine in einem Datenbankkurs entwickelte Datenbank später in
+anderen Kursen oder eigenen Projekten weiterverwenden, ohne den gesamten
+ursprünglichen Kurs kopieren zu müssen.
 
 - lokale Kanban-Boards mit Karten, Checklisten und Projektdateiverknüpfungen;
 - Kompetenzmodelle als optionale, kursdefinierte Struktur;
 - Aufgaben, Projekte und Rückmeldungen nachvollziehbar Kompetenzen zuordnen;
+- ausgewählte Kursergebnisse mit nachvollziehbarer Herkunft in den persönlichen
+  globalen Bestand übernehmen und in anderen Kursen oder Projekten verwenden;
 - persönliche Übersichten für Projektstand und Kompetenzentwicklung;
 - verständlicher Export der zugehörigen lokalen Daten ohne Bindung an einen
   zentralen Dienst.

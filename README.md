@@ -180,7 +180,7 @@ Noch offene Arbeiten stehen ausschließlich in der [Roadmap](#roadmap).
 - Projektdokumentationen visuell oder direkt als portables Markdown bearbeiten;
 - Dateien gezielt global, für einen Kurs oder für ein Projekt in den
   in:si-Workspace kopieren;
-- persönliche Erweiterungen kursübergreifend verwenden;
+- persönliche Erweiterungen innerhalb des jeweiligen Kurses wiederverwenden;
 - Thonny und VS Code mit dem ausgewählten Kursinterpreter starten;
 - Pyxel-Ressourcen und offizielle Beispiele verwenden.
 
@@ -639,3 +639,7 @@ ausgewiesen. Der lokal gebündelte TOAST UI Editor steht unter MIT; DOMPurify
 kann unter Apache 2.0 beziehungsweise MPL 2.0 genutzt werden. Copyrights,
 Original-Lizenztexte, Bezugsquelle und Prüfsumme stehen in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+> **Concept by human. Crafted by human + AI.**
+> Konzept und pädagogische Verantwortung: Projektverantwortliche von in:si
+> KI-Unterstützung: OpenAI Codex
