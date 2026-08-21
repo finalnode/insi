@@ -1,6 +1,6 @@
 {
-  "format": "pykim-course-setup-v1",
-  "name": "pykim-standardkurs.pykim-setup",
+  "format": "insi-course-setup-v1",
+  "name": "pykim-standardkurs.insi-setup",
   "teacher": "PyKIM-Team",
   "school": "OSZ KIM",
   "course": "PyKIM Standardkurs",

@@ -13,7 +13,7 @@ def render_script_reader(ui) -> None:
         ui.label("PyKIM-Skript").classes("text-2xl font-bold")
         ui.label(
             "Noch kein Kurs eingerichtet. Importiere im Setup die "
-            ".pykim-setup-Datei deiner Lehrkraft."
+            ".insi-setup-Datei deiner Lehrkraft."
         ).classes("text-grey-7")
         return
     chapters = tuple(

@@ -233,13 +233,48 @@ def test_runtime_version_matches_project_metadata():
 
 def test_published_example_course_setup_is_valid():
     setup = Path(__file__).parents[1] / "examples" / "course-setups" / (
-        "pykim-standardkurs.pykim-setup"
+        "pykim-standardkurs.insi-setup"
     )
     from insi.course_setup import setup_info
 
     parsed = setup_info(setup)
     assert parsed.course == "PyKIM Standardkurs"
     assert parsed.repository == "https://github.com/finalnode/PyKIM_Kurs.git"
+
+
+def test_legacy_course_setup_is_migrated_with_backup(tmp_path):
+    from insi.course_setup import (
+        LEGACY_SETUP_FILENAME,
+        SETUP_FILENAME,
+        course_setup_info,
+    )
+
+    course = tmp_path / "legacy-course"
+    legacy = course / ".pykim" / LEGACY_SETUP_FILENAME
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text(json.dumps({
+        "format": "pykim-course-setup-v1",
+        "name": "python-legacy.pykim-setup",
+        "teacher": "Frau Beispiel",
+        "school": "OSZ KIM",
+        "course": "Python Legacy",
+        "repository": "https://github.com/example/course.git",
+        "branch": "main",
+        "scripts_path": "Skripte",
+        "assignments_path": "Aufgaben",
+        "trainers_path": "Trainer",
+    }), encoding="utf-8")
+
+    info = course_setup_info(course)
+
+    assert info is not None
+    assert info.name == "python-legacy.insi-setup"
+    migrated = course / ".pykim" / SETUP_FILENAME
+    assert json.loads(migrated.read_text(encoding="utf-8"))["format"] == (
+        "insi-course-setup-v1"
+    )
+    assert not legacy.exists()
+    assert (course / ".pykim" / "backups" / LEGACY_SETUP_FILENAME).is_file()
 
 
 def test_footer_sources_collect_software_course_and_assignment_sources(
@@ -258,7 +293,7 @@ def test_footer_sources_collect_software_course_and_assignment_sources(
     )
     monkeypatch.setenv("PYKIM_CONTENT_DIR", str(content))
     setup_path = Path(__file__).parents[1] / "examples" / "course-setups" / (
-        "pykim-standardkurs.pykim-setup"
+        "pykim-standardkurs.insi-setup"
     )
     from insi.course_setup import setup_info
 
@@ -297,8 +332,8 @@ def test_course_catalog_rejects_an_invalid_setup():
                 "level": "Test",
                 "tags": ["Test"],
                 "setup": {
-                    "format": "pykim-course-setup-v1",
-                    "name": "unsafe.pykim-setup",
+                    "format": "insi-course-setup-v1",
+                    "name": "unsafe.insi-setup",
                     "teacher": "Test",
                     "school": "Test",
                     "course": "Test",
@@ -386,8 +421,8 @@ def test_each_selected_course_uses_its_own_cached_content(tmp_path, monkeypatch)
 def test_uploaded_setup_creates_and_selects_a_managed_course(tmp_path, monkeypatch):
     monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
     data = json.dumps({
-        "format": "pykim-course-setup-v1",
-        "name": "python-11a.pykim-setup",
+        "format": "insi-course-setup-v1",
+        "name": "python-11a.insi-setup",
         "teacher": "Frau Beispiel",
         "school": "OSZ KIM",
         "course": "Python 11A",
@@ -434,8 +469,8 @@ def test_uploaded_setup_creates_and_selects_a_managed_course(tmp_path, monkeypat
 
 def portable_course_archive(*, prefix: str = "") -> bytes:
     setup = {
-        "format": "pykim-course-setup-v1",
-        "name": "python-11a.pykim-setup",
+        "format": "insi-course-setup-v1",
+        "name": "python-11a.insi-setup",
         "teacher": "Frau Beispiel",
         "school": "OSZ KIM",
         "course": "Python 11A",
@@ -448,7 +483,7 @@ def portable_course_archive(*, prefix: str = "") -> bytes:
     target = io.BytesIO()
     with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(
-            f"{prefix}python-11a.pykim-setup",
+            f"{prefix}python-11a.insi-setup",
             json.dumps(setup, ensure_ascii=False),
         )
         archive.writestr(
@@ -489,7 +524,7 @@ def test_portable_course_archive_ignores_macos_metadata():
         for member in source.infolist():
             archive.writestr(member.filename, source.read(member))
         archive.writestr(
-            "__MACOSX/course-main/._python-11a.pykim-setup",
+            "__MACOSX/course-main/._python-11a.insi-setup",
             b"AppleDouble metadata",
         )
 
@@ -500,11 +535,11 @@ def test_portable_course_archive_ignores_macos_metadata():
 
 def test_course_archive_builder_uses_only_visible_learning_content(tmp_path):
     source = tmp_path / "source"
-    setup = tmp_path / "python-11a.pykim-setup"
+    setup = tmp_path / "python-11a.insi-setup"
     original = portable_course_archive()
     with zipfile.ZipFile(io.BytesIO(original)) as archive:
         for member in archive.infolist():
-            if member.filename.endswith(".pykim-setup"):
+            if member.filename.endswith(".insi-setup"):
                 setup.write_bytes(archive.read(member))
                 continue
             target = source / member.filename
@@ -514,6 +549,8 @@ def test_course_archive_builder_uses_only_visible_learning_content(tmp_path):
     built = parse_course_archive(build_course_archive(source, setup))
 
     assert built.setup.course == "Python 11A"
+    assert built.runtime is not None
+    assert built.runtime.python == "3.11"
     assert "Skripte/_entwurf.md" not in built.files
     assert "README.md" not in built.files
 
@@ -663,7 +700,7 @@ def test_portable_course_archive_rejects_unsafe_paths():
     target = io.BytesIO()
     with zipfile.ZipFile(target, "w") as archive:
         archive.writestr("../ausbruch.txt", "nicht erlaubt")
-        archive.writestr("course.pykim-setup", "{}")
+        archive.writestr("course.insi-setup", "{}")
 
     with pytest.raises(ValueError, match="unsicheren Dateipfad"):
         parse_course_archive(target.getvalue())
@@ -676,7 +713,7 @@ def test_portable_course_archive_rejects_symbolic_links():
     link.external_attr = (stat.S_IFLNK | 0o777) << 16
     with zipfile.ZipFile(target, "w") as archive:
         archive.writestr(link, "../../private")
-        archive.writestr("course-main/course.pykim-setup", "{}")
+        archive.writestr("course-main/course.insi-setup", "{}")
 
     with pytest.raises(ValueError, match="symbolischen Links"):
         parse_course_archive(target.getvalue())
@@ -722,7 +759,7 @@ def test_course_deletion_uses_system_trash_and_forgets_course(tmp_path, monkeypa
     monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
     course = tmp_path / "course"
     create_course(course)
-    setup = course / ".pykim" / "course.pykim-setup"
+    setup = course / ".pykim" / "course.insi-setup"
     setup.parent.mkdir(exist_ok=True)
     setup.write_text("{}", encoding="utf-8")
     trashed = []
@@ -1485,7 +1522,7 @@ def test_runtime_discovery_includes_current_suite_python(tmp_path, monkeypatch):
     monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
     candidates = discover_runtimes()
 
-    current_path = str(Path(__import__("sys").executable).resolve())
+    current_path = str(Path(__import__("sys").executable).absolute())
     current = next(item for item in candidates if item.executable == current_path)
     assert current.supported and current.pykim and current.pyxel
     assert selected_runtime().executable == current.executable
@@ -1579,8 +1616,11 @@ def test_runtime_diagnostics_does_not_contain_student_files(tmp_path, monkeypatc
     monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
     report = runtime_diagnostics(tmp_path / "course")
 
-    assert set(report) == {"platform", "selected", "wheelhouse", "candidates"}
+    assert set(report) == {
+        "platform", "selected", "wheelhouse", "candidates", "preflight"
+    }
     assert all("executable" in item for item in report["candidates"])
+    assert "issues" in report["preflight"]
 
 
 def test_repair_refuses_to_modify_external_python(tmp_path, monkeypatch):

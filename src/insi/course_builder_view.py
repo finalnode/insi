@@ -6,12 +6,25 @@ import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from pykim.trainer.authoring import RULE_LABELS, RULE_TEMPLATES, generate_exercise_source
 
 from .author_workspace import AuthorDraft, assignment_markdown, validate_author_draft
 
 from .course_archive import build_course_archive
+from .course_runtime import (
+    RUNTIME_FILENAME,
+    RUNTIME_PYTHON,
+    RUNTIME_TARGETS,
+    RuntimeManifest,
+    combined_runtime_requirements,
+    download_offline_wheels,
+    manifest_with_wheels,
+    parse_runtime_requirements,
+    runtime_manifest_bytes,
+    write_runtime_manifest,
+)
 from .course_setup import generate_course_setup
 from .library import is_repository_document
 from .markedown import validate_markedown
@@ -250,11 +263,25 @@ def create_portable_course(
     course: str,
     repository: str = "",
     branch: str = "main",
+    additional_requirements: str | tuple[str, ...] = (),
+    include_offline_packages: bool = False,
+    offline_targets: tuple[str, ...] = (),
 ) -> tuple[Path, Path]:
-    """Schreibe die Setupdatei in den Kursstamm und erzeuge ein Offline-ZIP."""
+    """Erzeuge ein kleines Kurs-ZIP oder bewusst ein erweitertes Offlinepaket."""
     root = Path(source).expanduser().resolve()
     if not root.is_dir():
         raise FileNotFoundError("Der Kursordner wurde nicht gefunden.")
+    extra = parse_runtime_requirements(additional_requirements)
+    requirements = combined_runtime_requirements(extra)
+    if offline_targets and not include_offline_packages:
+        raise ValueError("Zielplattformen benötigen den aktivierten Offline-Export.")
+    if include_offline_packages and not extra:
+        raise ValueError(
+            "Gib mindestens ein zusätzliches Paket an, bevor du Pakete einbettest. "
+            "PyKIM und Pyxel liefert in:si bereits selbst mit."
+        )
+    if include_offline_packages and not offline_targets:
+        raise ValueError("Wähle mindestens eine Zielplattform für das Offlinepaket.")
     setup = generate_course_setup(
         root,
         teacher=teacher,
@@ -264,7 +291,32 @@ def create_portable_course(
         branch=branch,
     )
     output = _available_output(root.parent / f"{setup.stem}.zip")
-    output.write_bytes(build_course_archive(root, setup))
+    source_manifest = RuntimeManifest(RUNTIME_PYTHON, requirements)
+    manifest_path = write_runtime_manifest(root / RUNTIME_FILENAME, source_manifest)
+    if include_offline_packages:
+        with TemporaryDirectory(prefix="insi-offline-export-") as temporary:
+            wheels = download_offline_wheels(
+                extra,
+                tuple(offline_targets),
+                temporary,
+            )
+            manifest = manifest_with_wheels(
+                requirements,
+                tuple(offline_targets),
+                wheels,
+            )
+            output.write_bytes(
+                build_course_archive(
+                    root,
+                    setup,
+                    runtime_manifest=runtime_manifest_bytes(manifest),
+                    offline_wheels=wheels,
+                )
+            )
+    else:
+        output.write_bytes(
+            build_course_archive(root, setup, runtime_manifest=manifest_path)
+        )
     return setup, output
 
 
@@ -281,7 +333,7 @@ def register_course_builder_page(ui, nicegui_app, nicegui_run, *, desktop: bool)
                 ui.label("PyKIM Kurswerkstatt").classes("text-2xl font-bold text-primary")
             ui.label(
                 "Erzeugt eine Setupdatei im Kursordner und ein direkt "
-                "importierbares Offline-ZIP."
+                "importierbares Kurs-ZIP."
             ).classes("text-grey-7")
 
             with ui.card().classes("w-full shadow-none border"):
@@ -352,6 +404,41 @@ def register_course_builder_page(ui, nicegui_app, nicegui_run, *, desktop: bool)
                     "Die Setupdatei wird auch in den Kursstamm geschrieben. Damit "
                     "ist später ebenfalls das normale Repository-ZIP importierbar."
                 ).classes("text-sm text-grey-7")
+
+            with ui.card().classes("w-full shadow-none border"):
+                ui.label("Runtime und Exportgröße").classes("text-lg font-bold")
+                ui.label(
+                    "PyKIM und Pyxel werden von in:si bereitgestellt. Zusätzliche "
+                    "Pakete müssen mit einer exakten Version angegeben werden."
+                ).classes("text-sm text-grey-7")
+                additional_packages = ui.textarea(
+                    "Zusätzliche Pythonpakete – eines pro Zeile",
+                    placeholder="numpy==2.2.3\nrequests==2.32.5",
+                ).props("outlined autogrow").classes("w-full")
+                include_offline_packages = ui.checkbox(
+                    "Zusätzliche Pakete für eine vollständig offline nutzbare Installation einbetten",
+                    value=False,
+                )
+                ui.label(
+                    "Standardmäßig bleibt das Kurs-ZIP klein. Aktiviere diese "
+                    "Option nur, wenn die Zusatzpakete ohne Internet installiert werden müssen."
+                ).classes("text-sm text-grey-7")
+                offline_options = ui.column().classes(
+                    "w-full gap-2 rounded border p-3 bg-orange-1"
+                )
+                with offline_options:
+                    ui.label("Zielplattformen").classes("font-bold")
+                    ui.label(
+                        "Jede zusätzliche Plattform kann das Archiv deutlich vergrößern. "
+                        "Die tatsächliche Größe wird nach dem Export angezeigt."
+                    ).classes("text-sm text-orange-10")
+                    target_choices = {
+                        target_id: ui.checkbox(target.label, value=False)
+                        for target_id, target in RUNTIME_TARGETS.items()
+                    }
+                offline_options.bind_visibility_from(
+                    include_offline_packages, "value"
+                )
 
             with ui.expansion("Skripte schreiben", icon="menu_book").classes(
                 "w-full border rounded"
@@ -647,6 +734,17 @@ def register_course_builder_page(ui, nicegui_app, nicegui_run, *, desktop: bool)
                 if not all(str(value or "").strip() for value in values):
                     ui.notify("Fülle bitte alle Kursangaben aus.", type="warning")
                     return
+                selected_targets = tuple(
+                    target_id
+                    for target_id, checkbox in target_choices.items()
+                    if checkbox.value
+                )
+                if include_offline_packages.value and not selected_targets:
+                    ui.notify(
+                        "Wähle mindestens eine Zielplattform für das Offlinepaket.",
+                        type="warning",
+                    )
+                    return
                 activity.set_visibility(True)
                 build_button.disable()
                 try:
@@ -658,6 +756,9 @@ def register_course_builder_page(ui, nicegui_app, nicegui_run, *, desktop: bool)
                         course=course_name.value,
                         repository=repository.value or "",
                         branch=branch.value,
+                        additional_requirements=additional_packages.value or "",
+                        include_offline_packages=bool(include_offline_packages.value),
+                        offline_targets=selected_targets,
                     )
                     refresh_source_status()
                     ui.notify(
@@ -668,7 +769,20 @@ def register_course_builder_page(ui, nicegui_app, nicegui_run, *, desktop: bool)
                     with ui.dialog() as result_dialog, ui.card().classes("w-full max-w-xl"):
                         ui.label("Kurs ist bereit").classes("text-xl font-bold")
                         ui.label(f"Setupdatei: {setup}").classes("break-all")
-                        ui.label(f"Offline-ZIP: {archive}").classes("break-all")
+                        ui.label(f"Kurs-ZIP: {archive}").classes("break-all")
+                        ui.label(
+                            f"Archivgröße: {archive.stat().st_size / (1024 * 1024):.1f} MB"
+                        )
+                        if include_offline_packages.value:
+                            labels = ", ".join(
+                                RUNTIME_TARGETS[target].label
+                                for target in selected_targets
+                            )
+                            ui.label(f"Eingebettete Zielplattformen: {labels}")
+                        else:
+                            ui.label(
+                                "Kompakter Export ohne eingebettete Zusatzpakete."
+                            ).classes("text-grey-7")
                         with ui.row().classes("w-full justify-end"):
                             ui.button("Schließen", on_click=result_dialog.close)
                     result_dialog.open()

@@ -18,9 +18,10 @@ from insi.course_archive import (
     course_content_source,
     parse_course_archive,
 )
-from .course_import_dialogs import confirm_external_course_import
+from .course_import_dialogs import archive_runtime_details, confirm_external_course_import
 from insi.course_setup import (
     course_setup_info,
+    is_setup_filename,
     install_course_archive,
     install_course_setup,
     setup_info,
@@ -28,8 +29,8 @@ from insi.course_setup import (
 from insi.execution_security import ACTIVE_PROTECTION
 from insi.runtime import (
     bundled_wheelhouse,
+    course_runtime_preflight,
     discover_runtimes,
-    is_managed_runtime,
     provision_managed_runtime,
     repair_runtime,
     runtime_diagnostics,
@@ -229,27 +230,50 @@ def render_setup_panel(
         else "Noch kein Offline-Paket eingebunden: Für die Einrichtung kann Internetzugang erforderlich sein."
     ).classes("text-sm text-positive" if offline_wheels else "text-sm text-orange")
     runtimes = discover_runtimes(path.value or None)
+    preflight = course_runtime_preflight(path.value, candidates=runtimes)
     runtime_options = {
         item.executable: (
             f"Python {item.version or '?'} · {item.source} · "
             + (
                 "bereit"
-                if item.supported and item.pykim and item.pyxel
+                if (
+                    preflight.ready
+                    and preflight.candidate is not None
+                    and item.executable == preflight.candidate.executable
+                )
                 else " · ".join(
                     problem for problem, applies in (
                         ("Python-Version ungeeignet", not item.supported),
+                        (
+                            f"Kurs benötigt Python {preflight.required_python}",
+                            bool(preflight.required_python)
+                            and ".".join(item.version.split(".")[:2])
+                            != preflight.required_python,
+                        ),
                         ("PyKIM fehlt", not item.pykim),
                         ("Pyxel fehlt", not item.pyxel),
+                        (
+                            "Paketstand nicht freigegeben",
+                            item.supported
+                            and item.pykim
+                            and item.pyxel
+                            and not (
+                                preflight.ready
+                                and preflight.candidate is not None
+                                and item.executable == preflight.candidate.executable
+                            ),
+                        ),
                     ) if applies
                 )
             )
         )
         for item in runtimes
     }
-    ready_runtime_paths = {
-        item.executable for item in runtimes
-        if item.supported and item.pykim and item.pyxel
-    }
+    ready_runtime_paths = (
+        {preflight.candidate.executable}
+        if preflight.ready and preflight.candidate is not None
+        else set()
+    )
     configured_runtime = get_runtime_preference()
     runtime_value = (
         configured_runtime
@@ -261,6 +285,35 @@ def render_setup_panel(
         value=runtime_value,
         label="Interpreter",
     ).classes("w-full")
+
+    with ui.column().classes(
+        "w-full gap-1 rounded border p-3 "
+        + ("bg-green-1" if preflight.ready else "bg-orange-1")
+    ):
+        with ui.row().classes("items-center gap-2"):
+            ui.icon(
+                "verified" if preflight.ready else "warning",
+                color="positive" if preflight.ready else "warning",
+            )
+            ui.label(
+                "Kursstartprüfung bestanden"
+                if preflight.ready
+                else "Kursstartprüfung: Eingriff erforderlich"
+            ).classes("font-bold")
+        if preflight.required_python:
+            ui.label(f"Kursvorgabe: Python {preflight.required_python}").classes(
+                "text-sm"
+            )
+        for issue in preflight.issues:
+            ui.label(issue).classes("text-sm text-negative")
+        for warning in preflight.warnings:
+            ui.label(warning).classes("text-sm text-orange-9")
+        for package in preflight.packages:
+            installed = package.installed or "fehlt"
+            ui.label(
+                f"{'✓' if package.ready else '✗'} {package.requirement} "
+                f"(installiert: {installed})"
+            ).classes("text-xs")
 
     def save_runtime() -> None:
         if not runtime_choice.value:
@@ -372,13 +425,11 @@ def render_setup_panel(
         ).props("outline")
         runtime_activity = ui.spinner(size="lg", color="primary")
         runtime_activity.set_visibility(False)
-        if not (
-            configured_runtime
-            and is_managed_runtime(configured_runtime, path.value)
-        ):
+        if not preflight.repairable:
             runtime_repair_button.disable()
             runtime_repair_button.tooltip(
-                "Wähle oder erstelle zuerst eine verwaltete PyKIM-Kursumgebung."
+                "Die aktuelle Diagnose kann nicht durch eine Reparatur der "
+                "vorhandenen Kursumgebung behoben werden."
             )
 
         def copy_runtime_diagnostics() -> None:
@@ -456,7 +507,7 @@ def render_setup_panel(
 
     async def import_setup_certificate(
         data: bytes,
-        filename: str = "course.pykim-setup",
+        filename: str = "course.insi-setup",
     ) -> None:
         course = Path(path.value).expanduser().resolve()
         if not course.is_dir():
@@ -467,18 +518,22 @@ def render_setup_panel(
             bundle = await nicegui_run.io_bound(parse_course_archive, data)
             candidate = bundle.setup
             source = f"Lokales ZIP-Archiv · {filename}"
-        elif filename.casefold().endswith(".pykim-setup"):
+            runtime_details = archive_runtime_details(bundle)
+        elif is_setup_filename(filename):
             candidate = setup_info(data)
             source = candidate.repository
+            runtime_details = ()
         else:
             ui.notify(
-                "Wähle eine .pykim-setup- oder .zip-Datei.",
+                "Wähle eine .insi-setup-, ältere .pykim-setup- oder .zip-Datei.",
                 type="negative",
             )
             return
         if not await confirm_external_course_import(
+            ui,
             candidate.course,
             source,
+            runtime_details,
         ):
             ui.notify("Kursimport abgebrochen.", type="info")
             return
@@ -517,11 +572,11 @@ def render_setup_panel(
         if selected:
             certificate_path = Path(selected[0])
             if not (
-                certificate_path.name.casefold().endswith(".pykim-setup")
+                is_setup_filename(certificate_path.name)
                 or certificate_path.suffix.casefold() == ".zip"
             ):
                 ui.notify(
-                    "Wähle eine .pykim-setup- oder .zip-Datei.",
+                    "Wähle eine .insi-setup-, ältere .pykim-setup- oder .zip-Datei.",
                     type="negative",
                 )
                 return
@@ -547,7 +602,7 @@ def render_setup_panel(
                 on_upload=upload_setup_certificate,
                 auto_upload=True,
                 max_file_size=MAX_ARCHIVE_SIZE,
-            ).props("accept=.pykim-setup,.zip")
+            ).props("accept=.insi-setup,.pykim-setup,.zip")
         with ui.column().classes("gap-1") as certificate_activity:
             with ui.row().classes("items-center gap-2"):
                 ui.spinner(size="sm", color="primary")

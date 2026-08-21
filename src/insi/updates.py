@@ -22,6 +22,7 @@ from urllib.parse import quote
 from . import __version__
 from .course import _config_directory
 from .network import urlopen
+from .course_runtime import RUNTIME_FILENAME, parse_runtime_manifest
 
 
 REPOSITORY = "finalnode/insi"
@@ -362,6 +363,9 @@ def _course_content_paths(tree: object, configuration) -> set[str]:
         name = entry.get("path")
         if not isinstance(name, str) or not _safe_member(name):
             continue
+        if name == RUNTIME_FILENAME:
+            result.add(name)
+            continue
         path = PurePosixPath(name)
         if any(part.startswith("_") for part in path.parts):
             continue
@@ -369,7 +373,7 @@ def _course_content_paths(tree: object, configuration) -> set[str]:
             if name.startswith(root + "/") and name.endswith(suffix):
                 result.add(name)
                 break
-    if not result:
+    if not (result - {RUNTIME_FILENAME}):
         raise ValueError(
             "Das Repository enthält weder sichtbare Skripte noch Aufgaben oder Trainer."
         )
@@ -531,6 +535,9 @@ def sync_certificate_content(configuration, timeout: float = 20.0) -> Path:
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     destination.write_bytes(data)
             _validate_content(staging, manifest)
+            runtime_manifest = staging / RUNTIME_FILENAME
+            if runtime_manifest.is_file():
+                parse_runtime_manifest(runtime_manifest)
             from pykim.trainer.definitions import load_exercises
             from insi.training.activities import load_activities
 

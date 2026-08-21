@@ -13,7 +13,7 @@ from insi.course_setup import setup_info
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path, help="lokaler Kursrepository-Ordner")
-    parser.add_argument("setup", type=Path, help="passende .pykim-setup-Datei")
+    parser.add_argument("setup", type=Path, help="passende .insi-setup-Datei")
     parser.add_argument("--output", type=Path, help="Ziel-ZIP")
     options = parser.parse_args()
 

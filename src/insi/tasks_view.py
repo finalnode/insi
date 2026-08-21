@@ -75,7 +75,7 @@ def render_tasks_panel(
     if not visible_tasks:
         ui.label(
             "Noch kein Kurs eingerichtet. Importiere im Setup die "
-            ".pykim-setup-Datei deiner Lehrkraft."
+            ".insi-setup-Datei deiner Lehrkraft."
         ).classes("text-grey-7")
     trainable_names = set(exercise_names())
     material_tasks = tuple(

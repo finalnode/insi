@@ -15,6 +15,7 @@ dependencies = [
   "certifi>=2024.2.2",
   "cryptography>=39,<47",
   "nicegui[native]>=3,<4",
+  "packaging>=23,<27",
   "PyYAML>=6,<7",
   "Send2Trash>=1.8,<2",
   "tomli>=2; python_version < '3.11'",

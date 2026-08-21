@@ -2,10 +2,11 @@
 
 from insi.author_view import render_authoring_view
 from .branding import APP_DISPLAY_NAME
-from insi.course import get_course_directory
+from insi.course import get_course_directory, set_runtime_preference
 from insi.course_setup import course_setup_info, sync_installed_course_content
 from insi.library import PACKAGED_CONTENT_ROOT
 from insi.system import open_in_preferred_ide, open_path, system_status
+from insi.runtime import course_runtime_preflight
 from insi.updates import check_updates, format_content_version, install_content_update
 
 
@@ -20,6 +21,7 @@ def render_tools_panel(
     ui = context.ui
     nicegui_run = context.run
     course_sync_state = context.course_sync
+    course_selection_state = context.course_selection
     ui.label("IDE, Dateien und Updates").classes("text-2xl font-bold")
     ui.markdown(
         "Diese Werkzeuge werden lokal gestartet und öffnen sich in einem "
@@ -126,6 +128,22 @@ def render_tools_panel(
             course_sync_state["result"] = result
             course_sync_state["error"] = ""
             course_sync_label.text = result.message
+            if course is not None:
+                preflight = await nicegui_run.io_bound(
+                    course_runtime_preflight, course
+                )
+                if not preflight.ready:
+                    course_selection_state["confirmed"] = False
+                    ui.notify(
+                        "Die aktualisierten Kursinhalte benötigen eine andere "
+                        "Laufzeit. Der Kursstart wird erneut geprüft.",
+                        type="warning",
+                        timeout=7000,
+                    )
+                    ui.navigate.reload()
+                    return
+                if preflight.candidate is not None:
+                    set_runtime_preference(preflight.candidate.executable)
             if not result.checked_online:
                 ui.notify(result.message, type="warning")
             elif result.updated:

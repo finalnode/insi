@@ -1,168 +1,248 @@
 # <img src="packaging/macos/assets/app-icon-master.png" alt="in:si-Logo" width="72" align="center"> in:si
 
 **in:si 0.6.0** ist eine lokale Desktop-Lernumgebung für modulare
-Informatikkurse. Sie verbindet Kursverwaltung, Lerntexte, interaktive Aufgaben,
-automatische Trainer, Lernstand, Projekte und Autorenwerkzeuge in einer
-gemeinsamen, offline nutzbaren Anwendung.
+Informatikkurse. Sie bringt Kursinstallation, Lerntexte, interaktive Aufgaben,
+automatische Tests, Lernstand, Projekte und Autorenwerkzeuge in eine gemeinsame
+Anwendung, die nach der Einrichtung weitgehend offline funktioniert.
 
-Der Name **in:si** steht für **informatica simplicissima**: Informatik soll so
-zugänglich wie möglich vermittelt werden, ohne echte Sprachen, Dateien und
-Werkzeuge hinter einer vereinfachten Lernoberfläche zu verstecken.
+Der aktuell verfügbare Beispielkurs vermittelt Python mit dem unabhängigen
+Fachmodul [PyKIM](https://github.com/finalnode/PyKIM). Die Plattform ist für
+weitere Fachmodule und Mischkurse vorbereitet, diese sind aber noch nicht
+fertig implementiert.
 
-in:si ist nicht auf eine Programmiersprache festgelegt. Ein Kurs entscheidet,
-welche Inhalte, Werkzeuge und Fachmodule benötigt werden. Der derzeitige
-Beispielkurs verwendet [PyKIM](https://github.com/finalnode/PyKIM) für einen
-visuellen Einstieg in Python; weitere Kursarten und Kombinationen werden als
-unabhängige Module ergänzt.
+> **Projektstatus: Alpha.** Lokale Datenformate und Oberflächen können sich noch
+> ändern. Desktop-Builds sind derzeit weder signiert noch notarisiert.
 
-> **Projektstatus: Alpha.** Kurs- und Schülerdaten werden lokal gespeichert.
-> Desktop-Builds sind derzeit weder signiert noch notarisiert.
+## In 30 Sekunden
 
-## in:si herunterladen
+| Frage | Antwort |
+|---|---|
+| Für wen? | Lernende, Lehrkräfte und Autorinnen und Autoren lokaler Informatikkurse |
+| Was läuft heute? | Python-/PyKIM-Kurse auf Windows, Linux und macOS |
+| Wo liegen Daten? | Lokal im Kursordner beziehungsweise in lokalen App-Verzeichnissen |
+| Funktioniert es offline? | Ja, nach der Einrichtung; Zusatzpakete können optional ins Kurs-ZIP eingebettet werden |
+| Wie kommen Kurse hinein? | `.insi-setup`, portables ZIP oder öffentlicher GitHub-Kurskatalog |
+| Was bleibt bei Updates erhalten? | Lösungen, Projekte, Antworten und Lernstand im Student Workspace |
+| Ist Schülercode sicher sandboxed? | Nein. Prozesse werden begrenzt und getrennt, aber es gibt noch keine garantierte OS-Sandbox |
+
+Schnellnavigation:
+
+- [Was in:si ist – und was nicht](#was-insi-ist--und-was-nicht)
+- [Alle implementierten Funktionen](#alle-implementierten-funktionen)
+- [Herunterladen und ausprobieren](#herunterladen-und-ausprobieren)
+- [So funktionieren Kurse](#so-funktionieren-kurse)
+- [Sicherheit, Offlinebetrieb und Datenschutz](#sicherheit-offlinebetrieb-und-datenschutz)
+- [Entwicklung und Architektur](#entwicklung-und-architektur)
+- [Roadmap](#roadmap-noch-nicht-implementiert)
+
+## Was in:si ist – und was nicht
+
+| in:si ist … | in:si ist nicht … |
+|---|---|
+| eine lokale Lern- und Autorenanwendung | ein Cloud-LMS oder eine gehostete Schulplattform |
+| eine Hülle für echte Sprachen, Dateien und Werkzeuge | eine proprietäre vereinfachte Programmiersprache |
+| eine Plattform für versionierte Kursquellen und getrennte Schülerarbeit | ein Ersatz für GitHub, Moodle oder die Schulverwaltung |
+| derzeit praktisch auf Python und PyKIM fokussiert | bereits eine fertige Universalumgebung für alle Informatikthemen |
+| offline-first und ohne Konto nutzbar | vollständig ohne Netzwerk installierbar, sofern ein Kurs nicht alle Zusatzpakete einbettet |
+| gegen typische Archiv- und Prozessfehler gehärtet | eine garantierte Sicherheitsgrenze gegen bösartigen Pythoncode |
+| ein Alpha-Projekt mit funktionierenden Desktop-Builds | bereits eine signierte, notarisierte oder langfristig formatstabile Produktionsversion |
+
+**in:si und PyKIM sind getrennte Projekte.** in:si verwaltet Kurse, Lernstand,
+Workspaces und Autorenabläufe. PyKIM liefert die Pixelwelt, die Python-API und
+fachspezifische Prüfregeln. PyKIM kann ohne in:si verwendet werden und importiert
+in:si nicht.
+
+## Alle implementierten Funktionen
+
+Die folgenden Punkte sind vorhanden und durch automatisierte Tests abgedeckt.
+Noch offene Arbeiten stehen ausschließlich in der [Roadmap](#roadmap-noch-nicht-implementiert).
+
+### Lernen und Arbeiten
+
+- mehrere lokale Kurse installieren, auswählen und wechseln;
+- Skripte mit dynamischem Inhaltsverzeichnis lesen;
+- vollständige Codebeispiele kopieren, starten und gezielt stoppen;
+- Aufgaben im integrierten Editor oder in einer erkannten externen IDE lösen;
+- Code-, Antwort-, Zuordnungs- und Code-Sortieraufgaben bearbeiten;
+- gestufte Hinweise anzeigen und ihre Nutzung lokal erfassen;
+- automatische Trainer mit verständlichem Feedback ausführen;
+- Lernstand, Antworten und Versuche lokal speichern;
+- eigene Python-/Pyxel-Projekte anlegen und im Dateimanager öffnen;
+- persönliche Erweiterungen kursübergreifend verwenden;
+- Thonny und VS Code mit dem ausgewählten Kursinterpreter starten;
+- Pyxel-Ressourcen und offizielle Beispiele verwenden.
+
+### Kurse installieren und verwalten
+
+- neue `.insi-setup`-Dateien importieren;
+- historische `.pykim-setup`-Dateien importieren und mit Backup migrieren;
+- sichere portable Kurs-ZIPs importieren;
+- öffentliche GitHub-Kursrepositories synchronisieren;
+- freie Kurse aus einem lokal zwischengespeicherten Katalog installieren;
+- Herkunfts- und Vertrauenswarnungen vor externen Importen anzeigen;
+- Namenskonflikte als Kopie oder kontrolliertes Update behandeln;
+- veröffentlichte Kursinhalte getrennt vom Student Workspace aktualisieren;
+- Dateien und Ordner mit führendem Unterstrich aus Kursen ausblenden;
+- Kursordner in den Systempapierkorb verschieben, ohne andere Verzeichnisse zu
+  löschen.
+
+### Laufzeit und Offlinepakete
+
+- installierte Python-, Conda-, pyenv-, uv- und Thonny-Laufzeiten erkennen;
+- pro Kurs eine getrennte verwaltete virtuelle Umgebung einrichten;
+- Python-, PyKIM-, Pyxel- und Zusatzpaketversionen exakt in `runtime.toml`
+  festlegen;
+- vor Kursstart Python-Version, Betriebssystem, Architektur und Paketstände
+  prüfen;
+- beschädigte verwaltete Kursumgebungen reparieren;
+- aus einem passenden Basis-Python eine neue Kursumgebung erzeugen;
+- die Prüfung nach einem Kursupdate erneut ausführen;
+- Diagnoseberichte ohne Schülerdateiinhalte erzeugen;
+- zusätzliche Wheels optional für ausdrücklich gewählte Plattformen in ein
+  Kurs-ZIP einbetten;
+- eingebettete Wheels beim Import und vor ihrer Verwendung per SHA-256 prüfen.
+
+### Kurse erstellen
+
+- vollständige Kurse in der Kurswerkstatt anlegen und realistisch vorschauen;
+- vorhandene Ordner analysieren und Dateien Skripten, Aufgaben oder Trainern
+  zuordnen;
+- Skripte und Aufgaben in annotiertem Markdown (**M@rkdown**) bearbeiten;
+- Hinweise, Tags, Quellen, Lizenz und Verantwortung hinterlegen;
+- automatische Trainer deklarativ als YAML erzeugen und validieren;
+- lokale Kurse ohne Repository erstellen;
+- eine öffentliche GitHub-Quelle als Kursmetadatum hinterlegen;
+- standardmäßig kompakte Kurs-ZIPs exportieren;
+- exakte Zusatzpakete bei Bedarf für Windows, Linux oder beide macOS-
+  Architekturen einbetten;
+- Setupdateien für einen einfachen Online-Import erzeugen.
+
+### Plattform, Daten und Schutzmaßnahmen
+
+- native Builds für Windows x86_64, Linux x86_64, macOS Intel und macOS Apple
+  Silicon;
+- Browsermodus als bewusste Alternative und als Desktop-Fallback;
+- lokale Nutzung ohne Konto oder zentralen Server;
+- getrennte Prozesse und Prozessgruppen für Schülerprogramme und Beispiele;
+- Laufzeit- und Ausgabegrenzen für integrierte Ausführungen;
+- bereinigte Umgebungsvariablen beim Start von Schülercode;
+- validierte Repository-, Archiv- und Inhaltspfade;
+- Schutz vor ZIP-Pfadwechseln, absoluten Pfaden und symbolischen Links;
+- deklarative Trainerdaten statt frei ausführbarer Trainerdefinitionen;
+- getrennte Updatekanäle für Anwendung und Lerninhalte;
+- sichtbare Quellen-, Lizenz- und Verantwortlichkeitsübersicht.
+
+## Herunterladen und ausprobieren
+
+### Desktop-App
 
 | Betriebssystem | Architektur | Download |
 |---|---|---|
 | Windows | x86_64 | **[Windows-App herunterladen](https://github.com/finalnode/insi/releases/tag/v0.6.0)** |
+| Linux | x86_64 | **[Linux-App herunterladen](https://github.com/finalnode/insi/releases/tag/v0.6.0)** |
 | macOS | Apple Silicon (`arm64`) | **[macOS-App für Apple Silicon herunterladen](https://github.com/finalnode/insi/releases/tag/v0.6.0)** |
 | macOS | Intel (`x86_64`) | **[macOS-App für Intel herunterladen](https://github.com/finalnode/insi/releases/tag/v0.6.0)** |
-| Linux | x86_64 | **[Linux-App herunterladen](https://github.com/finalnode/insi/releases/tag/v0.6.0)** |
 
-Die Apps werden durch GitHub Actions auf dem jeweiligen Zielsystem gebaut und
+Die Pakete werden durch GitHub Actions auf dem jeweiligen Zielsystem gebaut und
 unter [GitHub Releases](https://github.com/finalnode/insi/releases)
 bereitgestellt.
 
-### Beispielkurs
+### PyKIM-Beispielkurs
 
-- **[Setupdatei des PyKIM-Standardkurses](https://raw.githubusercontent.com/finalnode/insi/main/examples/course-setups/pykim-standardkurs.pykim-setup)**
-- **[Kursinhalte und Trainer ansehen](https://github.com/finalnode/PyKIM_Kurs)**
-- **[PyKIM-Pythonmodul ansehen](https://github.com/finalnode/PyKIM)**
+1. in:si starten.
+2. Die **[Setupdatei des PyKIM-Standardkurses](https://raw.githubusercontent.com/finalnode/insi/main/examples/course-setups/pykim-standardkurs.insi-setup)** herunterladen.
+3. Die Datei in der Kursauswahl importieren.
+4. Einen lokalen Arbeitsordner wählen und den Runtime-Check abschließen.
 
-Die Setupdatei wird nach dem App-Start in der Kursauswahl hochgeladen. in:si
-lädt anschließend die öffentlichen Kursinhalte und richtet einen lokalen
-Arbeitsbereich ein.
+Weiterführende Quellen:
 
-## Funktionsumfang in Version 0.6.0
+- [Kursinhalte und Trainer](https://github.com/finalnode/PyKIM_Kurs)
+- [PyKIM-Pythonmodul](https://github.com/finalnode/PyKIM)
 
-Die folgenden Funktionen sind bereits implementiert. Spätere Vorhaben sind
-getrennt unter [Roadmap](#roadmap-noch-nicht-implementiert) aufgeführt.
+## So funktionieren Kurse
 
-### Plattform und Betrieb
-
-- native Desktop-Builds für Windows, Linux sowie macOS auf Intel und Apple
-  Silicon;
-- lokale, nach der Kursinstallation offline nutzbare Lernumgebung;
-- Browserbetrieb als wählbare Alternative und als Rückfallebene, falls ein
-  natives Fenster nicht geöffnet werden kann;
-- konsequente Trennung zwischen aktualisierbarer Kursquelle und persönlichem
-  Student Workspace;
-- lokal verwaltete Kurse, Projekte, Lernstände und persönliche Erweiterungen;
-- beendbare Prozesse für gestartete Beispiele und Schülerprogramme.
-
-### Für Lernende
-
-- mehrere installierte Kurse auswählen und im laufenden Betrieb wechseln;
-- Lerntexte mit dynamischem Inhaltsverzeichnis lesen;
-- Codebeispiele kopieren, starten und stoppen;
-- Aufgaben im integrierten Editor oder in einer erkannten externen IDE lösen;
-- Antwort-, Zuordnungs- und Code-Sortieraufgaben bearbeiten;
-- gestufte Hinweise öffnen und verwendete Hinweise nachvollziehen;
-- automatische Tests mit verständlichem Feedback ausführen;
-- eigene Projekte und persönliche Erweiterungen kursübergreifend verwenden;
-- Lernstand lokal und getrennt von den unveränderlichen Kursquellen speichern;
-- Projektordner direkt im Dateimanager öffnen.
-
-### Für Lehrkräfte und Kursautorinnen und -autoren
-
-- Kurse vollständig in der Suite anlegen und in einer realistischen Vorschau
-  prüfen;
-- vorhandene Ordner analysieren und Dateien nachträglich Skripten, Aufgaben
-  oder Trainern zuordnen;
-- Lerntexte und Aufgaben in annotiertem Markdown (**M@rkdown**) schreiben;
-- Hinweise, Tags, Quellen, Lizenz und verantwortliche Stelle hinterlegen;
-- automatische Trainer deklarativ als YAML erstellen und validieren;
-- Kurse als portables ZIP-Archiv exportieren und eine Repositoryadresse als
-  Kursmetadatum hinterlegen;
-- Setupdateien für eine einfache Installation verteilen.
-
-### Kursverwaltung
-
-- Import über `.pykim-setup` und sichere ZIP-Archive;
-- öffentliche Git-Repositories unabhängig vom Git-Host als Kursquelle;
-- lokaler Kurskatalog mit optionaler Aktualisierung;
-- sichtbare Herkunfts- und Vertrauenswarnung vor dem Import;
-- Konfliktdialog, wenn ein Import einen vorhandenen Kurs ersetzen würde;
-- Inhaltsupdates mit getrenntem Student Workspace;
-- ignorierte Dateien und Ordner über führenden Unterstrich, beispielsweise
-  `_backup/` oder `_entwurf.md`.
-
-Das Suffix `.pykim-setup` bleibt aus Kompatibilitätsgründen bestehen. Es
-bezeichnet das bestehende Kursinstallationsformat und bindet in:si nicht an das
-PyKIM-Modul.
-
-## Fachmodule und Mischkurse
-
-in:si trennt Plattform, Fachlaufzeit und Kursinhalt:
+in:si trennt Plattform, Fachmodul, veröffentlichte Kursquelle und persönliche
+Arbeit:
 
 ```text
 in:si
 ├── Kursverwaltung, Lernstand und Autorenwerkzeuge
-├── Fachmodule und lokale Werkzeuge
+├── Fachmodule
 │   └── PyKIM (heute verfügbar)
-├── Kursrepositories oder portable Kursarchive
-└── Student Workspace mit eigenen Projekten und Erweiterungen
+├── Kursquelle aus GitHub oder portablem ZIP
+└── Student Workspace mit Lösungen, Projekten und Erweiterungen
 ```
 
-[PyKIM](https://github.com/finalnode/PyKIM) ist das erste angebundene
-Fachmodul. Seine Pixelwelt, Python-API und Trainerlogik werden unabhängig von
-in:si versioniert. Die vollständige PyKIM-Dokumentation steht deshalb bewusst
-nicht in dieser README, sondern im
-[PyKIM-Repository](https://github.com/finalnode/PyKIM#readme).
+### Kursquelle und Student Workspace
 
-Geplant sind eigenständige Kurs- und Werkzeugprofile für reines Python,
-Markdown, HTML/CSS, SQLite und weitere Informatikthemen. Mischkurse sollen
-mehrere Profile kombinieren können, beispielsweise Python mit SQLite oder
-PyKIM mit einer selbst erstellten Datenbank. Das Menü zeigt dann nur die vom
-Kurs benötigten Bereiche.
+| Bereich | Enthält | Verhalten bei Kursupdates |
+|---|---|---|
+| Kursquelle | Skripte, Aufgaben, Beispiele und `Trainer/*.yml` | darf durch einen neuen geprüften Kursstand ersetzt werden |
+| Student Workspace | Lösungen, Lernstand, Antworten, Projekte und persönliche Erweiterungen | wird nicht durch Kursupdates überschrieben |
 
-Persönliche Erweiterungen sollen nicht an einen einzelnen Kurs gebunden sein.
-Lernende können dadurch selbst entwickelte Pythonmodule, Datenbanken,
-Webressourcen oder andere Artefakte später in einem weiteren Kurs erneut
-verwenden.
+### Setupdatei, ZIP und Katalog
 
-## Kurse installieren
-
-### Über eine Setupdatei
-
-Eine Setupdatei enthält nur die geprüfte Kursquelle und die nötigen
-Metadaten. Sie enthält keine Schülerlösung. Beispiel:
+Eine `.insi-setup`-Datei enthält Metadaten und die öffentliche GitHub-Quelle,
+aber keine Schülerlösung und keine eingebetteten Kursdateien:
 
 ```json
 {
-  "name": "PyKIM Standardkurs",
+  "format": "insi-course-setup-v1",
+  "name": "pykim-standardkurs.insi-setup",
+  "teacher": "PyKIM-Team",
+  "school": "OSZ KIM",
+  "course": "PyKIM Standardkurs",
   "repository": "https://github.com/finalnode/PyKIM_Kurs.git",
-  "branch": "main"
+  "branch": "main",
+  "scripts_path": "Skripte",
+  "assignments_path": "Aufgaben",
+  "trainers_path": "Trainer"
 }
 ```
 
-### Über ein ZIP-Archiv
+Ein portables ZIP enthält dieselben Kursmetadaten, den Kursinhalt und den
+Runtime-Vertrag. Es eignet sich für lokale Kurse, Schulnetze ohne GitHub-Zugriff
+und die Weitergabe über exFAT-formatierte USB-Sticks. Der Kurskatalog ist ein
+komfortabler Einstieg für bekannte freie GitHub-Kurse; seine mitgelieferte Kopie
+funktioniert auch offline.
 
-Ein Kursarchiv enthält genau eine `.pykim-setup`-Datei sowie die referenzierten
-Kursinhalte. Pfade werden vor dem Entpacken geprüft; absolute Pfade,
-Verzeichniswechsel und symbolische Links werden abgelehnt. Damit können Kurse
-auch ohne Netzwerk über exFAT-formatierte USB-Sticks zwischen Windows, macOS
-und Linux verteilt werden.
+### Runtime-Vertrag und ZIP-Größe
 
-### Über den Kurskatalog
+Jeder neu exportierte Kurs enthält `runtime.toml` mit Python 3.11, den genauen
+PyKIM-/Pyxel-Versionen und optionalen Zusatzpaketen. Alte Archive ohne Manifest
+bleiben importierbar.
 
-Der Katalog zeigt frei verfügbare Kurse mit Titel, Kurzbeschreibung, Niveau,
-Tags, verantwortlicher Stelle und Quelle. Die mitgelieferte Katalogkopie
-funktioniert offline; eine Aktualisierung lädt die Registry aus diesem
-Repository.
+Der Standardexport enthält **keine Paket-Wheels** und bleibt klein. Zusatzpakete
+werden als `paket==version` eingetragen. Nur wenn die standardmäßig deaktivierte
+Option **Zusätzliche Pakete … einbetten** aktiviert und mindestens ein Ziel
+gewählt wird, lädt in:si die vollständige Wheel-Abhängigkeitskette für:
 
-## M@rkdown
+- Windows x86_64;
+- Linux x86_64;
+- macOS Apple Silicon;
+- macOS Intel.
 
-M@rkdown ist normales Markdown mit einfachen Annotationen für strukturierte
-Aufgabeninformationen:
+Jede zusätzliche Plattform kann das ZIP deutlich vergrößern. PyKIM und Pyxel
+stellt die jeweilige in:si-Installation bereit und dupliziert sie deshalb nicht
+im Kurs. Manifest und Wheels werden versioniert im Kurs abgelegt und mit
+SHA-256-Prüfsummen abgesichert.
+
+Vor jedem Kursstart und nach Inhaltsupdates prüft der Preflight:
+
+1. Betriebssystem und Architektur;
+2. die geforderte Python-Version;
+3. alle exakten Paketversionen;
+4. die Integrität eingebetteter Wheels.
+
+Ein harter Fehler blockiert den Kursstart. in:si zeigt Soll- und Ist-Zustand und
+bietet, soweit möglich, Reparatur oder Einrichtung einer getrennten
+Kursumgebung an. Schülerarbeit wird dabei nicht verändert.
+
+## Kursinhalte erstellen
+
+### M@rkdown
+
+M@rkdown ist normales Markdown mit einfachen Annotationen:
 
 ```markdown
 # Eine Linie zeichnen
@@ -175,60 +255,67 @@ Zeichne eine rote Linie von `(20, 20)` bis `(30, 20)`.
 @source: https://example.org/aufgabe
 ```
 
-Der integrierte Parser prüft Syntax, bekannte Annotationen und notwendige
-Felder. Die Vorschau verwendet dieselbe Darstellung wie der spätere Kurs.
-Trainerdefinitionen bleiben getrennte, deklarative YAML-Dateien; ausführbarer
-Code wird nicht aus Markdown-Metadaten erzeugt.
+Der Parser meldet Fehler mit Zeilennummern. Die Kursvorschau verwendet dieselbe
+Darstellung wie die spätere Lernansicht. Aus Markdown-Metadaten wird kein frei
+ausführbarer Pythoncode erzeugt.
 
-## Kursquelle und Student Workspace
+### Deklarative Trainer
 
-in:si unterscheidet bewusst zwischen zwei Bereichen:
+Trainer bleiben getrennte YAML-Dateien und beschreiben erwartete Ergebnisse:
 
-- **Kursquelle:** veröffentlichte Skripte, Aufgaben, Beispiele und Trainer;
-- **Student Workspace:** Lösungen, Lernstand, Projekte, Antworten und
-  persönliche Erweiterungen.
+```yaml
+format: 1
+exercises:
+  - id: rote-linie
+    title: Rote Linie
+    tests:
+      - type: pixels
+        paths:
+          - {start: [20, 20], end: [30, 20], color: red}
+        success: Die rote Linie ist vollständig.
+        failure: Die Linie fehlt oder liegt noch nicht richtig.
+        hint: Beginne bei (20, 20) und bewege KIM zehn Schritte nach rechts.
+```
 
-Ein Kursupdate ersetzt nur die aktualisierbare Kursquelle. Bestehende
-Schülerprojekte und Fortschritte werden nicht als Teil des Repository-Updates
-überschrieben. Vor zukünftigen Formatmigrationen sollen Version,
-Kompatibilität und Sicherung explizit geprüft werden.
+Der Prüfablauf bleibt gerichtet:
 
-## Sicherheit
+```text
+Kursquelle mit Trainer/*.yml
+        ↓
+in:si aktiviert den Kurs in insi.training
+        ↓
+Schülerprogramm ruft run(check="rote-linie") auf
+        ↓
+PyKIM fragt über seine neutrale Provider-Schnittstelle in:si
+        ↓
+PyKIM bewertet die Welt; in:si zeigt Feedback und speichert den Versuch
+```
 
-Kurse und Schülerprogramme sind potenziell fremder Code. in:si behandelt sie
-nicht als automatisch vertrauenswürdig:
+## Sicherheit, Offlinebetrieb und Datenschutz
 
-- sichtbare Warnung vor Kursimport und Ausführung;
-- validierte Repository-, Archiv- und Inhaltspfade;
-- getrennte Prozesse für integrierte Programmläufe;
-- bereinigte Umgebungsvariablen;
-- Laufzeit- und Ausgabegrenzen;
-- beendbare Prozessgruppen;
-- deklarative statt frei ausführbarer Trainerdaten.
+Kurse und Schülerprogramme sind potenziell fremder Code. Importiere nur Kurse
+aus Quellen, denen du vertraust. in:si validiert Datenstrukturen und begrenzt
+integrierte Prozesse, behauptet aber ausdrücklich **keine vollständige
+Sandbox**. Gestarteter Pythoncode kann mit den Rechten des angemeldeten Kontos
+auf Dateien, Netzwerk und Betriebssystemfunktionen zugreifen. Details und
+Meldeweg stehen in [SECURITY.md](SECURITY.md).
 
-Diese Maßnahmen sind **keine vollständige Sandbox**. Eine garantierte
-Abschottung von Dateisystem, Netzwerk und Betriebssystemrechten besteht noch
-nicht. Die weitere Architektur soll vorhandene Isolationsmechanismen des
-jeweiligen Betriebssystems nutzen, statt eine eigene Sicherheitsgrenze zu
-behaupten. Details und Meldeweg stehen in [SECURITY.md](SECURITY.md).
+Nach der vollständigen Einrichtung funktionieren Lerntexte, Aufgaben, Trainer,
+Lernstand und Projekte lokal. Netzwerkzugriffe entstehen insbesondere bei:
 
-## Offline, Speicherorte und Datenschutz
+- der ersten Installation eines Onlinekurses;
+- ausdrücklich ausgelösten Kurs-, Katalog- oder App-Updates;
+- dem Aufbau einer Runtime mit nicht eingebetteten Zusatzpaketen.
 
-Nach der Installation eines Kurses funktionieren Lerntexte, Aufgaben, Trainer,
-Lernstand und Projekte lokal. Netzwerkzugriffe entstehen nur für ausdrücklich
-angestoßene Vorgänge wie Kursinstallation, Katalogabgleich oder Updates.
+in:si verwendet aus Kompatibilitätsgründen weiterhin den lokalen Basisordner
+`PyKIM-Kurse`. Der aktive Kursordner ist in der App sichtbar und lässt sich
+direkt öffnen. Es gibt derzeit weder zentrale Benutzerkonten noch Telemetrie in
+der Anwendung. Lokale Mehrbenutzerprofile und eine eigene Berechtigungsübersicht
+sind noch Teil der Roadmap.
 
-in:si verwendet derzeit aus Kompatibilitätsgründen den lokalen Basisordner
-`PyKIM-Kurse`. Der tatsächliche aktive Kursordner wird in der App angezeigt
-und kann direkt geöffnet werden. Langfristig gehören dazu:
+## Entwicklung und Architektur
 
-- lokale Mehrbenutzerprofile mit getrennten Workspaces;
-- atomare und absturzsichere Schreibvorgänge;
-- Wiederherstellung nach unterbrochenen USB-Schreibvorgängen;
-- reproduzierbare virtuelle Umgebungen pro Betriebssystem und Architektur;
-- verständliche Datenschutz- und Berechtigungsübersichten.
-
-## Installation für die Entwicklung
+### Entwicklungsinstallation
 
 Voraussetzungen: Python 3.10 oder neuer und Git.
 
@@ -245,87 +332,41 @@ python -m pytest
 insi
 ```
 
-Unter Windows wird die virtuelle Umgebung mit
-`.venv\Scripts\activate` aktiviert.
+Unter Windows wird die Umgebung mit `.venv\Scripts\activate` aktiviert.
 
-## Architektur
+### Architekturgrenzen
 
-Die Anwendung liegt vollständig im Pythonpaket `insi`. `app.py` ist ein
-kleiner Application Composer; Zustände und Dienste werden über einen expliziten
-`AppContext` an getrennte Views übergeben. Architekturtests verhindern, dass
-erneut eine zentrale, mehrere tausend Zeilen große `main()` entsteht.
-
-Die generische Trainingsschicht liegt unter `insi.training`: Sie verwaltet den
-aktiven Kurs, Zuordnungs- und Parsons-Aktivitäten, Feedback und Versuche.
-Fachmodule liefern ausschließlich ihre domänenspezifischen Prüfbausteine. Für
-PyKIM geschieht diese lose Kopplung über den Entry-Point
-`pykim.trainer_provider`; konkrete YAML-Definitionen bleiben beim Kurs.
-
-### Wer besitzt welche Trainerdaten?
+`insi.app` ist ein kleiner Application Composer. Zustände und Dienste gelangen
+über einen expliziten `AppContext` in getrennte Views. Die generische
+Trainingsschicht `insi.training` verwaltet aktiven Kurs, Aktivitäten, Feedback
+und Versuche. Fachmodule liefern nur ihre fachspezifischen Prüfbausteine.
 
 | Bestandteil | Verantwortlich |
 |---|---|
 | konkrete Aufgaben, Hinweise und `Trainer/*.yml` | Kursquelle |
-| aktiver Kurs, Registry, Feedback, Versuche und Lernstand | in:si |
-| PyKIM-Welt und PyKIM-spezifische Prüfregeln | PyKIM-Fachmodul |
-| Schülercode und eigene Projekte | getrennter Student Workspace |
+| Kursverwaltung, Registry, Feedback, Versuche und Lernstand | in:si |
+| Pixelwelt und PyKIM-spezifische Prüfregeln | PyKIM-Fachmodul |
+| Schülercode und eigene Projekte | Student Workspace |
 
-Eine Trainerdatei im Kurs beschreibt nur Sollwerte und führt selbst keinen
-Pythoncode aus. Ein minimales Beispiel sieht so aus:
-
-```yaml
-format: 1
-exercises:
-  - id: rote-linie
-    title: Rote Linie
-    tests:
-      - type: pixels
-        paths:
-          - {start: [20, 20], end: [30, 20], color: red}
-        success: Die rote Linie ist vollständig.
-        failure: Die Linie fehlt oder liegt noch nicht richtig.
-        hint: Beginne bei (20, 20) und bewege KIM zehn Schritte nach rechts.
-```
-
-Der Ablauf beim Öffnen und Bearbeiten eines Kurses ist bewusst gerichtet:
-
-```text
-Kursquelle mit Trainer/*.yml
-        ↓
-in:si aktiviert genau diesen Kurs in insi.training
-        ↓
-Schülerprogramm ruft run(check="rote-linie") auf
-        ↓
-PyKIMs neutrale Provider-Schnittstelle fragt in:si
-        ↓
-PyKIM-Prüfregel bewertet die Welt; in:si zeigt Feedback und speichert den Versuch
-```
-
-in:si registriert diese Verbindung als normalen Python-Entry-Point:
+PyKIM bindet den in:si-Provider als normalen Python-Entry-Point ein:
 
 ```toml
 [project.entry-points."pykim.trainer_provider"]
 insi = "insi.training.provider:provider"
 ```
 
-Dadurch kann PyKIM auch ohne in:si verwendet werden und in:si später weitere
-Fachmodule für Python, SQLite, HTML/CSS oder andere Informatikthemen anbinden.
-Kursquelle, Anwendung und Student Workspace bleiben getrennt: Ein Kursupdate
-darf veröffentlichte Inhalte ersetzen, aber niemals bearbeitete Schülerprojekte
-oder deren Fortschritt überschreiben.
-
 Wichtige Grenzen:
 
-- in:si darf PyKIM als Fachmodul verwenden;
+- in:si darf Fachmodule wie PyKIM verwenden;
 - PyKIM darf in:si nicht importieren;
 - Kurse werden über Dateisystem- und Metadatenverträge angebunden;
 - Student Workspaces gehören weder zum App- noch zum Kursrepository;
-- fachliche Module sollen unabhängig versioniert und austauschbar bleiben.
+- Fachmodule sollen unabhängig versioniert und austauschbar bleiben.
 
-## Desktop-Apps bauen
+### Desktop-Apps bauen
 
 Der Workflow [`.github/workflows/build-desktop.yml`](.github/workflows/build-desktop.yml)
-führt zuerst die Tests aus und baut anschließend vier Pakete:
+testet das Projekt und baut vier Pakete:
 
 | Ziel | GitHub-Runner | Releaseformat |
 |---|---|---|
@@ -333,13 +374,6 @@ führt zuerst die Tests aus und baut anschließend vier Pakete:
 | Linux x86_64 | `ubuntu-24.04` | `.tar.gz` |
 | macOS Intel | `macos-15-intel` | `.dmg` |
 | macOS Apple Silicon | `macos-15` | `.dmg` |
-
-Ein Versionstag erzeugt nach erfolgreichen Builds ein GitHub Release:
-
-```bash
-git tag v0.6.0
-git push origin v0.6.0
-```
 
 Lokale Buildbefehle:
 
@@ -352,76 +386,48 @@ python tools/package_desktop_app.py
 python tools/build_macos_dmg.py --rebuild-app
 ```
 
-Ergebnisse liegen unter `dist/releases/`. Unter Windows sind zwei
-`insi.exe`-Prozesse im nativen Fenstermodus normal: lokaler Server und
-WebView-Fenster laufen getrennt. Falls das native Fenster nicht erscheint,
-öffnet in:si die Oberfläche im Standardbrowser und schreibt eine Startdiagnose.
+Ergebnisse liegen unter `dist/releases/`. Unter Windows sind im nativen Modus
+zwei `insi.exe`-Prozesse normal: lokaler Server und WebView laufen getrennt. Ein
+Versionstag wie `v0.6.0` veröffentlicht erfolgreiche CI-Builds als GitHub
+Release.
 
 ## Roadmap (noch nicht implementiert)
 
 Die nächsten technischen Etappen sind:
 
-- Umgebungs- und Kompatibilitätsprüfung vor Kursstart;
-- reproduzierbare virtuelle Umgebungen;
-- lokale Mehrbenutzerprofile;
-- robuste USB- und Absturzwiederherstellung;
-- Kurs- und Paketvertrauen mit Prüfsummen und Berechtigungen;
-- versionierte Daten- und Kursmigrationen;
-- das neutrale Kursinstallationsformat `.insi-setup`: neue Kurse und Exporte
-  verwenden die neue Endung, während vorhandene `.pykim-setup`-Dateien
-  weiterhin importiert und kontrolliert migriert werden;
-- Datenschutzübersicht sowie verpflichtende Lizenz-, Quellen- und
-  Verantwortlichkeitsangaben;
-- validierte PyKIM-Sprachpakete, die kanonische Lernbefehle mit lokalen
-  API-Aliasen verbinden, sobald diese Funktion im PyKIM-Modul verfügbar ist;
-- weitere Fachmodule und konfigurierbare Menüs für Mischkurse.
+1. automatischer Neuaufbau und versionsübergreifende Migration verwalteter
+   Kursumgebungen, wenn sich der Runtime-Vertrag ändert;
+2. lokale Mehrbenutzerprofile mit getrennten Workspaces;
+3. robuste USB- und Absturzwiederherstellung;
+4. signierte Kursveröffentlichungen, Herausgebervertrauen und ein sichtbares
+   Berechtigungsmodell;
+5. versionierte Daten- und Kursmigrationen;
+6. eine eigene Datenschutz- und Datenbestandsübersicht;
+7. validierte PyKIM-Sprachpakete mit kanonischen Lernbefehlen und lokalen
+   API-Aliasen;
+8. weitere Fachmodule und konfigurierbare Menüs für Mischkurse.
 
-Spätere didaktische Ausbaustufen umfassen Peer Review, Kompetenzmodelle und
-weitergehende Zusammenarbeit. Sie werden erst auf der stabilisierten lokalen
-Kurs- und Benutzerarchitektur aufgebaut.
+Spätere Ausbaustufen umfassen Peer Review, Kompetenzmodelle und Zusammenarbeit.
+Außerdem geplant sind ein Kursbaukasten aus wiederverwendbaren, versionierten
+Inhaltsbibliotheken sowie ein verständlicher, optionaler Git-Arbeitsablauf im
+Kursstudio. ZIP-Export und rein lokale Kurse bleiben gleichwertige Wege.
 
-Ebenfalls geplant ist ein **Kursbaukasten aus wiederverwendbaren
-Inhaltsbibliotheken** für Lehrkräfte. Versionierte Quellen aus Repositories oder
-Archiven sollen Aufgaben, Skriptkapitel und weitere Kursbausteine zusammen mit
-Metadaten, Tags, Bewertung, Hinweisen, Quellen, Lizenzen und
-Trainerdefinitionen bereitstellen. Das Kursstudio soll diese Bausteine
-durchsuchbar machen, in der späteren Schüleransicht als Vorschau darstellen und
-eine freie Zusammenstellung und Bearbeitung zu Kapiteln und Mischkursen
-ermöglichen. Beim Export werden die ausgewählten Versionen vollständig in den
-Kurs übernommen, damit er reproduzierbar und offlinefähig bleibt; geschützte
-Trainerdaten und Student Workspaces bleiben dabei klar von den bearbeitbaren
-Kursinhalten getrennt.
+Eine spätere Migration der internen `.pykim`-Datenpfade ist ausdrücklich von
+der bereits abgeschlossenen Umbenennung sichtbarer Setupdateien getrennt.
+Fortschritt, Projekte, Sicherungen und installierte Kurse dürfen dabei nicht
+verloren gehen oder überschrieben werden.
 
-Das Kursstudio soll außerdem einen verständlichen Git-Arbeitsablauf anbieten:
-Lehrkräfte können einen Kurs als Repository anlegen oder ein vorhandenes
-Repository verbinden, Änderungen prüfen und versionieren sowie sie nach
-ausdrücklicher Bestätigung committen und zu einem frei wählbaren Git-Hoster
-übertragen. ZIP-Export und rein lokale Kurse bleiben gleichwertige Wege, damit
-Git keine Voraussetzung für die Arbeit mit in:si wird.
+## Name, Quellen und Lizenz
 
-Die Umstellung der sichtbaren Setupdatei ist von einer späteren Migration der
-internen `.pykim`-Datenpfade zu trennen. Fortschritt, Projekte, Sicherungen und
-bereits installierte Kurse dürfen bei einer solchen Migration weder verloren
-gehen noch unbeabsichtigt überschrieben werden.
-
-## Simplicissima
-
-in:si ist die Informatik-Lernumgebung von **Simplicissima**. Der ausgeschriebene
-Name **informatica simplicissima** verbindet das Fach unmittelbar mit der
-didaktischen Leitidee:
+**in:si** steht für **informatica simplicissima**:
 
 > So viel vereinfachen wie nötig, so wenig abstrahieren wie möglich.
 
-Die Plattform soll technische Einstiegshürden senken, ohne Lernende in einem
-proprietären Endsystem festzuhalten. Kurse verwenden echte Sprachen, Dateien
-und Werkzeuge; die unterstützende Struktur kann mit wachsender Erfahrung
-schrittweise zurücktreten.
+Die Plattform senkt Einstiegshürden, ohne Lernende in einem proprietären
+Endsystem festzuhalten. Kurse verwenden echte Sprachen, Dateien und Werkzeuge;
+die Hilfsstruktur kann mit wachsender Erfahrung zurücktreten.
 
-## Quellen und Lizenz
-
-Der Footer der Anwendung bündelt Softwarequellen, Kursrepository,
-Verantwortliche, Lizenzen und aufgabenspezifische Quellen. Kursautorinnen und
--autoren können Quellen zusätzlich direkt an einzelnen Aufgaben hinterlegen.
-
-in:si steht unter der [MIT-Lizenz](LICENSE). Drittanbieter-Komponenten und
-Kursinhalte können eigene Lizenzen besitzen und werden separat ausgewiesen.
+Der App-Footer bündelt Softwarequellen, Kursrepository, Verantwortung, Lizenzen
+und aufgabenspezifische Quellen. in:si steht unter der [MIT-Lizenz](LICENSE).
+Drittanbieter-Komponenten und Kursinhalte können eigene Lizenzen besitzen und
+werden separat ausgewiesen.

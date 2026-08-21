@@ -9,21 +9,29 @@ from .branding import APP_DISPLAY_NAME
 from .desktop import browser_favicon
 from insi.course import (
     get_course_directories,
+    set_runtime_preference,
     set_course_directory,
     trash_course,
 )
 from insi.course_archive import MAX_ARCHIVE_SIZE, parse_course_archive
 from insi.course_catalog import load_course_catalog
-from .course_import_dialogs import confirm_external_course_import
+from .course_import_dialogs import archive_runtime_details, confirm_external_course_import
 from insi.course_setup import (
     activate_installed_course_content,
     course_import_target,
     course_setup_info,
+    is_setup_filename,
     install_new_course_archive,
     install_new_course_setup,
     setup_info,
 )
 from insi.system import open_path
+from insi.runtime import (
+    RuntimePreflight,
+    course_runtime_preflight,
+    provision_managed_runtime,
+    repair_runtime,
+)
 
 
 def course_name_confirmation_matches(value: object, expected: str) -> bool:
@@ -72,7 +80,96 @@ def render_course_selection(context) -> bool:
         return result if result in {"reuse", "copy"} else None
 
     if not course_selection_state["confirmed"]:
+        async def prompt_runtime_preflight(
+            report: RuntimePreflight,
+        ) -> tuple[str, str]:
+            """Erkläre einen blockierten Kursstart und liefere die gewählte Aktion."""
+            with ui.dialog() as dialog, ui.card().classes("w-full max-w-2xl"):
+                with ui.row().classes("items-center gap-2"):
+                    ui.icon("rule", color="warning", size="md")
+                    ui.label("Kurslaufzeit ist noch nicht bereit").classes(
+                        "text-xl font-bold"
+                    )
+                if report.required_python:
+                    ui.label(
+                        f"Benötigte Laufzeit: Python {report.required_python}"
+                    ).classes("font-bold")
+                with ui.column().classes("w-full gap-1 rounded border p-3 bg-red-1"):
+                    for issue in report.issues:
+                        with ui.row().classes("items-start gap-2 no-wrap"):
+                            ui.icon("error", color="negative", size="xs")
+                            ui.label(issue).classes("text-sm")
+                for warning in report.warnings:
+                    ui.label(warning).classes("text-sm text-orange-9")
+                if report.packages:
+                    ui.label("Paketprüfung").classes("font-bold mt-2")
+                    with ui.column().classes("w-full gap-1"):
+                        for package in report.packages:
+                            installed = package.installed or "fehlt"
+                            with ui.row().classes("items-center gap-2"):
+                                ui.icon(
+                                    "check_circle" if package.ready else "cancel",
+                                    color="positive" if package.ready else "negative",
+                                    size="xs",
+                                )
+                                ui.label(
+                                    f"{package.requirement} · installiert: {installed}"
+                                ).classes("text-sm")
+                base_choice = None
+                if report.provision_candidates:
+                    base_choice = ui.select(
+                        {
+                            candidate.executable: (
+                                f"Python {candidate.version} · {candidate.source}"
+                            )
+                            for candidate in report.provision_candidates
+                        },
+                        value=report.provision_candidates[0].executable,
+                        label="Basis-Python für die neue Kursumgebung",
+                    ).classes("w-full")
+                    ui.label(
+                        "in:si erstellt eine getrennte Umgebung außerhalb des "
+                        "Kursordners. Schülerdateien bleiben unverändert."
+                    ).classes("text-xs text-grey-7")
+                elif not report.repairable and report.required_python:
+                    ui.label(
+                        f"Installiere Python {report.required_python} für dein "
+                        "Betriebssystem und starte die Prüfung danach erneut."
+                    ).classes("text-sm")
+                    ui.link(
+                        "Python herunterladen",
+                        "https://www.python.org/downloads/",
+                        new_tab=True,
+                    )
+                with ui.row().classes("w-full justify-end gap-2"):
+                    ui.button(
+                        "Abbrechen",
+                        on_click=lambda: dialog.submit(("cancel", "")),
+                    ).props("flat")
+                    if report.repairable:
+                        ui.button(
+                            "Laufzeit reparieren",
+                            icon="handyman",
+                            on_click=lambda: dialog.submit(("repair", "")),
+                        ).props("outline")
+                    if base_choice is not None:
+                        ui.button(
+                            "Kursumgebung einrichten",
+                            icon="build",
+                            on_click=lambda: dialog.submit(
+                                ("provision", str(base_choice.value or ""))
+                            ),
+                        )
+            result = await dialog
+            return result if isinstance(result, tuple) else ("cancel", "")
+
         async def select_course(course: Path, card, button, sync_activity) -> None:
+            def reset_opening_state() -> None:
+                card.classes(remove="pykim-course-opening")
+                sync_activity.set_visibility(False)
+                button.text = "Öffnen"
+                button.enable()
+
             card.classes(add="pykim-course-opening")
             sync_activity.set_visibility(True)
             button.text = "Wird geöffnet …"
@@ -97,6 +194,49 @@ def render_course_selection(context) -> bool:
                 )
             except Exception as error:
                 course_sync_state["error"] = str(error)
+                course_sync_state["pending"] = False
+                ui.notify(
+                    f"Kursinhalt konnte nicht aktiviert werden: {error}",
+                    type="negative",
+                )
+                reset_opening_state()
+                return
+
+            report = await nicegui_run.io_bound(course_runtime_preflight, course)
+            while not report.ready:
+                action, executable = await prompt_runtime_preflight(report)
+                if action == "cancel":
+                    course_sync_state["pending"] = False
+                    reset_opening_state()
+                    return
+                try:
+                    if action == "repair":
+                        await nicegui_run.io_bound(repair_runtime, course)
+                    elif action == "provision" and executable:
+                        await nicegui_run.io_bound(
+                            provision_managed_runtime,
+                            course,
+                            executable,
+                        )
+                    else:
+                        course_sync_state["pending"] = False
+                        reset_opening_state()
+                        return
+                    report = await nicegui_run.io_bound(
+                        course_runtime_preflight, course
+                    )
+                except Exception as error:
+                    ui.notify(
+                        f"Laufzeit konnte nicht vorbereitet werden: {error}",
+                        type="negative",
+                    )
+                    course_sync_state["pending"] = False
+                    reset_opening_state()
+                    return
+            if report.candidate is not None:
+                set_runtime_preference(report.candidate.executable)
+            if report.warnings:
+                ui.notify(report.warnings[0], type="warning", timeout=6000)
             course_selection_state["confirmed"] = True
             ui.navigate.reload()
 
@@ -277,7 +417,7 @@ def render_course_selection(context) -> bool:
                 with ui.column().classes("grow gap-0"):
                     ui.label("Kurs hinzufügen").classes("font-bold")
                     ui.label(
-                        "Eine .pykim-setup-Datei oder ein portables Kurs-ZIP auswählen."
+                        "Eine .insi-setup-Datei oder ein portables Kurs-ZIP auswählen."
                     ).classes("text-sm text-grey-7")
 
                 async def upload_new_course(event) -> None:
@@ -292,16 +432,18 @@ def render_course_selection(context) -> bool:
                             )
                             info = bundle.setup
                             source = f"Lokales ZIP-Archiv · {filename}"
-                        elif filename.casefold().endswith(".pykim-setup"):
+                            runtime_details = archive_runtime_details(bundle)
+                        elif is_setup_filename(filename):
                             info = setup_info(data)
                             source = info.repository
+                            runtime_details = ()
                         else:
                             raise ValueError(
-                                "Wähle eine .pykim-setup- oder .zip-Datei."
+                                "Wähle eine .insi-setup-, ältere .pykim-setup- oder .zip-Datei."
                             )
                         course_import_activity.set_visibility(False)
                         if not await confirm_external_course_import(
-                            ui, info.course, source
+                            ui, info.course, source, runtime_details
                         ):
                             course_upload.reset()
                             ui.notify("Kursimport abgebrochen.", type="info")
@@ -355,7 +497,7 @@ def render_course_selection(context) -> bool:
                         auto_upload=True,
                         max_files=1,
                         max_file_size=MAX_ARCHIVE_SIZE,
-                    ).props("accept=.pykim-setup,.zip flat bordered").classes("w-full")
+                    ).props("accept=.insi-setup,.pykim-setup,.zip flat bordered").classes("w-full")
                     with ui.column().classes(
                         "w-full gap-1 rounded border p-3 bg-orange-1"
                     ) as course_import_activity:

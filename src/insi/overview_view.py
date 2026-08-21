@@ -20,7 +20,7 @@ def render_overview_panel(ui):
                 ui.label(APP_DISPLAY_NAME).classes("text-2xl font-bold")
                 ui.label(
                     "Lege zuerst einen Kursordner an und importiere die "
-                    ".pykim-setup-Datei deiner Lehrkraft. Danach erscheinen "
+                    ".insi-setup-Datei deiner Lehrkraft. Danach erscheinen "
                     "hier Skript, Aufgaben und Lernstand."
                 ).classes("text-grey-7")
 

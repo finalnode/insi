@@ -11,8 +11,8 @@ from insi.course import create_course
 course = Path(mkdtemp(prefix="insi-ui-course-")) / "standardkurs"
 create_course(course, "Ada")
 setup = {
-    "format": "pykim-course-setup-v1",
-    "name": "ui-standardkurs.pykim-setup",
+    "format": "insi-course-setup-v1",
+    "name": "ui-standardkurs.insi-setup",
     "teacher": "in:si-Test",
     "school": "Testschule",
     "course": "UI-Standardkurs",
@@ -23,7 +23,7 @@ setup = {
     "trainers_path": "Trainer",
 }
 (course / ".pykim").mkdir(exist_ok=True)
-(course / ".pykim" / "course.pykim-setup").write_text(
+(course / ".pykim" / "course.insi-setup").write_text(
     json.dumps(setup),
     encoding="utf-8",
 )

@@ -36,3 +36,17 @@ async def test_student_can_open_overview_tasks_and_script(user):
     user.find("Trainer-Autorenwerkzeuge").click()
     await user.should_see("Aufgabenprüfung")
     await user.should_see("Neue Trainingsdefinition entwerfen")
+
+
+@pytest.mark.anyio
+@pytest.mark.e2e
+@pytest.mark.nicegui_main_file("tests/ui_preflight_main.py")
+async def test_course_start_blocks_and_repairs_incompatible_runtime(user):
+    await user.open("/")
+    await user.should_see("UI-Runtimekurs")
+    user.find("Öffnen").click()
+    await user.should_see("Kurslaufzeit ist noch nicht bereit", retries=50)
+    await user.should_see("PyKIM hat Version 0.5.0")
+    await user.should_see("PyKIM==0.6.0 · installiert: 0.5.0")
+    user.find("Laufzeit reparieren").click()
+    await user.should_see("Mein Lernstand", retries=50)

@@ -2,6 +2,20 @@
 
 ## Unveröffentlicht
 
+- neue Kurssetups und portable Kursarchive verwenden das neutrale Format
+  `.insi-setup` (`insi-course-setup-v1`); vorhandene `.pykim-setup`-Dateien
+  bleiben importierbar und werden in installierten Kursen mit Backup migriert.
+- Kursarchive enthalten einen versionierten `runtime.toml`-Vertrag für Python
+  und exakte Paketversionen; Zusatzpakete können optional und standardmäßig
+  deaktiviert samt geprüfter Wheel-Abhängigkeiten für ausdrücklich gewählte
+  Windows-, macOS- und Linux-Ziele eingebettet werden.
+- vor Kursstart und nach Kursupdates werden Python-Version, Plattform,
+  Paketversionen und Offline-Wheel-Prüfsummen kontrolliert; inkompatible Kurse
+  bleiben gesperrt und bieten eine direkte Reparatur oder die Einrichtung einer
+  getrennten Kursumgebung aus einem passenden Basis-Python an.
+- virtuelle Python-Umgebungen behalten auf POSIX-Systemen ihren Interpreterpfad,
+  auch wenn `bin/python` als Symlink auf das Basis-Python angelegt wurde.
+
 ## 0.6.0 – 2026-08-14
 
 - sichtbare Desktop-Lernumgebung von PyKIM Suite zu **in:si** umbenannt;

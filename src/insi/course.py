@@ -123,8 +123,14 @@ def trash_course(path: str | Path) -> None:
         raise ValueError("Dieser Ordner darf nicht gelöscht werden.")
     if not (course / ".pykim-course.json").is_file():
         raise ValueError("Im Ordner fehlt die PyKIM-Kurskennung.")
-    if not (course / ".pykim" / "course.pykim-setup").is_file():
-        raise ValueError("Im Ordner fehlt die PyKIM-Setupdatei.")
+    from .course_setup import LEGACY_SETUP_FILENAME, SETUP_FILENAME
+
+    setup_directory = course / ".pykim"
+    if not any(
+        (setup_directory / name).is_file()
+        for name in (SETUP_FILENAME, LEGACY_SETUP_FILENAME)
+    ):
+        raise ValueError("Im Ordner fehlt die in:si-Setupdatei.")
     try:
         from send2trash import send2trash
     except ImportError as error:
@@ -169,7 +175,7 @@ def get_runtime_preference() -> str:
 
 def set_runtime_preference(executable: str | Path) -> str:
     """Speichere einen vorhandenen Python-Interpreter für Schülerprogramme."""
-    path = Path(executable).expanduser().resolve()
+    path = Path(os.path.abspath(Path(executable).expanduser()))
     if not path.is_file():
         raise ValueError("Der ausgewählte Python-Interpreter wurde nicht gefunden.")
     data = _load_config()

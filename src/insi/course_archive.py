@@ -6,21 +6,39 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import stat
 import tempfile
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
-from .course_setup import CourseSetup, setup_info
+from .course_setup import (
+    CourseSetup,
+    canonical_setup_data,
+    is_setup_filename,
+    setup_info,
+)
+from .course_runtime import (
+    MAX_OFFLINE_PACKAGE_SIZE,
+    MAX_OFFLINE_WHEELS,
+    RUNTIME_FILENAME,
+    RUNTIME_PYTHON,
+    RuntimeManifest,
+    current_runtime_target,
+    default_runtime_requirements,
+    parse_runtime_manifest,
+    runtime_manifest_bytes,
+)
 from .updates import MAX_CONTENT_FILES, MAX_CONTENT_SIZE, _validate_content, content_directory
 
 
 ARCHIVE_SOURCE_FORMAT = "pykim-course-source-v1"
 ARCHIVE_SOURCE_FILENAME = "content-source.json"
-MAX_ARCHIVE_SIZE = 25 * 1024 * 1024
-MAX_ARCHIVE_MEMBERS = MAX_CONTENT_FILES + 50
+MAX_STANDARD_ARCHIVE_SIZE = 25 * 1024 * 1024
+MAX_ARCHIVE_SIZE = MAX_OFFLINE_PACKAGE_SIZE + MAX_STANDARD_ARCHIVE_SIZE
+MAX_ARCHIVE_MEMBERS = MAX_CONTENT_FILES + MAX_OFFLINE_WHEELS + 50
 
 
 @dataclass(frozen=True)
@@ -29,6 +47,9 @@ class CourseArchive:
     setup_data: bytes
     revision: str
     files: dict[str, bytes]
+    runtime: RuntimeManifest | None = None
+    runtime_data: bytes | None = None
+    offline_wheels: dict[str, bytes] = field(default_factory=dict)
 
 
 def _member_path(name: str) -> PurePosixPath:
@@ -62,7 +83,9 @@ def parse_course_archive(data: bytes) -> CourseArchive:
             members = archive.infolist()
             if not members or len(members) > MAX_ARCHIVE_MEMBERS:
                 raise ValueError("Das Kursarchiv enthält zu viele Dateien.")
-            if sum(member.file_size for member in members) > MAX_CONTENT_SIZE:
+            if sum(member.file_size for member in members) > (
+                MAX_CONTENT_SIZE + MAX_OFFLINE_PACKAGE_SIZE + 1_000_000
+            ):
                 raise ValueError("Das Kursarchiv ist entpackt zu groß.")
 
             files: dict[PurePosixPath, zipfile.ZipInfo] = {}
@@ -93,11 +116,11 @@ def parse_course_archive(data: bytes) -> CourseArchive:
             setup_paths = [
                 path
                 for path in visible_files
-                if path.name.endswith(".pykim-setup")
+                if is_setup_filename(path.name)
             ]
             if len(setup_paths) != 1:
                 raise ValueError(
-                    "Das Kursarchiv muss genau eine .pykim-setup-Datei enthalten."
+                    "Das Kursarchiv muss genau eine .insi-setup-Datei enthalten."
                 )
             setup_path = setup_paths[0]
             if len(setup_path.parts) > 2:
@@ -106,16 +129,74 @@ def parse_course_archive(data: bytes) -> CourseArchive:
                     "ZIP ist vermutlich ein App-Quellarchiv und kein mit der "
                     "Kurswerkstatt erzeugtes Kursarchiv."
                 )
-            setup_data = archive.read(visible_files[setup_path])
-            if len(setup_data) > 1_000_000:
+            uploaded_setup_data = archive.read(visible_files[setup_path])
+            if len(uploaded_setup_data) > 1_000_000:
                 raise ValueError("Die Setupdatei im Kursarchiv ist zu groß.")
-            setup = setup_info(setup_data)
-            if setup_path.name != setup.name:
+            uploaded_setup = setup_info(uploaded_setup_data)
+            if setup_path.name != uploaded_setup.name:
                 raise ValueError(
                     "Der Dateiname der Setupdatei stimmt nicht mit ihrem "
                     "eingetragenen Namen überein."
                 )
+            setup_data = canonical_setup_data(uploaded_setup_data)
+            setup = setup_info(setup_data)
             root = setup_path.parent
+            runtime_paths = [
+                path for path in visible_files
+                if path.parent == root and path.name == RUNTIME_FILENAME
+            ]
+            if len(runtime_paths) > 1:
+                raise ValueError("Das Kursarchiv enthält mehrere Runtime-Manifeste.")
+            runtime_data = (
+                archive.read(visible_files[runtime_paths[0]])
+                if runtime_paths else None
+            )
+            if runtime_data is not None and len(runtime_data) > 1_000_000:
+                raise ValueError("Das Runtime-Manifest ist zu groß.")
+            runtime = (
+                parse_runtime_manifest(runtime_data)
+                if runtime_data is not None else None
+            )
+
+            wheel_members: dict[str, zipfile.ZipInfo] = {}
+            for path, member in visible_files.items():
+                try:
+                    relative = path.relative_to(root)
+                except ValueError:
+                    continue
+                if relative.parts and relative.parts[0] == "wheelhouse" and not (
+                    len(relative.parts) == 3
+                    and relative.suffix.casefold() == ".whl"
+                ):
+                    raise ValueError(
+                        "Das Kursarchiv enthält einen ungültigen Offline-Wheelpfad."
+                    )
+                if (
+                    len(relative.parts) == 3
+                    and relative.parts[0] == "wheelhouse"
+                    and relative.suffix.casefold() == ".whl"
+                ):
+                    wheel_members[relative.as_posix()] = member
+            if wheel_members and runtime is None:
+                raise ValueError("Offline-Wheels benötigen ein Runtime-Manifest.")
+            if len(data) > MAX_STANDARD_ARCHIVE_SIZE and not wheel_members:
+                raise ValueError("Das Kursarchiv ist ohne Offline-Pakete zu groß.")
+            if len(wheel_members) > MAX_OFFLINE_WHEELS:
+                raise ValueError("Das Kursarchiv enthält zu viele Offline-Wheels.")
+            if sum(member.file_size for member in wheel_members.values()) > MAX_OFFLINE_PACKAGE_SIZE:
+                raise ValueError("Die Offline-Pakete im Kursarchiv sind größer als 1 GB.")
+            expected_wheels = runtime.hashes if runtime is not None else {}
+            if set(wheel_members) != set(expected_wheels):
+                raise ValueError(
+                    "Runtime-Manifest und eingebettete Offline-Wheels stimmen nicht überein."
+                )
+            offline_wheels: dict[str, bytes] = {}
+            for name, member in wheel_members.items():
+                wheel_data = archive.read(member)
+                if hashlib.sha256(wheel_data).hexdigest() != expected_wheels[name]:
+                    raise ValueError(f"Prüfsumme des Offline-Wheels stimmt nicht: {name}")
+                offline_wheels[name] = wheel_data
+
             roots = {
                 setup.scripts_path.rstrip("/"): ".md",
                 setup.assignments_path.rstrip("/"): ".md",
@@ -150,21 +231,34 @@ def parse_course_archive(data: bytes) -> CourseArchive:
         )
     if len(content) > MAX_CONTENT_FILES:
         raise ValueError("Das Kursarchiv enthält zu viele Kursdateien.")
+    if sum(len(item) for item in content.values()) > MAX_CONTENT_SIZE:
+        raise ValueError("Die Kursinhalte sind entpackt zu groß.")
 
     digest = hashlib.sha256(data).hexdigest()
-    return CourseArchive(setup, setup_data, f"archive-{digest}", content)
+    return CourseArchive(
+        setup,
+        setup_data,
+        f"archive-{digest}",
+        content,
+        runtime,
+        runtime_data,
+        offline_wheels,
+    )
 
 
 def build_course_archive(
     source_directory: str | Path,
     setup_file: str | Path,
+    *,
+    runtime_manifest: bytes | str | Path | None = None,
+    offline_wheels: dict[str, Path] | None = None,
 ) -> bytes:
     """Erzeuge aus Kursrepository und Setupdatei ein validiertes Offline-ZIP."""
     source = Path(source_directory).expanduser().resolve()
     setup_path = Path(setup_file).expanduser().resolve()
     if not source.is_dir() or not setup_path.is_file():
         raise FileNotFoundError("Kursordner oder Setupdatei wurde nicht gefunden.")
-    setup_data = setup_path.read_bytes()
+    setup_data = canonical_setup_data(setup_path)
     setup = setup_info(setup_data)
     selected: dict[str, Path] = {}
     for directory, suffix in (
@@ -184,14 +278,187 @@ def build_course_archive(
     if sum(path.stat().st_size for path in selected.values()) > MAX_CONTENT_SIZE:
         raise ValueError("Der Kurs ist für ein portables Archiv zu groß.")
 
+    runtime_data: bytes | None
+    if runtime_manifest is None:
+        runtime_path = source / RUNTIME_FILENAME
+        runtime_data = (
+            runtime_path.read_bytes()
+            if runtime_path.is_file()
+            else runtime_manifest_bytes(
+                RuntimeManifest(RUNTIME_PYTHON, default_runtime_requirements())
+            )
+        )
+    elif isinstance(runtime_manifest, bytes):
+        runtime_data = runtime_manifest
+    elif isinstance(runtime_manifest, Path):
+        runtime_data = runtime_manifest.read_bytes()
+    else:
+        runtime_data = runtime_manifest.encode("utf-8")
+    runtime = parse_runtime_manifest(runtime_data) if runtime_data is not None else None
+    wheels = offline_wheels or {}
+    if wheels and runtime is None:
+        raise ValueError("Offline-Wheels benötigen ein Runtime-Manifest.")
+    if set(wheels) != set(runtime.hashes if runtime is not None else {}):
+        raise ValueError("Runtime-Manifest und Offline-Wheels stimmen nicht überein.")
+    for name, path in wheels.items():
+        member = PurePosixPath(name)
+        if (
+            member.is_absolute()
+            or ".." in member.parts
+            or len(member.parts) != 3
+            or member.parts[0] != "wheelhouse"
+            or member.suffix.casefold() != ".whl"
+            or not Path(path).is_file()
+        ):
+            raise ValueError(f"Ungültiger Offline-Wheelpfad: {name!r}")
+        if hashlib.sha256(Path(path).read_bytes()).hexdigest() != runtime.hashes[name]:
+            raise ValueError(f"Prüfsumme des Offline-Wheels stimmt nicht: {name}")
+
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(setup.name, setup_data)
+        if runtime_data is not None:
+            archive.writestr(RUNTIME_FILENAME, runtime_manifest_bytes(runtime))
         for name, path in sorted(selected.items()):
             archive.writestr(name, path.read_bytes())
+        for name, path in sorted(wheels.items()):
+            archive.writestr(name, Path(path).read_bytes())
     data = output.getvalue()
     parse_course_archive(data)
     return data
+
+
+def install_course_archive_runtime(bundle: CourseArchive, course: str | Path) -> Path | None:
+    """Installiere Manifest und Wheels versioniert im portablen Kursordner."""
+    if bundle.runtime is None or bundle.runtime_data is None:
+        clear_course_runtime(course)
+        return None
+    return install_course_runtime(
+        bundle.runtime_data,
+        course,
+        revision=bundle.revision,
+        offline_wheels=bundle.offline_wheels,
+    )
+
+
+def install_course_runtime(
+    runtime_data: bytes,
+    course: str | Path,
+    *,
+    revision: str,
+    offline_wheels: dict[str, bytes] | None = None,
+) -> Path:
+    """Aktiviere einen bereits geprüften Runtime-Stand atomar für einen Kurs."""
+    runtime = parse_runtime_manifest(runtime_data)
+    wheels = offline_wheels or {}
+    if set(wheels) != set(runtime.hashes):
+        raise ValueError("Runtime-Manifest und Offline-Wheels stimmen nicht überein.")
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", revision):
+        raise ValueError("Die Runtime-Revision ist ungültig.")
+    course_root = Path(course).expanduser().resolve()
+    base = course_root / ".pykim" / "runtime"
+    versions = base / "versions"
+    versions.mkdir(parents=True, exist_ok=True)
+    target = versions / revision
+
+    def target_is_valid() -> bool:
+        try:
+            if parse_runtime_manifest(target / RUNTIME_FILENAME) != runtime:
+                return False
+            wheel_root = target / "wheelhouse"
+            actual = {
+                f"wheelhouse/{path.relative_to(wheel_root).as_posix()}":
+                hashlib.sha256(path.read_bytes()).hexdigest()
+                for path in wheel_root.rglob("*.whl")
+                if path.is_file()
+            } if wheel_root.is_dir() else {}
+            return actual == runtime.hashes
+        except (OSError, ValueError):
+            return False
+
+    if not target_is_valid():
+        with tempfile.TemporaryDirectory(prefix="insi-runtime-", dir=base) as temporary:
+            staging = Path(temporary) / "runtime"
+            staging.mkdir()
+            (staging / RUNTIME_FILENAME).write_bytes(
+                runtime_manifest_bytes(runtime)
+            )
+            for name, data in wheels.items():
+                if hashlib.sha256(data).hexdigest() != runtime.hashes[name]:
+                    raise ValueError(f"Prüfsumme des Offline-Wheels stimmt nicht: {name}")
+                relative = PurePosixPath(name).relative_to("wheelhouse")
+                destination = staging / "wheelhouse" / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(data)
+            if target.exists():
+                shutil.rmtree(target)
+            os.replace(staging, target)
+    marker = base / "active.json"
+    temporary_marker = marker.with_suffix(".json.tmp")
+    temporary_marker.write_text(
+        json.dumps({"revision": revision}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    os.replace(temporary_marker, marker)
+    return target
+
+
+def clear_course_runtime(course: str | Path) -> None:
+    """Deaktiviere einen alten Runtime-Vertrag, ohne Versionen zu löschen."""
+    marker = Path(course).expanduser().resolve() / ".pykim" / "runtime" / "active.json"
+    try:
+        marker.unlink()
+    except FileNotFoundError:
+        pass
+
+
+def installed_course_runtime(course: str | Path) -> tuple[RuntimeManifest, Path] | None:
+    base = Path(course).expanduser().resolve() / ".pykim" / "runtime"
+    try:
+        marker = json.loads((base / "active.json").read_text(encoding="utf-8"))
+        revision = str(marker["revision"])
+        if not re.fullmatch(r"[A-Za-z0-9._-]+", revision):
+            return None
+        root = base / "versions" / revision
+        manifest = parse_runtime_manifest(root / RUNTIME_FILENAME)
+        return manifest, root
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def course_offline_wheelhouse(
+    course: str | Path,
+    target: str | None = None,
+) -> Path | None:
+    installed = installed_course_runtime(course)
+    if installed is None:
+        return None
+    manifest, root = installed
+    selected = target or current_runtime_target()
+    if selected is None or selected not in manifest.offline_targets:
+        return None
+    wheelhouse = root / "wheelhouse" / selected
+    prefix = f"wheelhouse/{selected}/"
+    expected = {
+        name.removeprefix(prefix): digest
+        for name, digest in manifest.hashes.items()
+        if name.startswith(prefix)
+    }
+    if not expected:
+        return None
+    try:
+        actual = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in wheelhouse.glob("*.whl")
+            if path.is_file()
+        }
+    except OSError as error:
+        raise RuntimeError("Die eingebetteten Offline-Pakete sind nicht lesbar.") from error
+    if actual != expected:
+        raise RuntimeError(
+            "Die eingebetteten Offline-Pakete fehlen oder ihre Prüfsummen stimmen nicht."
+        )
+    return wheelhouse
 
 
 def install_course_archive_content(bundle: CourseArchive) -> Path:
@@ -288,8 +555,13 @@ def write_course_content_source(
 __all__ = [
     "CourseArchive",
     "build_course_archive",
+    "clear_course_runtime",
+    "course_offline_wheelhouse",
     "course_content_source",
     "install_course_archive_content",
+    "install_course_archive_runtime",
+    "install_course_runtime",
+    "installed_course_runtime",
     "parse_course_archive",
     "write_course_content_source",
 ]
