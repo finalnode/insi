@@ -260,6 +260,31 @@ class BubblewrapAdapter:
         return (executable, *(str(argument) for argument in command[1:]))
 
     @staticmethod
+    def _system_layout(
+        paths: Sequence[str | Path] = (
+            "/usr",
+            "/bin",
+            "/sbin",
+            "/lib",
+            "/lib64",
+            "/etc",
+        ),
+    ) -> tuple[tuple[Path, ...], tuple[tuple[str, str], ...]]:
+        roots: list[Path] = []
+        links: list[tuple[str, str]] = []
+        for value in paths:
+            path = Path(value).expanduser()
+            try:
+                if path.is_symlink():
+                    links.append((os.readlink(path), str(path)))
+                resolved = path.resolve(strict=True)
+            except (OSError, RuntimeError):
+                continue
+            if resolved not in roots:
+                roots.append(resolved)
+        return tuple(roots), tuple(links)
+
+    @staticmethod
     def _gui_roots(environment: Mapping[str, str]) -> tuple[Path, ...]:
         candidates: list[Path] = []
         runtime = environment.get("XDG_RUNTIME_DIR")
@@ -311,7 +336,7 @@ class BubblewrapAdapter:
         readable = _existing_roots(
             (*policy.readable_roots, *self._runtime_roots(command, environment))
         )
-        system_roots = _existing_roots(("/usr", "/bin", "/sbin", "/lib", "/lib64", "/etc"))
+        system_roots, system_links = self._system_layout()
         temporary = Path(tempfile.mkdtemp(prefix="insi-linux-sandbox-run-")).resolve()
         home = temporary / "insi-home"
         home.mkdir()
@@ -334,6 +359,8 @@ class BubblewrapAdapter:
                     continue
                 arguments.extend(("--ro-bind", str(root), str(root)))
                 mounted.add(root)
+            for target, alias in system_links:
+                arguments.extend(("--symlink", target, alias))
             if policy.allow_gui:
                 for root in self._gui_roots(environment):
                     arguments.extend(("--ro-bind", str(root), str(root)))

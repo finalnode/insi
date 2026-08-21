@@ -141,6 +141,28 @@ def test_bubblewrap_resolves_executable_before_entering_namespace(
     shutil.rmtree(launch.cleanup_paths[0])
 
 
+def test_bubblewrap_recreates_merged_usr_aliases(tmp_path):
+    usr = tmp_path / "usr"
+    binary_directory = usr / "bin"
+    library_directory = usr / "lib64"
+    binary_directory.mkdir(parents=True)
+    library_directory.mkdir()
+    binary_alias = tmp_path / "bin"
+    library_alias = tmp_path / "lib64"
+    binary_alias.symlink_to("usr/bin", target_is_directory=True)
+    library_alias.symlink_to("usr/lib64", target_is_directory=True)
+
+    roots, links = BubblewrapAdapter._system_layout(
+        (usr, binary_alias, library_alias)
+    )
+
+    assert roots == (usr.resolve(), binary_directory.resolve(), library_directory.resolve())
+    assert links == (
+        ("usr/bin", str(binary_alias)),
+        ("usr/lib64", str(library_alias)),
+    )
+
+
 def test_host_pythonpath_does_not_implicitly_mount_the_whole_course(tmp_path, monkeypatch):
     course = tmp_path / "course"
     task = course / "Aufgaben" / "task.py"
