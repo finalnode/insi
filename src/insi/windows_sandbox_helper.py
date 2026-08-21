@@ -462,6 +462,12 @@ class _WindowsBroker:
 
     def _grant_path(self, path: Path, *, writable: bool) -> None:
         resolved = path.resolve(strict=True)
+        if resolved.is_file():
+            # Windows checks the containing directory as libraries inspect
+            # sys.path[0]. Do not propagate this grant to sibling files.
+            parent = resolved.parent
+            self.granted.append(parent)
+            self._icacls(parent, ["/grant:r", f"*{self.sid_string}:RX"])
         rights = "(OI)(CI)M" if writable and resolved.is_dir() else (
             "M" if writable else "(OI)(CI)RX" if resolved.is_dir() else "RX"
         )
