@@ -438,7 +438,9 @@ class _WindowsBroker:
             self.kernel32.LocalFree(ctypes.cast(sid_text, wintypes.HLOCAL))
 
         folder_text = wintypes.LPWSTR()
-        result = self.userenv.GetAppContainerFolderPath(profile, ctypes.byref(folder_text))
+        result = self.userenv.GetAppContainerFolderPath(
+            self.sid_string, ctypes.byref(folder_text)
+        )
         if result < 0:
             raise OSError(f"AppContainer-Ordner konnte nicht bestimmt werden (0x{self._hresult_value(result):08X}).")
         try:
