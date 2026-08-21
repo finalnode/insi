@@ -107,6 +107,40 @@ def test_bubblewrap_command_uses_read_only_and_writable_mounts_without_network(
     shutil.rmtree(temporary)
 
 
+def test_bubblewrap_resolves_executable_before_entering_namespace(
+    tmp_path, monkeypatch
+):
+    target = tmp_path / "targets" / "runtime"
+    target.mkdir(parents=True)
+    executable = target / "python"
+    executable.write_text("#!/bin/sh\n", encoding="utf-8")
+    executable.chmod(0o755)
+    alias = tmp_path / "aliases" / "current"
+    alias.parent.mkdir()
+    alias.symlink_to(target, target_is_directory=True)
+    writable = tmp_path / "project"
+    writable.mkdir()
+    adapter = BubblewrapAdapter("/usr/bin/bwrap")
+    monkeypatch.setattr(
+        adapter,
+        "status",
+        lambda: SandboxStatus(True, "Bubblewrap", "Linux", "ok", True, True),
+    )
+    policy = student_policy(writable, writable_roots=(writable,))
+
+    launch = adapter.prepare(
+        [str(alias / "python"), "-c", "print('ok')"],
+        cwd=writable,
+        environment={"PATH": "/usr/bin"},
+        policy=policy,
+    )
+    command = list(launch.command)
+    separator = command.index("--")
+
+    assert command[separator + 1] == str(executable.resolve())
+    shutil.rmtree(launch.cleanup_paths[0])
+
+
 def test_host_pythonpath_does_not_implicitly_mount_the_whole_course(tmp_path, monkeypatch):
     course = tmp_path / "course"
     task = course / "Aufgaben" / "task.py"
