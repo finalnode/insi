@@ -177,6 +177,20 @@ def configure_theme(ui) -> None:
                 text-underline-offset: .2rem;
             }
             .pykim-footer-link:hover { color: #ffc3a6 !important; }
+            .insi-legal-dialog { max-height: min(90vh, 58rem); }
+            .insi-legal-panels { min-height: 28rem; }
+            .insi-documentation-dialog { max-height: min(90vh, 58rem); }
+            .insi-documentation-panels {
+                min-height: 28rem;
+                max-height: 68vh;
+                overflow-y: auto;
+            }
+            .insi-license-text textarea {
+                white-space: pre;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+                font-size: .78rem;
+                line-height: 1.35;
+            }
             .insi-footer-course-path {
                 min-width: 0;
                 max-width: min(46vw, 38rem);
@@ -738,6 +752,11 @@ def configure_theme(ui) -> None:
             (() => {
                 const addCopyButtons = root => {
                     root.querySelectorAll('pre:not(.pykim-copy-ready)').forEach(pre => {
+                        // TOAST/ProseMirror owns and continuously reconciles its
+                        // editing DOM. Injecting course action buttons there makes
+                        // ProseMirror remove them and this observer add them again,
+                        // resulting in an endless mutation loop on WYSIWYG switch.
+                        if (pre.closest('.toastui-editor-defaultUI, .ProseMirror')) return;
                         // Parsons-Blöcke sind selbst interaktive Karten. Das allgemeine
                         // Codeblock-Styling würde dort einen zweiten Rahmen und einen
                         // sinnlosen Kopieren-Button ergänzen.

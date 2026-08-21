@@ -9,6 +9,7 @@ import yaml
 
 from insi.training.registry import get_exercise
 from pykim.trainer.definitions import exercise_from_data
+from insi.training.pykim_backend import normalize_pykim_document
 
 from .library import task_document
 from .markedown import validate_markedown
@@ -24,6 +25,71 @@ class AuthorDraft:
     def content_hash(self) -> str:
         payload = self.trainer_source.rstrip() + "\n---\n" + self.assignment_markdown.rstrip()
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True)
+class TaskMarkdownParts:
+    """Visuell bearbeitbarer Aufgabentext plus strukturierte Annotationen."""
+
+    title: str
+    body: str
+    difficulty: str = "mittel"
+    hints: tuple[str, ...] = ()
+    tags: tuple[str, ...] = ()
+    sources: tuple[str, ...] = ()
+
+
+def split_task_markdown(content: str) -> TaskMarkdownParts:
+    """Trenne in:si-Metadaten vom eigentlichen Markdownkörper."""
+    title = "Aufgabe"
+    difficulty = "mittel"
+    hints: list[str] = []
+    tags: list[str] = []
+    sources: list[str] = []
+    body: list[str] = []
+    heading_seen = False
+    for line in content.splitlines():
+        if not heading_seen and line.startswith("# "):
+            title = line[2:].strip() or title
+            heading_seen = True
+        elif line.startswith("@difficulty:"):
+            difficulty = line.removeprefix("@difficulty:").strip() or "mittel"
+        elif line.startswith("@hint:"):
+            value = line.removeprefix("@hint:").strip()
+            if value:
+                hints.append(value)
+        elif line.startswith("@tags:"):
+            tags.extend(
+                value.strip() for value in line.removeprefix("@tags:").split(",")
+                if value.strip()
+            )
+        elif line.startswith("@source:"):
+            value = line.removeprefix("@source:").strip()
+            if value:
+                sources.append(value)
+        else:
+            body.append(line)
+    return TaskMarkdownParts(
+        title,
+        "\n".join(body).strip(),
+        difficulty,
+        tuple(dict.fromkeys(hints)),
+        tuple(dict.fromkeys(tags)),
+        tuple(dict.fromkeys(sources)),
+    )
+
+
+def compose_task_markdown(parts: TaskMarkdownParts) -> str:
+    """Erzeuge kanonisches Aufgaben-Markdown aus visuellen Formularfeldern."""
+    metadata = [f"@difficulty:{parts.difficulty.strip() or 'mittel'}"]
+    clean_tags = tuple(dict.fromkeys(tag.strip() for tag in parts.tags if tag.strip()))
+    if clean_tags:
+        metadata.append("@tags: " + ", ".join(clean_tags))
+    metadata.extend(f"@hint: {hint.strip()}" for hint in parts.hints if hint.strip())
+    metadata.extend(f"@source: {source.strip()}" for source in parts.sources if source.strip())
+    return "\n".join(
+        [f"# {parts.title.strip() or 'Aufgabe'}", *metadata, "", parts.body.strip(), ""]
+    )
 
 
 def assignment_markdown(
@@ -68,9 +134,10 @@ def validate_author_draft(draft: AuthorDraft) -> tuple[str, ...]:
         issues.append("Die Kennung muss ein kebab-case-Name sein.")
     try:
         payload = yaml.safe_load(draft.trainer_source)
-        definitions = payload.get("exercises") if isinstance(payload, dict) else None
-        if payload.get("format") != 1 or not isinstance(definitions, list) or len(definitions) != 1:
-            raise ValueError("Ein Entwurf benötigt format: 1 und genau eine Aufgabe.")
+        payload = normalize_pykim_document(payload, source_name="Trainer-YAML")
+        definitions = payload.get("exercises")
+        if not isinstance(definitions, list) or len(definitions) != 1:
+            raise ValueError("Ein Entwurf benötigt genau eine PyKIM-Aufgabe.")
         exercise = exercise_from_data(definitions[0])
         if exercise.name != draft.name:
             issues.append("Die YAML-Kennung stimmt nicht mit dem Entwurfsnamen überein.")
@@ -143,6 +210,7 @@ def save_author_draft(
 
 
 __all__ = [
-    "AuthorDraft", "assignment_markdown", "load_published_draft",
-    "save_author_draft", "validate_author_draft",
+    "AuthorDraft", "TaskMarkdownParts", "assignment_markdown",
+    "compose_task_markdown", "load_published_draft", "save_author_draft",
+    "split_task_markdown", "validate_author_draft",
 ]

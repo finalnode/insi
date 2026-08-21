@@ -1,4 +1,4 @@
-"""Parser und Validator für PyKIMs annotationsbasiertes M@rkdown."""
+"""Parser und Validator für in:sis annotationsbasiertes M@rkdown."""
 
 from __future__ import annotations
 

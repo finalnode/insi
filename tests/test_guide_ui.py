@@ -37,6 +37,17 @@ async def test_student_can_open_overview_tasks_and_script(user):
     await user.should_see("Aufgabenprüfung")
     await user.should_see("Neue Trainingsdefinition entwerfen")
 
+    user.find("Hilfe").click()
+    await user.should_see("Dokumentation · Documentation")
+    await user.should_see("Erste Schritte mit in:si")
+    user.find("Schließen").click()
+
+    user.find("Quellen").click()
+    await user.should_see("AGPL-3.0-or-later von in:si")
+    await user.should_see("Copyright © 2026 in:si contributors")
+    user.find("Lizenztexte offline lesen").click()
+    await user.should_see("Lizenz und rechtliche Hinweise")
+
 
 @pytest.mark.anyio
 @pytest.mark.e2e

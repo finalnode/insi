@@ -7,7 +7,12 @@ try:
 except ModuleNotFoundError:
     import tomli as tomllib
 
-from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import (
+    collect_all,
+    collect_data_files,
+    collect_submodules,
+    copy_metadata,
+)
 
 project = Path(SPEC).resolve().parents[2]
 with (project / "pyproject.toml").open("rb") as source:
@@ -16,6 +21,20 @@ with (project / "pyproject.toml").open("rb") as source:
 datas = []
 binaries = []
 hiddenimports = []
+
+for package in (
+    "insi",
+    "PyKIM",
+    "nicegui",
+    "pywebview",
+    "pyxel",
+    "certifi",
+    "cryptography",
+    "packaging",
+    "PyYAML",
+    "Send2Trash",
+):
+    datas += copy_metadata(package, recursive=True)
 
 datas += collect_data_files("nicegui")
 datas += collect_data_files("webview")
@@ -33,6 +52,16 @@ datas.append((
     str(project / "packaging" / "macos" / "assets" / "app-icon-master.png"),
     "insi/assets",
 ))
+datas.append((str(project / "THIRD_PARTY_NOTICES.md"), "licenses"))
+datas.append((str(project / "LICENSE"), "licenses"))
+datas.append((str(project / "LICENSING.md"), "licenses"))
+datas.append((str(project / "DATENSCHUTZ.md"), "documentation"))
+datas.append((str(project / "README.md"), "documentation"))
+datas.append((str(project / "README.en.md"), "documentation"))
+datas.append((str(project / "SECURITY.md"), "documentation"))
+datas.append((str(project / "KNOWN_ISSUES.md"), "documentation"))
+datas.append((str(project / "ROADMAP.md"), "documentation"))
+datas.append((str(project / "docs"), "documentation/docs"))
 hiddenimports += ["pykim.examples"]
 hiddenimports += [
     "engineio.async_drivers.aiohttp",

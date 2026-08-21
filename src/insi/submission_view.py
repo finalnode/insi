@@ -121,9 +121,10 @@ def render_submission_panel(ui, nicegui_app, nicegui_run, *, desktop: bool) -> N
         ui.separator()
         ui.label("2. Lernstand exportieren").classes("text-xl font-bold")
         ui.markdown(
-            "Verschlüsselt werden dein bestätigter Name, Systemname, die "
-            "aktuellen Quellcodes, letzte Testergebnisse, Leistungsübersicht "
-            "und Codefingerprints. Andere Rechnerdaten werden nicht erfasst."
+            "Verschlüsselt werden dein im Kurs eingetragener Name oder dein "
+            "Kürzel, die aktuellen Quellcodes, letzte Testergebnisse, "
+            "Leistungsübersicht und Codefingerprints. Dein Systembenutzername "
+            "wird nicht exportiert."
         )
         include_journal = ui.checkbox(
             "Meine Dokubuch-Einträge ebenfalls exportieren",

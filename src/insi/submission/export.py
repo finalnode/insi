@@ -12,7 +12,6 @@ import pykim
 import insi
 from insi.course import exercise_file, get_student_name
 from insi.progress import load_progress
-from insi.system import system_user_name
 from insi.training.registry import exercise_names
 
 from .crypto import CertificateInfo, certificate_info, encrypt_payload
@@ -111,8 +110,9 @@ def build_submission_payload(
         "format": "pykim-learning-record-v1",
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "identity": {
-            "student_name": get_student_name(root) or system_user_name(),
-            "system_name": system_user_name(),
+            # Nur die bewusst im Kurs hinterlegte Angabe exportieren. Der lokale
+            # OS-Kontoname ist für die fachliche Zuordnung nicht erforderlich.
+            "student_name": get_student_name(root),
         },
         "environment": {
             "insi": insi.__version__,

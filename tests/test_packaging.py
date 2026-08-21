@@ -40,11 +40,15 @@ def test_desktop_workflow_covers_all_release_targets():
         "runner: macos-15",
         "tools/build_desktop_app.py",
         "tools/check_windows_desktop.ps1",
+        "tools/check_windows_sandbox.py",
+        "tools/check_linux_sandbox.py",
+        "tools/check_macos_sandbox.py",
         "tools/build_macos_dmg.py --rebuild-app",
         "tools/check_release_version.py",
         "gh release upload",
         'dist/windows/insi/insi-python.exe',
         'dist/macos/insi.app/Contents/MacOS/insi-python',
+        "bubblewrap",
     ):
         assert expected in workflow
 
@@ -58,6 +62,43 @@ def test_pyinstaller_specs_are_valid_python_and_use_common_entrypoint():
         source = path.read_text(encoding="utf-8")
         compile(source, str(path), "exec")
         assert 'packaging" / "app_entry.py' in source
+        assert "copy_metadata" in source
+        assert '"insi"' in source
+        assert '"nicegui"' in source
+        assert '"pywebview"' in source
+        assert 'project / "LICENSE"' in source
+        assert 'project / "LICENSING.md"' in source
+        assert 'THIRD_PARTY_NOTICES.md' in source
+        assert 'DATENSCHUTZ.md' in source
+        assert 'project / "README.en.md"' in source
+        assert 'project / "docs"' in source
+
+
+def test_visual_markdown_editor_assets_are_declared_as_package_data():
+    with (PROJECT / "pyproject.toml").open("rb") as source:
+        setuptools = tomllib.load(source)["tool"]["setuptools"]
+    package_data = setuptools["package-data"]["insi"]
+
+    assert "markdown_editor.js" in package_data
+    assert "vendor/toastui_editor/*.js" in package_data
+    assert "vendor/toastui_editor/*.css" in package_data
+    assert "vendor/toastui_editor/*.txt" in package_data
+    assert "LICENSE" in setuptools["license-files"]
+    assert "LICENSING.md" in setuptools["license-files"]
+    assert "THIRD_PARTY_NOTICES.md" in setuptools["license-files"]
+    assert "share/insi/documentation/de" in setuptools["data-files"]
+    assert "share/insi/documentation/en" in setuptools["data-files"]
+
+
+def test_runtime_license_audit_is_strict_and_platform_aware():
+    source = (PROJECT / "tools/audit_runtime_licenses.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "License-Expression" in source
+    assert 'Requirement("pywebview[gtk]")' in source
+    assert 'Requirement("pythonnet")' in source
+    assert '"--strict"' in source
 
     entrypoint = (PROJECT / "packaging/app_entry.py").read_text(encoding="utf-8")
     assert "from insi.app import main" in entrypoint
@@ -76,3 +117,22 @@ def test_desktop_brand_uses_safe_technical_names_and_visible_display_name():
     assert 'name="insi.app"' in macos
     assert '"CFBundleDisplayName": "in:si"' in macos
     assert 'bundle_identifier="de.simplicissima.insi"' in macos
+
+
+def test_macos_build_removes_extended_attributes_and_verifies_adhoc_signature():
+    app_source = (PROJECT / "tools/build_macos_app.py").read_text(encoding="utf-8")
+    dmg_source = (PROJECT / "tools/build_macos_dmg.py").read_text(encoding="utf-8")
+
+    assert '["xattr", "-cr", str(application)]' in app_source
+    assert 'TemporaryDirectory(prefix="insi-macos-sign-")' in app_source
+    assert '"codesign", "--verify", "--deep", "--strict"' in app_source
+    assert "Der lokale .app-Ordner ist deshalb" in app_source
+    assert "apply_adhoc_signature(staging / application.name)" in dmg_source
+    assert '"audit_runtime_licenses.py"' in app_source
+
+
+def test_windows_and_linux_builds_run_strict_license_audit():
+    source = (PROJECT / "tools/build_desktop_app.py").read_text(encoding="utf-8")
+
+    assert '"audit_runtime_licenses.py"' in source
+    assert '"--strict"' in source

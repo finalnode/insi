@@ -56,6 +56,24 @@ def test_workspace_only_composes_smaller_views():
         assert view in source
 
 
+def test_tools_view_does_not_schedule_automatic_network_checks():
+    tree = ast.parse((GUIDE / "tools_view.py").read_text(encoding="utf-8"))
+    automatic_network_timers = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "timer"
+        and any(
+            isinstance(argument, ast.Name)
+            and argument.id in {"refresh_updates", "refresh_course_content"}
+            for argument in node.args
+        )
+    ]
+
+    assert automatic_network_timers == []
+
+
 def test_app_context_owns_mutable_session_state():
     context = AppContext(object(), object(), object(), desktop=True)
 

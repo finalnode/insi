@@ -184,7 +184,9 @@ def render_course_selection(context) -> bool:
                 # Client darf das eigentliche Öffnen des Kurses nicht verhindern.
                 pass
             set_course_directory(course)
-            course_sync_state.update(result=None, error="", pending=True)
+            # Die lokale Kurskopie wird ohne Netzwerk aktiviert. Ein Abgleich
+            # mit dem Repository erfolgt später nur über den sichtbaren Button.
+            course_sync_state.update(result=None, error="", pending=False)
             try:
                 await asyncio.gather(
                     nicegui_run.io_bound(

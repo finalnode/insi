@@ -30,5 +30,10 @@ def clean_world(monkeypatch, tmp_path):
     reset_world()
     packaged = Path(__file__).resolve().parents[1] / "src" / "insi"
     from insi.registries import activate_content_registries
+    from insi import sandbox
 
     activate_content_registries(packaged)
+    # Unit- und Integrationstests führen Testprogramme lokal aus. Die
+    # Produktionslogik besitzt dafür keinen Umgebungsvariablen-Bypass und
+    # verlangt auf echten Systemen weiterhin einen verifizierten OS-Adapter.
+    monkeypatch.setattr(sandbox, "_adapter_override", sandbox._TestAdapter())

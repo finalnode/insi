@@ -1,9 +1,9 @@
 """Textdarstellung deutschsprachiger Prüfergebnisse."""
 
-from pykim.trainer.models import CheckReport
+from .contracts import CheckReportLike
 
 
-def print_report(report: CheckReport) -> None:
+def print_report(report: CheckReportLike) -> None:
     print(f"Aufgabe: {report.title}\n")
     for result in report.results:
         marker = "✓" if result.passed else "✗"

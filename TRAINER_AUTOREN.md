@@ -1,14 +1,40 @@
-# Aufgaben für den PyKIM-Trainer schreiben
+# Trainer und interaktive Aufgaben erstellen
 
-Trainingsdaten sind gewöhnliches YAML. Eine Aufgabe enthält keine ausführbaren
-Funktionen und keinen Python-Import. Die Suite übersetzt ausschließlich bekannte
-Prüftypen in ihre fest eingebaute Prüfmaschine.
+in:si besitzt eine fachmodulneutrale Trainer-Registry. Eine Trainerdatei benennt
+ihre Engine ausdrücklich; das Fachmodul validiert und prüft anschließend nur
+seine eigenen deklarativen Bausteine. PyKIM ist die erste mitgelieferte Engine.
+HTML/CSS, SQLite und Filius können denselben Vertrag später ergänzen, ohne
+Registry, Lernstand oder Rückmeldungsansicht umzubauen.
+
+Die Kurswerkstatt bietet dafür einen visuellen Markdowneditor, Formularfelder
+für Schwierigkeit, Tags, Quellen und gestufte Hinweise sowie einen Builder für
+Prüfbausteine. Markdown und YAML bleiben als Expertenansicht zugänglich. Die
+gespeicherten Dateien sind normale, portable Textdateien.
+
+Das aktuelle in:si-Format sieht so aus:
+
+```yaml
+format: insi-trainer-v1
+engine: pykim
+exercises:
+  - id: roter-punkt
+    title: Ein roter Punkt
+    tests:
+      - type: pixels
+        cells: [[20, 20, red]]
+```
+
+Vorhandene PyKIM-Dateien mit `format: 1` bleiben kompatibel und werden beim
+Laden automatisch der PyKIM-Engine zugeordnet. Neue Dateien sollten die Engine
+ausdrücklich angeben. Trainerdaten enthalten keine ausführbaren Funktionen und
+keine Python-Imports.
 
 Alle mitgelieferten Definitionen stehen momentan in
 `src/insi/Trainer/definitions.yml`:
 
 ```yaml
-format: 1
+format: insi-trainer-v1
+engine: pykim
 exercises:
   - id: roter-punkt
     title: Ein roter Punkt
@@ -167,6 +193,22 @@ Gezählt werden nichtleere Codezeilen ohne reine Kommentare. Zehn oder weniger
 relevante Zeilen ergeben 100 %, 15 Zeilen 67 % und 20 Zeilen 50 %. Die
 fachlichen Tests entscheiden unabhängig davon, ob die Lösung korrekt ist.
 
+## Engineunabhängige Aktivitäten
+
+Einfache Interaktionen benötigen kein Fachmodul. Die Core-Engine unterstützt
+freie Antworten, Zuordnungen und Parsons-Puzzles:
+
+```yaml
+format: insi-trainer-v1
+engine: core
+id: begriffe-zuordnen
+title: Begriffe zuordnen
+mode: matching
+pairs:
+  - {id: bedingung, left: if, right: Bedingung}
+  - {id: schleife, left: for, right: Wiederholung}
+```
+
 ## Sicherheit und Erweiterungen
 
 Die YAML-Datei wird mit `yaml.safe_load()` gelesen. Unbekannte Felder und
@@ -174,11 +216,16 @@ Prüftypen werden abgelehnt. Ein Inhaltspaket kann daher keine eigenen
 Python-Befehle einschleusen.
 
 Wenn ein neuer fachlicher Prüftyp benötigt wird, wird er einmal in der
-Suite-Engine implementiert und getestet. Danach können beliebig viele Aufgaben
-diesen Typ in YAML verwenden. Beliebiger Python-Code, Lambdas oder dynamische
-Imports gehören nicht in Trainingsdaten.
+zuständigen Fachmodul-Engine implementiert und getestet. Neue Engines werden
+über den Entry-Point `insi.trainer_backends` registriert. Sie liefern
+deklarative Aufgaben, die zugehörigen Starterdateien und werten eine neutrale
+`Submission` aus. Darin kann in:si Quelltext, einen Einstiegspunkt oder ein
+ganzes Projektverzeichnis übergeben. Damit benötigt etwa eine HTML/CSS-Engine
+keinen fingierten Python-`checker`. in:si verwaltet Feedback, Versuche und
+Kurswechsel. Beliebiger Python-Code, Lambdas oder dynamische Imports gehören
+nicht in Trainingsdaten.
 
 Die Aufgabenstellung bleibt als gleichnamige Markdown-Datei unter
 `src/insi/Aufgaben/imperativ/` oder `Aufgaben/oop/`. Das Autorenwerkzeug
-der Suite erzeugt und validiert YAML und Markdown gemeinsam und speichert
+von in:si erzeugt und validiert YAML und Markdown gemeinsam und speichert
 Entwürfe unter `.pykim/author_drafts/` im Kursordner.

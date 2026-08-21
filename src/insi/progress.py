@@ -7,9 +7,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from pykim.trainer.models import CheckReport
+from .training.contracts import CheckReportLike
 
 from .course import get_course_directory
+
+
+SANDBOX_PROGRESS_ENV = "INSI_PROGRESS_FILE"
+MAX_SANDBOX_ATTEMPTS_PER_RUN = 100
+MAX_SANDBOX_ATTEMPT_BYTES = 1024 * 1024
 
 
 def _empty_progress() -> dict[str, object]:
@@ -17,8 +22,79 @@ def _empty_progress() -> dict[str, object]:
 
 
 def progress_file(course: Path | None = None) -> Path | None:
+    sandbox_target = os.environ.get(SANDBOX_PROGRESS_ENV)
+    if sandbox_target:
+        return Path(sandbox_target).expanduser().resolve()
     course = get_course_directory() if course is None else course
     return None if course is None else course / ".pykim" / "progress.json"
+
+
+def prepare_sandbox_progress(target: str | Path, course: str | Path) -> int:
+    """Kopiere den Lernstand in einen privaten Laufbereich und liefere die Versuchszahl."""
+
+    destination = Path(target).expanduser().resolve()
+    data = load_progress(Path(course).expanduser().resolve())
+    attempts = data.get("attempts", [])
+    baseline = len(attempts) if isinstance(attempts, list) else 0
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return baseline
+
+
+def merge_sandbox_progress(
+    source: str | Path,
+    course: str | Path,
+    *,
+    baseline_attempts: int,
+) -> int:
+    """Übernimm ausschließlich neue Trainer-Versuche aus einem Sandboxlauf."""
+
+    path = Path(source).expanduser().resolve()
+    try:
+        sandbox_data = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, ValueError, TypeError):
+        return 0
+    sandbox_attempts = sandbox_data.get("attempts", []) if isinstance(sandbox_data, dict) else []
+    if not isinstance(sandbox_attempts, list):
+        return 0
+    additions = sandbox_attempts[max(0, baseline_attempts):][
+        :MAX_SANDBOX_ATTEMPTS_PER_RUN
+    ]
+    if not additions:
+        return 0
+    course_path = Path(course).expanduser().resolve()
+    current = load_progress(course_path)
+    attempts = current.setdefault("attempts", [])
+    if not isinstance(attempts, list):
+        attempts = current["attempts"] = []
+    valid_additions = []
+    for item in additions:
+        if not isinstance(item, dict):
+            continue
+        exercise = item.get("exercise")
+        passed = item.get("passed")
+        tests = item.get("tests")
+        if (
+            not isinstance(exercise, str)
+            or not exercise.strip()
+            or len(exercise) > 200
+            or not isinstance(passed, bool)
+            or not isinstance(tests, list)
+            or len(tests) > 500
+        ):
+            continue
+        try:
+            encoded = json.dumps(item, ensure_ascii=False).encode("utf-8")
+        except (TypeError, ValueError):
+            continue
+        if len(encoded) > MAX_SANDBOX_ATTEMPT_BYTES:
+            continue
+        valid_additions.append(item)
+    attempts.extend(valid_additions)
+    _save(current, course_path)
+    return len(valid_additions)
 
 
 def load_progress(course: Path | None = None) -> dict[str, object]:
@@ -48,7 +124,7 @@ def _save(data: dict[str, object], course: Path | None = None) -> None:
 
 def record_attempt(
     exercise: str,
-    report: CheckReport,
+    report: CheckReportLike,
     source: str = "",
     *,
     course: Path | None = None,

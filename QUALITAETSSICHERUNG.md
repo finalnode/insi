@@ -7,6 +7,12 @@ auf echten Schulgeräten oder im Unterricht stattfinden müssen.
 
 - Kern-API, Welt, Pixel, Farben, Töne und Parallelplanung
 - sämtliche Trainer und Optimierungsregeln
+- fachmodulneutrale Trainer-Engine-Registry, explizite Engineformate und
+  sichere Engine-Starterpfade
+- verlustfreies Trennen und Zusammensetzen visueller Aufgabenmetadaten
+- kontextabhängiges TOAST-Toolbar-Plugin, debouncte Servervalidierung und
+  editorlokale Zeilennummern für Aufgabeninhalte
+- lokal gebündelte Markdowneditor-, Sprach- und Lizenzdateien
 - Vollständigkeit der Aufgaben- und Skriptdateien
 - Klassifikation aller mit `@button:run` freigegebenen Codeblöcke
 - vollständiger fensterloser Probelauf aller Konsolen- und PyKIM-Beispiele
@@ -14,6 +20,28 @@ auf echten Schulgeräten oder im Unterricht stattfinden müssen.
 - Backups beim Zurücksetzen einer Aufgabe
 - portable Lernstände innerhalb des Kursordners
 - kontrolliertes Starten, Stoppen und Live-Streaming lokaler Prozesse
+- Fail-closed-Verhalten ohne verfügbaren Sandbox-Adapter
+- validierte Windows-Brokerkonfiguration ohne Netzwerkfähigkeit und mit
+  begrenzten AppContainer-Dateirechten
+- echter Windows-AppContainer-Lauf im Desktop-Build gegen Hostdateizugriff,
+  Netzwerk, Prozessüberschreitung, zu große Schreibmengen und eine fehlende
+  Pyxel-Grafikinitialisierung
+- Bubblewrap-Kommandokonstruktion ohne Host-`PYTHONPATH`, Netzwerk oder
+  pauschale Kursordnerfreigabe
+- echter Linux-Bubblewrap-Lauf im Desktop-Build gegen Lesen und Schreiben
+  außerhalb des Workspaces, Netzwerkzugriff, falsche Netzwerk-/PID-Namespaces
+  sowie Prozess-, RAM-, CPU- und temporäre Schreibgrenzverletzungen
+- echtes Pyxel-Fenster im Linux-Build über einen headless Weston und einen
+  einzeln eingebundenen Wayland-Socket
+- echter macOS-Seatbelt-Lauf in beiden Desktop-Builds gegen Lesen und Schreiben
+  außerhalb des Workspaces, Netzwerkzugriff sowie Prozess-, RAM-, CPU- und
+  Schreibgrenzverletzungen
+- Abbruch des Prozessbaums bei RAM-, CPU-, Prozess-, Ausgabe- und
+  Schreibgrenzverletzungen
+- sichere globale, kursweite und projektbezogene Dateiimporte ohne
+  Überschreiben, Pfadausbruch oder Symlink-Übernahme
+- begrenzte Projektstände und validierte Rückführung von Lernstand aus einem
+  privaten Aufgabenlauf
 - Windows- und Linux-Kommandowahl zum Öffnen von Dateien
 - Erkennung und Auswahl einer getrennten Schüler-Laufzeit
 - lokale VS-Code-Workspace-Konfiguration mit erhaltenen Benutzereinstellungen
@@ -45,12 +73,13 @@ pytest -m e2e
 
 Vor einem breiten Rollout wird jede Zeile auf einem echten Gerät geprüft:
 
-| Umgebung | Setup | Thonny | Pyxel | Stoppen | Netzordner | Status |
+| Umgebung | Setup | IDE | Sandboxstatus | Pyxel | Stoppen | Status |
 |---|---:|---:|---:|---:|---:|---|
-| Windows 10 Schulimage | ☐ | ☐ | ☐ | ☐ | ☐ | offen |
-| Windows 11 Schulimage | ☐ | ☐ | ☐ | ☐ | ☐ | offen |
-| macOS Lehrkraftgerät | ☐ | ☐ | ☐ | ☐ | ☐ | teilweise |
-| Linux optional | ☐ | ☐ | ☐ | ☐ | ☐ | offen |
+| Windows 10 Schulimage | ☐ | ☐ | AppContainer-Probelauf erfolgreich | ☐ | ☐ | offen |
+| Windows 11 Schulimage | ☐ | ☐ | AppContainer-Probelauf erfolgreich | ☐ | ☐ | offen |
+| macOS Lehrkraftgerät | DMG-Payload und Ad-hoc-Signatur geprüft | ☐ | ✓ lokaler Seatbelt-Probelauf am 21.08.2026 | ☐ | ☐ | teilweise |
+| Linux Wayland + bwrap | ☐ | ☐ | Namespace-Probelauf erfolgreich | ☐ | ☐ | offen |
+| Linux ohne bwrap/X11 | ☐ | ☐ | gesperrt bzw. nur headless | IDE | ☐ | offen |
 
 Zu protokollieren sind Python-Version, Installationsart, IDE-Pfad,
 Pyxel-Version, Laufwerkstyp und die genaue Fehlermeldung.
@@ -59,11 +88,56 @@ Pyxel-Version, Laufwerkstyp und die genaue Fehlermeldung.
 
 1. `insi.app` startet als **in:si** per Doppelklick ohne systemweit installiertes Python.
 2. Übersicht, Skript, Aufgaben und Beispiele öffnen ohne Serverfehler.
-3. Ein PyKIM-Beispiel öffnet das Pyxel-Fenster und lässt sich wieder stoppen.
-4. Eine Aufgabe lässt sich speichern, prüfen und in die gewählte IDE öffnen.
-5. Ein neues Projekt enthält relative `.pyxres`-Pfade und startet offline.
+3. Ein mitgeliefertes PyKIM-Beispiel öffnet das Pyxel-Fenster und lässt sich
+   wieder stoppen.
+4. Der Systemcheck meldet **macOS Seatbelt** und gibt integrierte Aufgaben- und
+   Projektstarts erst nach bestandenem Selbsttest frei.
+5. Ein neues Projekt enthält relative `.pyxres`-Pfade und startet in der IDE
+   offline.
 6. Nach Neustart bleiben Kursordner, IDE und Runtime-Auswahl erhalten.
 7. Gatekeeper-Verhalten wird nach Signierung und Notarisierung erneut geprüft.
+
+Der vollständige native Test lässt sich aus dem Repository ausführen:
+
+```bash
+python tools/check_macos_sandbox.py --gui
+```
+
+Er prüft Datei- und Netzwerkgrenzen, einen geerbten Kindprozess, Prozessanzahl,
+RAM, CPU-Zeit, Schreibvolumen und mit `--gui` zusätzlich ein echtes
+Pyxel-Fenster.
+
+### Linux-Sandbox
+
+Der vollständige native Test kann in einer Wayland-Sitzung mit
+`python tools/check_linux_sandbox.py --gui` ausgeführt werden.
+
+1. Der Systemcheck unterscheidet fehlendes, unbrauchbares und aktives
+   Bubblewrap.
+2. Ein Aufgabenlauf kann nur seine private Laufablage beschreiben.
+3. Ein Projektlauf kann das aktuelle Projekt, aber kein anderes Projekt
+   verändern.
+4. Kursweite und globale importierte Dateien sind lesbar und nicht schreibbar.
+5. Home-Verzeichnis, `.pykim`-Interna, D-Bus und Netzwerk sind nicht erreichbar.
+6. Unter Wayland öffnet ein Pyxel-Fenster; unter X11 verweist die App auf die
+   externe IDE.
+7. RAM-, CPU-, Prozess-, Ausgabe- und Schreibtests beenden den gesamten
+   Prozessbaum und nennen den Abbruchgrund.
+
+### Windows-Sandbox
+
+1. Der Systemcheck erzeugt einen AppContainer und gibt den integrierten Start
+   nur nach bestandenem Datei- und Netzwerkprobelauf frei.
+2. Ein Aufgabenlauf kann ausschließlich seine private Laufablage beschreiben.
+3. Ein Projektlauf kann das aktuelle Projekt, aber keine anderen Benutzer- oder
+   Kursdateien verändern.
+4. Ohne Netzwerk-Capability sind Internet und lokales Netz nicht erreichbar.
+5. Prozess-, RAM-, CPU-, Ausgabe- und Schreibgrenzen beenden über das Job Object
+   beziehungsweise den Broker den vollständigen Prozessbaum.
+6. Nach dem Lauf sind temporäres AppContainer-Profil und dessen explizite
+   Dateirechte entfernt.
+7. Ein Pyxel-Projekt öffnet sein Fenster im AppContainer und lässt sich aus
+   in:si vollständig stoppen.
 
 ## Testfälle für Thonny und VS Code
 

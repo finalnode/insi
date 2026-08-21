@@ -538,13 +538,11 @@ def sync_certificate_content(configuration, timeout: float = 20.0) -> Path:
             runtime_manifest = staging / RUNTIME_FILENAME
             if runtime_manifest.is_file():
                 parse_runtime_manifest(runtime_manifest)
-            from pykim.trainer.definitions import load_exercises
-            from insi.training.activities import load_activities
+            from insi.training.registry import validate_training_directory
 
             trainer_directory = staging / configuration.trainers_path
             if trainer_directory.is_dir():
-                load_exercises(trainer_directory)
-                load_activities(
+                validate_training_directory(
                     trainer_directory,
                     staging / configuration.assignments_path,
                 )

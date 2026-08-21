@@ -8,8 +8,8 @@ from pathlib import Path
 from .execution_security import (
     course_code_policy,
     execution_environment,
-    popen_isolation_options,
 )
+from .sandbox import sandbox_run
 from .interpreter import python_command
 
 from .library import PARADIGMS, script_chapters
@@ -140,13 +140,14 @@ def run_headless(audit: ScriptBlockAudit, timeout: float = 5.0) -> subprocess.Co
             "PYKIM_PROGRESS_MODE": "disabled",
         },
     )
-    return subprocess.run(
+    return sandbox_run(
         [*python_command(), "-c", audit.source],
+        policy=policy,
+        cwd=audit.path.parent,
         capture_output=True,
         text=True,
         timeout=timeout,
         env=environment,
-        **popen_isolation_options(),
     )
 
 

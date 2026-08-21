@@ -7,11 +7,15 @@ import pytest
 
 from insi.execution import ExecutionManager, ScriptExampleManager
 from insi.execution_security import (
-    ACTIVE_PROTECTION,
     CodeOrigin,
     ExecutionPolicy,
     execution_environment,
     student_policy,
+)
+from insi.progress import (
+    load_progress,
+    merge_sandbox_progress,
+    prepare_sandbox_progress,
 )
 
 
@@ -21,7 +25,11 @@ def test_student_policy_reserves_workspace_for_persistent_project_data(tmp_path)
     assert policy.origin is CodeOrigin.STUDENT
     assert policy.workspace == tmp_path.resolve()
     assert policy.writable_roots == (tmp_path.resolve(),)
-    assert policy.allow_network
+    assert not policy.allow_network
+    assert policy.max_memory_bytes == 512 * 1024 * 1024
+    assert policy.max_processes == 16
+    assert policy.max_written_bytes == 100 * 1024 * 1024
+    assert policy.max_cpu_seconds == 120
 
 
 def test_execution_policy_rejects_invalid_limits_and_unrelated_workspace(tmp_path):
@@ -45,6 +53,7 @@ def test_execution_environment_removes_credentials_and_unsafe_python_hooks(
     monkeypatch.setenv("PYTHONSTARTUP", str(tmp_path / "startup.py"))
     monkeypatch.setenv("PYTHONPATH", str(tmp_path / "existing"))
     monkeypatch.setenv("DISPLAY", ":42")
+    monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/tmp/private-bus")
 
     environment = execution_environment(
         student_policy(tmp_path),
@@ -54,21 +63,13 @@ def test_execution_environment_removes_credentials_and_unsafe_python_hooks(
     assert "OPENAI_API_KEY" not in environment
     assert "CUSTOM_CLIENT_SECRET" not in environment
     assert "PYTHONSTARTUP" not in environment
+    assert "DBUS_SESSION_BUS_ADDRESS" not in environment
     assert environment["DISPLAY"] == ":42"
     assert environment["PYKIM_CODE_ORIGIN"] == "student"
-    assert environment["PYTHONPATH"].split(os.pathsep)[:2] == [
-        str((tmp_path / "course").resolve()),
-        str(tmp_path / "existing"),
-    ]
-
-
-def test_protection_status_does_not_claim_an_os_sandbox():
-    assert ACTIVE_PROTECTION.process_separated
-    assert ACTIVE_PROTECTION.environment_sanitized
-    assert not ACTIVE_PROTECTION.filesystem_isolated
-    assert not ACTIVE_PROTECTION.network_isolated
-    assert not ACTIVE_PROTECTION.os_sandbox_active
-    assert "noch nicht" in ACTIVE_PROTECTION.summary
+    assert environment["PYTHONPATH"].split(os.pathsep)[0] == str(
+        (tmp_path / "course").resolve()
+    )
+    assert str(tmp_path / "existing") not in environment["PYTHONPATH"].split(os.pathsep)
 
 
 def test_execution_manager_sanitizes_environment_and_labels_origin(
@@ -128,6 +129,8 @@ def test_execution_manager_limits_runtime_and_output(tmp_path):
     assert limited.output_truncated
     assert len(limited.stdout) <= 120
     assert "gekürzt" in limited.stdout
+    assert limited.limit_reason is not None
+    assert "Ausgabegrenze" in limited.limit_reason
 
 
 def test_script_example_manager_applies_timeout():
@@ -170,3 +173,72 @@ def test_stopping_execution_manager_still_marks_manual_stop(tmp_path):
     assert not worker.is_alive()
     assert results[0].stopped
     assert not results[0].timed_out
+
+
+def test_sandbox_progress_merges_only_new_attempts_without_overwriting_host_changes(
+    tmp_path
+):
+    course = tmp_path / "course"
+    progress = course / ".pykim" / "progress.json"
+    progress.parent.mkdir(parents=True)
+    progress.write_text(
+        json.dumps({"format": 1, "attempts": [{"exercise": "old"}]}),
+        encoding="utf-8",
+    )
+    sandbox_progress = tmp_path / "run" / "progress.json"
+    baseline = prepare_sandbox_progress(sandbox_progress, course)
+    sandbox_data = json.loads(sandbox_progress.read_text(encoding="utf-8"))
+    sandbox_data["attempts"].append(
+        {"exercise": "sandbox", "passed": True, "tests": []}
+    )
+    sandbox_progress.write_text(json.dumps(sandbox_data), encoding="utf-8")
+    progress.write_text(
+        json.dumps(
+            {
+                "format": 1,
+                "attempts": [
+                    {"exercise": "old"},
+                    {"exercise": "parallel-host"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert merge_sandbox_progress(
+        sandbox_progress, course, baseline_attempts=baseline
+    ) == 1
+
+    assert [item["exercise"] for item in load_progress(course)["attempts"]] == [
+        "old",
+        "parallel-host",
+        "sandbox",
+    ]
+
+
+def test_sandbox_progress_rejects_forged_or_oversized_attempts(tmp_path):
+    course = tmp_path / "course"
+    sandbox_progress = tmp_path / "run" / "progress.json"
+    baseline = prepare_sandbox_progress(sandbox_progress, course)
+    sandbox_progress.write_text(
+        json.dumps(
+            {
+                "format": 1,
+                "attempts": [
+                    {"exercise": "missing-fields"},
+                    {
+                        "exercise": "oversized",
+                        "passed": False,
+                        "tests": [],
+                        "source": "x" * (1024 * 1024),
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert merge_sandbox_progress(
+        sandbox_progress, course, baseline_attempts=baseline
+    ) == 0
+    assert load_progress(course)["attempts"] == []

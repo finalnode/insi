@@ -1,6 +1,7 @@
 """NiceGUI-Arbeitsbereich für persönliche Schülerprojekte."""
 
 from .course import get_course_directory
+from .markdown_editor import MarkdownEditor
 from .projects import (
     create_project,
     launch_project,
@@ -11,6 +12,13 @@ from .projects import (
     student_projects,
 )
 from .system import open_in_preferred_ide, open_path
+from .sandbox import sandbox_status
+from .workspace_files import (
+    FileScope,
+    MAX_IMPORTED_FILE_BYTES,
+    import_workspace_bytes,
+    project_files_directory,
+)
 
 
 TEMPLATE_LABELS = {
@@ -30,6 +38,17 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
     if course is None:
         ui.label("Richte zuerst im Setup einen Kursordner ein.").classes("text-orange")
         return None
+    protection = sandbox_status()
+    if not protection.available:
+        ui.label(
+            "Die geschützte Ausführung ist auf diesem System nicht verfügbar. "
+            "Projekte können weiterhin in der gewählten IDE gestartet werden."
+        ).classes("text-sm text-orange-8")
+    elif not protection.gui_available:
+        ui.label(
+            "Konsolenprojekte können geschützt gestartet werden. PyKIM- und "
+            "Pyxel-Fenster benötigen eine Wayland-Sitzung oder die externe IDE."
+        ).classes("text-sm text-orange-8")
 
     workspace = ui.column().classes("w-full")
 
@@ -41,6 +60,7 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
             ui.notify(str(error), type="negative")
 
     def render_project(project) -> None:
+        graphical = project.kind in {"pykim", "pyxel"}
         with ui.row().classes("w-full items-center gap-2"):
             ui.label(project.name).classes("text-xl font-bold")
             ui.badge(TEMPLATE_LABELS.get(project.kind, project.kind), color="secondary")
@@ -56,7 +76,7 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
             ).classes("text-sm text-orange")
 
         with ui.row().classes("items-center gap-2"):
-            ui.button(
+            start_button = ui.button(
                 "Starten",
                 on_click=lambda selected=project: action(
                     lambda: launch_project(selected, course),
@@ -64,6 +84,8 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
                 ),
                 icon="play_arrow",
             )
+            if not protection.available or (graphical and not protection.gui_available):
+                start_button.disable()
             ide_button = ui.button(
                 f"In {preferred_ide_label} öffnen",
                 on_click=lambda selected=project: action(
@@ -90,6 +112,33 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
                     ),
                     icon="palette",
                 ).props("outline")
+
+        async def import_project_file(event) -> None:
+            try:
+                imported = import_workspace_bytes(
+                    await event.file.read(),
+                    event.file.name,
+                    FileScope.PROJECT,
+                    course=course,
+                    project=project.directory,
+                )
+                ui.notify(
+                    f"{imported.path.name} wurde dem Projekt hinzugefügt.",
+                    type="positive",
+                )
+            except (OSError, RuntimeError, ValueError) as error:
+                ui.notify(f"Dateiimport fehlgeschlagen: {error}", type="negative")
+
+        with ui.row().classes("w-full items-center gap-3"):
+            ui.upload(
+                label="Datei zum Projekt hinzufügen",
+                on_upload=import_project_file,
+                auto_upload=True,
+                max_file_size=MAX_IMPORTED_FILE_BYTES,
+            ).props("flat")
+            ui.label(
+                f"Ablage: {project_files_directory(project.directory).relative_to(course)}"
+            ).classes("text-xs text-grey-7")
 
         with ui.tabs().classes("w-full") as editor_tabs:
             code_tab = ui.tab("Code", icon="code")
@@ -142,9 +191,13 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
                 )
                 with ui.row().classes("items-center"):
                     ui.button("Speichern", on_click=lambda: save_code(), icon="save")
-                    ui.button(
+                    start_saved_button = ui.button(
                         "Speichern und starten", on_click=save_and_start, icon="play_arrow"
                     )
+                    if not protection.available or (
+                        graphical and not protection.gui_available
+                    ):
+                        start_saved_button.disable()
                     ui.button(
                         "Kopieren",
                         on_click=lambda: ui.clipboard.write(code_editor.value),
@@ -153,24 +206,23 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
 
             with ui.tab_panel(docs_tab):
                 documentation = project_text(project, project.documentation)
-                docs_editor = ui.codemirror(
+                ui.label(
+                    "Die Dokumentation wird als portable Markdown-Datei gespeichert. "
+                    "Du kannst jederzeit zwischen visueller und direkter Bearbeitung wechseln."
+                ).classes("text-sm text-grey-7 mb-2")
+                docs_editor = MarkdownEditor(
                     value=documentation,
-                    language="Markdown",
-                    line_wrapping=True,
-                ).classes("w-full").style("height: 25rem")
+                    height="32rem",
+                    initial_mode="wysiwyg",
+                )
                 docs_state = {"hash": project_text_hash(documentation)}
                 docs_status = ui.label("Gespeichert").classes("text-xs text-grey-7")
-                ui.label("Vorschau").classes("font-bold mt-2")
-                docs_preview = ui.markdown(documentation).classes(
-                    "prose max-w-none w-full p-4 border rounded min-h-40"
-                )
 
                 def update_documentation_preview(_) -> None:
-                    docs_preview.set_content(docs_editor.value)
                     docs_status.set_text("Ungespeicherte Änderungen")
                     docs_status.classes(replace="text-xs text-orange-8")
 
-                docs_editor.on("change", update_documentation_preview)
+                docs_editor.on_value_change(update_documentation_preview)
 
                 def save_documentation() -> None:
                     try:

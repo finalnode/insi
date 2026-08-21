@@ -4,12 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "insi"
-version = "0.6.0"
+version = "0.7.0"
 description = "Offline-first desktop learning environment for modular computer science courses"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = { text = "AGPL-3.0-or-later" }
 authors = [{ name = "in:si contributors" }]
+classifiers = [
+  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+]
 dependencies = [
   "PyKIM>=0.6.0",
   "certifi>=2024.2.2",
@@ -42,9 +45,21 @@ insi = "insi.training.provider:provider"
 where = ["src"]
 include = ["insi*"]
 
+[tool.setuptools]
+license-files = ["LICENSE", "LICENSING.md", "THIRD_PARTY_NOTICES.md"]
+
+[tool.setuptools.data-files]
+"share/insi/documentation" = ["docs/*.md"]
+"share/insi/documentation/de" = ["docs/de/*.md"]
+"share/insi/documentation/en" = ["docs/en/*.md"]
+
 [tool.setuptools.package-data]
 insi = [
   "assets/*.png",
+  "markdown_editor.js",
+  "vendor/toastui_editor/*.css",
+  "vendor/toastui_editor/*.js",
+  "vendor/toastui_editor/*.txt",
   "content-manifest.json",
   "course_catalog.json",
   "Skripte/imperativ/*.md",

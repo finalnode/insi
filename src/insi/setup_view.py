@@ -26,7 +26,14 @@ from insi.course_setup import (
     install_course_setup,
     setup_info,
 )
-from insi.execution_security import ACTIVE_PROTECTION
+from insi.sandbox import sandbox_status
+from insi.execution_security import (
+    DEFAULT_MAX_CPU_SECONDS,
+    DEFAULT_MAX_MEMORY_BYTES,
+    DEFAULT_MAX_PROCESSES,
+    DEFAULT_MAX_WRITTEN_BYTES,
+    DEFAULT_TIMEOUT_SECONDS,
+)
 from insi.runtime import (
     bundled_wheelhouse,
     course_runtime_preflight,
@@ -636,19 +643,46 @@ def render_setup_panel(
         status_line("Thonny gefunden" if status.thonny else "Thonny nicht gefunden", status.thonny)
         status_line("VS Code gefunden" if status.vscode else "VS Code nicht gefunden", status.vscode)
     ui.label("Schutz bei Codeausführung").classes("font-bold mt-2")
+    protection = sandbox_status()
     with ui.column().classes("w-full gap-1"):
         status_line("Schülercode läuft in einem getrennten Prozess")
         status_line(
             "Integrierte Aufgabenläufe begrenzen Laufzeit und gespeicherte Ausgabe"
         )
         status_line("Typische Zugangsdaten werden nicht weitergegeben")
+        status_line("Netzwerkzugriff ist für integrierte Lernprogramme gesperrt")
         status_line(
-            "Noch keine aktive Betriebssystem-Sandbox für Dateisystem und Netzwerk",
-            ACTIVE_PROTECTION.os_sandbox_active,
+            "Grenzen: "
+            f"{DEFAULT_TIMEOUT_SECONDS:g} s Laufzeit, "
+            f"{DEFAULT_MAX_CPU_SECONDS:g} s CPU, "
+            f"{DEFAULT_MAX_MEMORY_BYTES // (1024 * 1024)} MB RAM, "
+            f"{DEFAULT_MAX_PROCESSES} Prozesse und "
+            f"{DEFAULT_MAX_WRITTEN_BYTES // (1024 * 1024)} MB neue Dateien"
         )
-    ui.label(ACTIVE_PROTECTION.summary).classes(
-        "text-sm text-orange-8"
+        status_line(
+            (
+                f"OS-Sandbox aktiv: {protection.adapter}"
+                if protection.available
+                else "Keine OS-Sandbox: integrierte Fremdcode-Starts sind gesperrt"
+            ),
+            protection.available,
+        )
+        status_line(
+            (
+                "Geschützte Grafikstarts im Windows-AppContainer verfügbar"
+                if protection.gui_available and protection.platform == "Windows"
+                else "Geschützte Grafikstarts im macOS-Seatbelt verfügbar"
+                if protection.gui_available and protection.platform == "Darwin"
+                else "Geschützte Grafikstarts über Wayland verfügbar"
+                if protection.gui_available
+                else "Grafikstarts benötigen eine OS-Sandbox oder die externe IDE"
+            ),
+            protection.gui_available,
+        )
+    ui.label(protection.summary).classes(
+        "text-sm text-positive" if protection.available else "text-sm text-orange-8"
     )
+    ui.label(protection.detail).classes("text-xs text-grey-7")
     with ui.row().classes("items-center gap-3"):
         ui.link(
             "Thonny herunterladen",

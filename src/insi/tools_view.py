@@ -8,6 +8,13 @@ from insi.library import PACKAGED_CONTENT_ROOT
 from insi.system import open_in_preferred_ide, open_path, system_status
 from insi.runtime import course_runtime_preflight
 from insi.updates import check_updates, format_content_version, install_content_update
+from insi.workspace_files import (
+    FileScope,
+    MAX_IMPORTED_FILE_BYTES,
+    course_files_directory,
+    global_files_directory,
+    import_workspace_bytes,
+)
 
 
 def render_tools_panel(
@@ -72,6 +79,48 @@ def render_tools_panel(
                 )
 
         ui.separator()
+        ui.label("Dateien im in:si-Workspace").classes("text-xl font-bold")
+        ui.label(
+            "Importierte Dateien werden in den Workspace kopiert. Lerncode kann "
+            "globale und kursweite Dateien lesen, aber nicht verändern."
+        ).classes("text-sm text-grey-7")
+
+        async def import_file(event, scope: FileScope) -> None:
+            try:
+                imported = import_workspace_bytes(
+                    await event.file.read(),
+                    event.file.name,
+                    scope,
+                    course=course,
+                )
+                ui.notify(
+                    f"{imported.path.name} wurde in {imported.path.parent} abgelegt.",
+                    type="positive",
+                )
+            except (OSError, RuntimeError, ValueError) as error:
+                ui.notify(f"Dateiimport fehlgeschlagen: {error}", type="negative")
+
+        with ui.row().classes("items-start gap-4"):
+            with ui.card().classes("shadow-none border"):
+                ui.label("Für alle Kurse").classes("font-bold")
+                ui.label(str(global_files_directory())).classes("text-xs text-grey-7")
+                ui.upload(
+                    label="Globale Datei hinzufügen",
+                    on_upload=lambda event: import_file(event, FileScope.GLOBAL),
+                    auto_upload=True,
+                    max_file_size=MAX_IMPORTED_FILE_BYTES,
+                ).props("flat")
+            with ui.card().classes("shadow-none border"):
+                ui.label("Für diesen Kurs").classes("font-bold")
+                ui.label(str(course_files_directory(course))).classes("text-xs text-grey-7")
+                ui.upload(
+                    label="Kursdatei hinzufügen",
+                    on_upload=lambda event: import_file(event, FileScope.COURSE),
+                    auto_upload=True,
+                    max_file_size=MAX_IMPORTED_FILE_BYTES,
+                ).props("flat")
+
+        ui.separator()
         ui.label("Pyxel-Ressourceneditor").classes("text-xl font-bold")
         ui.markdown(
             "Ressourcendateien gehören immer zu einem Projekt. Lege unter "
@@ -87,8 +136,9 @@ def render_tools_panel(
     ui.separator()
     ui.label("Updates").classes("text-xl font-bold").props("id=pykim-updates")
     ui.label(
-        "App und Lerninhalte werden getrennt geprüft. Schülerlösungen und "
-        "Lernstand werden dabei niemals verändert."
+        "App und Lerninhalte werden nur nach einem Klick auf „Jetzt prüfen“ "
+        "über GitHub abgefragt. Schülerlösungen und Lernstand werden dabei "
+        "niemals verändert."
     ).classes("text-grey-7")
     startup_sync = course_sync_state["result"]
     startup_sync_error = str(course_sync_state["error"])
@@ -100,7 +150,7 @@ def render_tools_panel(
         course_sync_class = "text-warning"
     elif startup_sync is not None and startup_sync.checked_online:
         course_sync_text = (
-            "Kursrepository beim Start abgeglichen: "
+            "Kursrepository zuletzt manuell abgeglichen: "
             + startup_sync.message
         )
         course_sync_class = "text-positive"
@@ -108,12 +158,15 @@ def render_tools_panel(
         course_sync_text = (
             startup_sync.message
             if startup_sync is not None
-            else "Kursrepository wurde noch nicht abgeglichen."
+            else (
+                "Kursrepository wurde noch nicht abgeglichen. Der Abgleich "
+                "startet nur über den Button."
+            )
         )
         course_sync_class = "text-grey-7"
     course_sync_label = ui.label(course_sync_text).classes(course_sync_class)
-    app_update_label = ui.label("App-Version wird geprüft …")
-    content_update_label = ui.label("Inhaltsversion wird geprüft …")
+    app_update_label = ui.label("App-Version wurde noch nicht geprüft.")
+    content_update_label = ui.label("Inhaltsversion wurde noch nicht geprüft.")
     update_state: dict[str, object] = {"status": None}
 
     async def refresh_course_content() -> None:
@@ -251,12 +304,13 @@ def render_tools_panel(
                 "flat round dense aria-label='Dialog schließen'"
             )
         ui.label(
-            f"Prüfe getrennt, ob eine neue Version von {APP_DISPLAY_NAME} oder neue Lerninhalte "
-            "bereitstehen. Du entscheidest, was installiert wird."
+            f"Nach deiner Bestätigung fragt {APP_DISPLAY_NAME} bei GitHub an, "
+            "ob eine neue App-Version oder neue Lerninhalte bereitstehen. Du "
+            "entscheidest, was installiert wird."
         ).classes("text-grey-7")
         with ui.card().classes("w-full shadow-none border"):
             ui.label("Desktop-App").classes("font-bold")
-            dialog_app_label = ui.label("App-Version wird geprüft …")
+            dialog_app_label = ui.label("App-Version wurde noch nicht geprüft.")
             dialog_app_button = ui.button(
                 "App herunterladen",
                 on_click=open_app_download,
@@ -264,9 +318,7 @@ def render_tools_panel(
             )
         with ui.card().classes("w-full shadow-none border"):
             dialog_content_title = ui.label("Lerninhalte").classes("font-bold")
-            dialog_content_label = ui.label(
-                "Inhaltsversion wird geprüft …"
-            )
+            dialog_content_label = ui.label("Inhaltsversion wurde noch nicht geprüft.")
             dialog_content_button = ui.button(
                 "Lerninhalte aktualisieren",
                 on_click=update_dialog_content,
@@ -454,9 +506,6 @@ def render_tools_panel(
 
     refresh_button.on("click", refresh_updates)
     update_badge.on("click", open_update_dialog)
-    ui.timer(0.2, refresh_updates, once=True)
-    if course_sync_state["pending"]:
-        ui.timer(0.35, refresh_course_content, once=True)
 
     author_course = get_course_directory()
     if author_course is not None and course_setup_info(author_course) is not None:
