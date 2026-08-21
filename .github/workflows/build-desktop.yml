@@ -17,7 +17,10 @@ env:
 jobs:
   test:
     name: Tests
-    runs-on: ubuntu-24.04
+    # ubuntu-24.04 currently blocks Bubblewrap while it configures the isolated
+    # loopback interface (RTM_NEWADDR). Keep the real namespace test on the
+    # supported 22.04 image instead of weakening or skipping it.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Linux-Sandbox installieren
@@ -82,7 +85,9 @@ jobs:
   linux:
     name: Linux x86_64
     needs: test
-    runs-on: ubuntu-24.04
+    # See the test job above: this runner must permit Bubblewrap network
+    # namespaces so the packaged app can pass the real isolation probe.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Linux-GUI-Abhängigkeiten installieren
