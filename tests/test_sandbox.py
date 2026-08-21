@@ -465,6 +465,7 @@ def test_windows_broker_declares_fail_closed_kernel_controls():
     ):
         assert expected in source
     assert "GetAppContainerFolderPath(\n            self.sid_string" in source
+    assert 'self._icacls(parent, ["/grant:r", f"*{self.sid_string}:RX"])' in source
 
 
 @pytest.mark.parametrize(
