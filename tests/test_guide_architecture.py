@@ -186,7 +186,12 @@ def test_theme_loader_and_browser_assets_stay_bounded():
 
 
 def test_tools_view_does_not_schedule_automatic_network_checks():
-    tree = ast.parse((GUIDE / "tools_view.py").read_text(encoding="utf-8"))
+    source = (GUIDE / "tools_view.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    render = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "render_tools_panel"
+    )
     automatic_network_timers = [
         node
         for node in ast.walk(tree)
@@ -201,6 +206,16 @@ def test_tools_view_does_not_schedule_automatic_network_checks():
     ]
 
     assert automatic_network_timers == []
+    assert len(source.splitlines()) <= 380
+    assert render.end_lineno - render.lineno + 1 <= 350
+    assert source.count("system_status()") == 1
+    assert "ui.dialog()" not in source
+
+
+def test_update_badge_navigates_to_the_single_tools_update_view():
+    workspace = (GUIDE / "workspace_view.py").read_text(encoding="utf-8")
+
+    assert 'update_badge.on("click", lambda: tabs.set_value(tools_tab))' in workspace
 
 
 def test_app_context_owns_mutable_session_state():

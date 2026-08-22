@@ -70,6 +70,7 @@ def register_workspace(context) -> None:
                 pyxel_tab,
                 browser_tab,
         ) = layout.pages
+        update_badge.on("click", lambda: tabs.set_value(tools_tab))
 
         lazy_views = {}
         project_refresh = {"callback": lambda: None}

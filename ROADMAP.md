@@ -538,9 +538,19 @@ Hinweis laden beziehungsweise speichern weiterhin den aktuellen Stand. Ein
 Architekturtest begrenzt den Erstaufbau auf einen Lesevorgang. Die vollständige
 normale Testsuite umfasst danach 455 bestandene Prüfungen.
 
+Der Werkzeuge-Schnitt entfernt die zweite, vollständig vorgebaute
+Update-Oberfläche. Der Headerstatus führt nun verlässlich zum einzigen manuellen
+Updatebereich; App-Prüfung, Kursabgleich und Inhaltsaktivierung bleiben dort
+getrennt steuerbar. Dadurch entfallen der versteckte Dialog sowie seine
+doppelte Status- und Schaltflächenpflege. Die lokale Systemerkennung wird pro
+Aufbau nur noch einmal ausgeführt. `tools_view.py` sank von 516 auf 360 Zeilen,
+seine Hauptfunktion von 493 auf 337 Zeilen; Architekturtests sichern den
+einzigen Updatepfad und beide Größenbudgets. Die vollständige normale Testsuite
+umfasst danach 456 bestandene Prüfungen.
+
 Trotz dieses neuen Funktionsumfangs liegt der selbst gepflegte Python-
-Produktivcode im aktuellen Zwischenstand mit 18.634 Zeilen weiterhin 112
-Zeilen beziehungsweise rund 0,6 Prozent unter der 0.8-Ausgangsbasis. Das neue
+Produktivcode im aktuellen Zwischenstand mit 18.479 Zeilen weiterhin 267
+Zeilen beziehungsweise rund 1,4 Prozent unter der 0.8-Ausgangsbasis. Das neue
 Migrationsmodell erhöht den Kern zunächst sichtbar; die folgende
 Konsolidierung muss diesen Sicherheitsumfang durch Abbau bestehender
 Sonderpfade wieder überkompensieren.
