@@ -24,10 +24,8 @@ from .course_runtime import (
     MAX_OFFLINE_PACKAGE_SIZE,
     MAX_OFFLINE_WHEELS,
     RUNTIME_FILENAME,
-    RUNTIME_PYTHON,
     RuntimeManifest,
     current_runtime_target,
-    default_runtime_requirements,
     parse_runtime_manifest,
     runtime_manifest_bytes,
 )
@@ -281,13 +279,7 @@ def build_course_archive(
     runtime_data: bytes | None
     if runtime_manifest is None:
         runtime_path = source / RUNTIME_FILENAME
-        runtime_data = (
-            runtime_path.read_bytes()
-            if runtime_path.is_file()
-            else runtime_manifest_bytes(
-                RuntimeManifest(RUNTIME_PYTHON, default_runtime_requirements())
-            )
-        )
+        runtime_data = runtime_path.read_bytes() if runtime_path.is_file() else None
     elif isinstance(runtime_manifest, bytes):
         runtime_data = runtime_manifest
     elif isinstance(runtime_manifest, Path):

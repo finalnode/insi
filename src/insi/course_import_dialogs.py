@@ -58,6 +58,11 @@ async def confirm_external_course_import(
             "weitere Systemfunktionen zugreifen. Importiere deshalb nur "
             "Kurse aus einer Quelle, der du vertraust."
         ).classes("text-warning")
+        ui.label(
+            "Ein Kurs kann zusätzliche Fachmodule benötigen. Solche Module "
+            "sind keine Kursdaten, sondern laufen nach einer gesonderten "
+            "Zustimmung mit den Rechten der Anwendung."
+        ).classes("text-warning")
         trust = ui.checkbox(
             "Ich vertraue der Quelle und möchte den Kurs importieren."
         )
@@ -77,4 +82,41 @@ async def confirm_external_course_import(
     return bool(await dialog)
 
 
-__all__ = ["archive_runtime_details", "confirm_external_course_import"]
+async def confirm_external_trainer_extensions(ui, extensions) -> bool:
+    """Warne vor dem ersten Import exakt benannter Fachmodulversionen."""
+    with ui.dialog() as dialog, ui.card().classes("w-full max-w-xl"):
+        ui.label("Externes Fachmodul freigeben?").classes("text-xl font-bold")
+        ui.label(
+            "Diese Module wurden nicht durch in:si geprüft. Sie werden im "
+            "App-Prozess ausgeführt und besitzen die Rechte der Anwendung."
+        ).classes("text-warning")
+        for extension in extensions:
+            with ui.column().classes("w-full gap-0 rounded border p-3"):
+                ui.label(extension.identity).classes("font-bold")
+                ui.label(f"Engine: {extension.engine}").classes("text-sm")
+                ui.label(
+                    f"Herausgeber: {extension.publisher or 'nicht angegeben'}"
+                ).classes("text-sm")
+                if extension.source:
+                    ui.label(extension.source).classes("text-sm break-all")
+        trust = ui.checkbox(
+            "Ich vertraue diesen Modulen und gebe genau diese Versionen frei."
+        )
+        with ui.row().classes("w-full justify-end gap-2"):
+            ui.button("Abbrechen", on_click=lambda: dialog.submit(False)).props("flat")
+            confirm = ui.button(
+                "Module freigeben",
+                on_click=lambda: dialog.submit(True),
+            ).props("color=warning")
+            confirm.disable()
+        trust.on_value_change(
+            lambda event: confirm.enable() if event.value else confirm.disable()
+        )
+    return bool(await dialog)
+
+
+__all__ = [
+    "archive_runtime_details",
+    "confirm_external_course_import",
+    "confirm_external_trainer_extensions",
+]

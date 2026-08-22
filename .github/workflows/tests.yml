@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install "git+https://github.com/finalnode/PyKIM.git@main"
+      - run: python -m pip install --upgrade --requirement requirements/build-bootstrap.txt
+      - run: python -m pip install --requirement requirements/pykim-0.6.0.txt
       - run: python -m pip install -e ".[test]"
       - run: python -m pytest

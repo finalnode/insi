@@ -87,16 +87,24 @@ def main(arguments: list[str] | None = None) -> int:
     if platform.system() != "Darwin":
         raise SystemExit("Der macOS-App-Build muss unter macOS ausgeführt werden.")
     project = Path(__file__).resolve().parents[1]
-    if os.environ.get("PYKIM_MACOS_BUILD_ENV") != "1":
+    bootstrap_requirements = project / "requirements" / "build-bootstrap.txt"
+    pykim_requirements = project / "requirements" / "pykim-0.6.0.txt"
+    if os.environ.get("INSI_MACOS_BUILD_ENV") != "1":
         environment = project / "build" / "macos-venv"
         python = environment / "bin" / "python"
         if not python.is_file():
             subprocess.run([sys.executable, "-m", "venv", str(environment)], check=True)
-        subprocess.run([str(python), "-m", "pip", "install", "--upgrade", "pip"], check=True)
+        subprocess.run(
+            [
+                str(python), "-m", "pip", "install", "--upgrade",
+                "--requirement", str(bootstrap_requirements),
+            ],
+            check=True,
+        )
         subprocess.run(
             [
                 str(python), "-m", "pip", "install",
-                "git+https://github.com/finalnode/PyKIM.git@main",
+                "--requirement", str(pykim_requirements),
             ],
             check=True,
         )
@@ -105,7 +113,7 @@ def main(arguments: list[str] | None = None) -> int:
             check=True,
         )
         child_environment = os.environ.copy()
-        child_environment["PYKIM_MACOS_BUILD_ENV"] = "1"
+        child_environment["INSI_MACOS_BUILD_ENV"] = "1"
         return subprocess.run(
             [str(python), str(Path(__file__).resolve()), *(__import__("sys").argv[1:])],
             cwd=project,
@@ -117,11 +125,14 @@ def main(arguments: list[str] | None = None) -> int:
             cwd=project,
             check=True,
         )
+    build_manifest = project / "dist" / "desktop-build-manifest.json"
     subprocess.run(
         [
             sys.executable,
             str(project / "tools" / "audit_runtime_licenses.py"),
             "--strict",
+            "--manifest",
+            str(build_manifest),
         ],
         cwd=project,
         check=True,
@@ -147,7 +158,7 @@ def main(arguments: list[str] | None = None) -> int:
     ]
     if not options.skip_clean:
         command.append("--clean")
-    command.append(str(project / "packaging" / "macos" / "PyKIM.spec"))
+    command.append(str(project / "packaging" / "macos" / "insi.spec"))
     subprocess.run(command, cwd=project, check=True)
     application = project / "dist" / "macos" / "insi.app"
     if not application.is_dir():

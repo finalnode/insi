@@ -114,7 +114,7 @@ def render_tasks_panel(
                 ).classes("prose max-w-none")
                 render_task_sources(ui, task_sources(material.content))
                 render_task_hints(
-                    ui, hint_key, task_hints(material.content)
+                    ui, hint_key, task_hints(material.content), progress=progress
                 )
                 activity = get_activity(material.name)
                 if activity is not None and activity.mode == "matching":
@@ -178,6 +178,7 @@ def render_tasks_panel(
                 ui,
                 f"{task_document.paradigm}/{name}",
                 task_hints(task_document.content),
+                progress=progress,
             )
             target = exercise_file(name)
             activity = get_activity(name)
@@ -435,12 +436,15 @@ def render_tasks_panel(
                 def render_test_results(
                     exercise_name=name,
                     container=test_results_container,
+                    cached_progress=None,
                 ) -> None:
                     container.clear()
                     with container:
-                        render_exercise_test_results(ui, exercise_name)
+                        render_exercise_test_results(
+                            ui, exercise_name, progress=cached_progress
+                        )
 
-                render_test_results()
+                render_test_results(cached_progress=progress)
 
                 def save_task(
                     path=target, editor=source_editor, state=editor_state,

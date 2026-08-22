@@ -5,6 +5,8 @@ import os
 import shutil
 from pathlib import Path
 
+from .data_migrations import LOCAL_SETTINGS_FORMAT
+
 COURSE_ENV = "PYKIM_COURSE_DIR"
 CONFIG_DIR_ENV = "PYKIM_CONFIG_DIR"
 
@@ -23,21 +25,22 @@ def _config_directory() -> Path:
     return Path(configured).expanduser() if configured else Path.home() / ".pykim"
 
 
-def _config_file() -> Path:
+def configuration_file() -> Path:
     return _config_directory() / "config.json"
 
 
 def _load_config() -> dict[str, object]:
     try:
-        data = json.loads(_config_file().read_text(encoding="utf-8"))
+        data = json.loads(configuration_file().read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else {}
     except (FileNotFoundError, OSError, ValueError, TypeError):
         return {}
 
 
 def _save_config(data: dict[str, object]) -> None:
-    config_file = _config_file()
+    config_file = configuration_file()
     config_file.parent.mkdir(parents=True, exist_ok=True)
+    data.setdefault("format", LOCAL_SETTINGS_FORMAT)
     config_file.write_text(
         json.dumps(data, ensure_ascii=False, indent=2),
         encoding="utf-8",
@@ -95,6 +98,30 @@ def clear_course_selection() -> None:
         return
     data = _load_config()
     data.pop("course_directory", None)
+    _save_config(data)
+
+
+def course_name_confirmation_matches(value: object, expected: str) -> bool:
+    """Prüfe den aktuellen Eingabewert ohne verzögerten UI-Zustand."""
+    return isinstance(value, str) and value == expected
+
+
+def approved_trainer_extensions() -> frozenset[str]:
+    """Liefere explizit freigegebene Fachmodule als ``Paket==Version``."""
+    values = _load_config().get("approved_trainer_extensions", [])
+    if not isinstance(values, list):
+        return frozenset()
+    return frozenset(value for value in values if isinstance(value, str) and value)
+
+
+def approve_trainer_extension(identity: str) -> None:
+    """Merke die bewusste Zustimmung genau für diese Paketversion."""
+    if "==" not in identity or not all(part.strip() for part in identity.split("==", 1)):
+        raise ValueError("Die Fachmodulfreigabe benötigt Paket und Version.")
+    data = _load_config()
+    approved = set(approved_trainer_extensions())
+    approved.add(identity)
+    data["approved_trainer_extensions"] = sorted(approved)
     _save_config(data)
 
 

@@ -2,6 +2,7 @@
 
 import getpass
 import hashlib
+from importlib.metadata import version
 import platform
 import shutil
 import subprocess
@@ -25,11 +26,16 @@ from .workspace_files import sandbox_readable_roots
 from tempfile import NamedTemporaryFile
 from urllib.request import Request
 
-import pykim
 from . import __version__
 from .network import urlopen
 
 GITHUB_REPOSITORY = "finalnode/insi"
+PYXEL_EDITOR_TYPES = frozenset({"image", "music"})
+PYXEL_EDITOR_LAUNCHER = (
+    "import sys; "
+    "from pyxel.cli import edit_pyxel_resource; "
+    "edit_pyxel_resource(sys.argv[1], sys.argv[2])"
+)
 
 
 def system_user_name() -> str:
@@ -96,7 +102,7 @@ def system_status() -> SystemStatus:
     return SystemStatus(
         python=platform.python_version(),
         python_supported=sys.version_info >= (3, 10),
-        pykim=pykim.__version__,
+        pykim=version("PyKIM"),
         pyxel=shutil.which("pyxel") is not None,
         thonny=shutil.which("thonny") is not None or _application_exists("Thonny"),
         vscode=(
@@ -164,26 +170,39 @@ def open_in_preferred_ide(path: str | Path) -> None:
 def launch_pyxel_editor(
     resource: str | Path,
     python: str | Path | None = None,
+    editor: str = "image",
 ) -> Path:
-    """Starte den offiziellen Editor für Sprites, Tilemaps, Sounds und Musik."""
-    if python is None:
-        executable = shutil.which("pyxel")
-        command = (
-            [executable, "edit"]
-            if executable is not None
-            else [*python_command(), "-m", "pyxel", "edit"]
-        )
-    else:
-        command = [
-            *command_for(str(Path(python).expanduser().resolve())),
-            "-m",
-            "pyxel",
-            "edit",
-        ]
+    """Starte den offiziellen Pyxel-Editor im gewünschten Arbeitsbereich."""
+    if editor not in PYXEL_EDITOR_TYPES:
+        raise ValueError(f"Unbekannter Pyxel-Editor: {editor}")
+    command = (
+        python_command()
+        if python is None
+        # Virtuelle Python-Umgebungen verweisen häufig per Symlink auf den
+        # Systeminterpreter. Der Symlink muss erhalten bleiben, damit Python
+        # die Pakete der ausgewählten Umgebung (insbesondere Pyxel) findet.
+        else command_for(str(Path(python).expanduser().absolute()))
+    )
     target = Path(resource).expanduser().resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.Popen([*command, str(target)], cwd=target.parent)
-    return target
+    with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as startup_log:
+        process = subprocess.Popen(
+            [*command, "-c", PYXEL_EDITOR_LAUNCHER, str(target), editor],
+            cwd=target.parent,
+            stdout=startup_log,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        try:
+            returncode = process.wait(timeout=0.75)
+        except subprocess.TimeoutExpired:
+            return target
+        startup_log.seek(0)
+        detail = startup_log.read().strip()
+    message = "Pyxel-Editor konnte nicht gestartet werden."
+    if detail:
+        message += f" {detail.splitlines()[-1]}"
+    raise RuntimeError(message + f" (Code {returncode})")
 
 
 def pyxel_examples() -> tuple[Path, ...]:

@@ -29,8 +29,8 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install "git+https://github.com/finalnode/PyKIM.git@main"
+      - run: python -m pip install --upgrade --requirement requirements/build-bootstrap.txt
+      - run: python -m pip install --requirement requirements/pykim-0.6.0.txt
       - run: python -m pip install -e ".[test]"
       - run: python -m pytest
       - name: Release-Tag gegen Projektversion prüfen
@@ -50,10 +50,10 @@ jobs:
       - run: python tools/build_desktop_app.py
       - name: Eingebettetes Python prüfen
         shell: pwsh
-        run: '& "dist/windows/insi/insi-python.exe" --pykim-python -c "import clr, pykim; clr.AddReference(''System.Windows.Forms''); print(pykim.__version__)"'
+        run: '& "dist/windows/insi/insi-python.exe" --insi-python -c "import clr, pykim; clr.AddReference(''System.Windows.Forms''); print(pykim.__version__)"'
       - name: Windows-AppContainer und Job Object prüfen
         shell: pwsh
-        run: '& "dist/windows/insi/insi-python.exe" --pykim-python tools/check_windows_sandbox.py'
+        run: '& "dist/windows/insi/insi-python.exe" --insi-python tools/check_windows_sandbox.py'
       - name: Kompatible pythonnet-Runtime prüfen
         shell: pwsh
         run: |
@@ -102,9 +102,9 @@ jobs:
           cache: pip
       - run: python tools/build_desktop_app.py
       - name: Eingebettetes Python prüfen
-        run: '"dist/linux/insi/insi-python" --pykim-python -c "import pykim; print(pykim.__version__)"'
+        run: '"dist/linux/insi/insi-python" --insi-python -c "import pykim; print(pykim.__version__)"'
       - name: Linux-Bubblewrap und Ressourcengrenzen prüfen
-        run: '"dist/linux/insi/insi-python" --pykim-python tools/check_linux_sandbox.py'
+        run: '"dist/linux/insi/insi-python" --insi-python tools/check_linux_sandbox.py'
       - name: Geschütztes Linux-Wayland-Fenster prüfen
         shell: bash
         run: |
@@ -121,7 +121,7 @@ jobs:
             sleep 0.1
           done
           test -S "$runtime/$WAYLAND_DISPLAY"
-          "dist/linux/insi/insi-python" --pykim-python tools/check_linux_sandbox.py --gui
+          "dist/linux/insi/insi-python" --insi-python tools/check_linux_sandbox.py --gui
       - run: python tools/package_desktop_app.py
       - uses: actions/upload-artifact@v4
         with:
@@ -149,9 +149,9 @@ jobs:
           cache: pip
       - run: python tools/build_macos_dmg.py --rebuild-app
       - name: Eingebettetes Python prüfen
-        run: '"dist/macos/insi.app/Contents/MacOS/insi-python" --pykim-python -c "import pykim; print(pykim.__version__)"'
+        run: '"dist/macos/insi.app/Contents/MacOS/insi-python" --insi-python -c "import pykim; print(pykim.__version__)"'
       - name: macOS-Seatbelt und Ressourcengrenzen prüfen
-        run: '"dist/macos/insi.app/Contents/MacOS/insi-python" --pykim-python tools/check_macos_sandbox.py'
+        run: '"dist/macos/insi.app/Contents/MacOS/insi-python" --insi-python tools/check_macos_sandbox.py'
       - name: Release-Datei in Buildordner kopieren
         run: |
           mkdir -p "dist/releases/macos-${{ matrix.architecture }}"

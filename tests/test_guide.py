@@ -3,6 +3,7 @@ import ast
 import hashlib
 import io
 import stat
+import subprocess
 import threading
 import time
 import zipfile
@@ -18,13 +19,13 @@ from insi.app import (
     app_icon_path,
     browser_favicon,
     configure_native_app_icon,
-    course_name_confirmation_matches,
     parse_arguments,
     prepare_windows_browser_fallback,
 )
 from insi.content import PYODIDE_PLAYGROUND
 from insi.course import (
     clear_course_selection,
+    course_name_confirmation_matches,
     create_course,
     provision_course_exercises,
     exercise_file,
@@ -49,6 +50,9 @@ from insi.ide import (
 )
 from insi.runtime import (
     RuntimeCandidate,
+    RuntimePackageCheck,
+    _active_managed_python,
+    create_managed_runtime,
     discover_runtimes,
     inspect_runtime,
     managed_runtime_path,
@@ -92,6 +96,7 @@ from insi.pyxel_examples_view import copy_pyxel_example_to_course
 from insi.projects import (
     create_project,
     launch_project,
+    launch_project_editor,
     load_project,
     project_text,
     project_text_hash,
@@ -99,6 +104,7 @@ from insi.projects import (
     save_project_text,
     student_projects,
 )
+from insi.project_history import project_states
 from insi.library import (
     PACKAGED_CONTENT_ROOT,
     script_chapters,
@@ -150,6 +156,7 @@ from insi.course_builder_view import (
 from insi.markedown import parse_markedown, validate_markedown
 from insi.course_catalog import load_course_catalog, parse_course_catalog
 from insi.system import (
+    PYXEL_EDITOR_LAUNCHER,
     execute_student_program,
     execute_script_example,
     github_version,
@@ -575,8 +582,7 @@ def test_course_archive_builder_uses_only_visible_learning_content(tmp_path):
     built = parse_course_archive(build_course_archive(source, setup))
 
     assert built.setup.course == "Python 11A"
-    assert built.runtime is not None
-    assert built.runtime.python == "3.11"
+    assert built.runtime is None
     assert "Skripte/_entwurf.md" not in built.files
     assert "README.md" not in built.files
 
@@ -596,6 +602,8 @@ def test_course_builder_creates_setup_and_importable_zip(tmp_path):
         teacher="Frau Beispiel",
         school="OSZ KIM",
         course="Mein Kurs",
+        runtime_python="3.11",
+        runtime_requirements=("PyKIM==0.6.0", "Pyxel==2.9.9"),
         repository="https://github.com/example/mein-kurs.git",
     )
 
@@ -632,6 +640,8 @@ def test_course_builder_can_author_a_fully_local_course(tmp_path):
         teacher="Frau Lokal",
         school="Offline-Schule",
         course="Lokaler Kurs",
+        runtime_python="3.11",
+        runtime_requirements=("PyKIM==0.6.0", "Pyxel==2.9.9"),
     )
     bundle = parse_course_archive(archive.read_bytes())
 
@@ -659,6 +669,8 @@ def test_portable_course_can_contain_only_scripts(tmp_path):
         teacher="Frau Flexibel",
         school="Offline-Schule",
         course="Nur Skript",
+        runtime_python="3.11",
+        runtime_requirements=(),
     )
     bundle = parse_course_archive(archive.read_bytes())
 
@@ -1220,6 +1232,17 @@ def test_every_console_and_pykim_script_example_runs_headless():
     assert failures == []
 
 
+def test_revealed_hint_count_can_reuse_loaded_progress(monkeypatch):
+    monkeypatch.setattr(
+        "insi.progress.load_progress",
+        lambda *_args, **_kwargs: pytest.fail("Lernstand wurde erneut geladen"),
+    )
+
+    assert revealed_hint_count(
+        "imperativ/test", progress={"hints": {"imperativ/test": 2}}
+    ) == 2
+
+
 def test_author_workspace_loads_a_published_pair():
     draft = load_published_draft("quadrat-5")
 
@@ -1374,7 +1397,9 @@ def test_project_launch_uses_selected_runtime_and_project_working_directory(
     calls = []
     monkeypatch.setattr(
         "insi.runtime.selected_runtime",
-        lambda course=None: RuntimeCandidate(str(python), "3.13", "Test", True, True, True),
+        lambda course=None: RuntimeCandidate(
+            str(python), "3.13", "Test", True, ("PyKIM", "Pyxel")
+        ),
     )
     monkeypatch.setattr(
         "insi.projects.sandbox_popen",
@@ -1386,6 +1411,38 @@ def test_project_launch_uses_selected_runtime_and_project_working_directory(
     assert launch_project(project, tmp_path) == project.entrypoint
     assert calls[0][:2] == ([str(python), str(project.entrypoint)], project.directory)
     assert str(tmp_path.resolve()) in calls[0][2]["PYTHONPATH"].split(__import__("os").pathsep)
+    states = project_states(project.directory, tmp_path)
+    assert len(states) == 1
+    assert states[0].title == "Automatisch vor Ausführung"
+
+    launch_project(project, tmp_path)
+
+    assert len(project_states(project.directory, tmp_path)) == 1
+
+
+def test_pyxel_project_launch_requires_the_pinned_pyxel_runtime(tmp_path, monkeypatch):
+    project = create_project(tmp_path, "Spiel", "pyxel")
+    project.resources.write_bytes(b"resource")
+    python = tmp_path / "runtime" / "python"
+    requested = []
+
+    def select(course=None, **options):
+        requested.append((course, options))
+        return RuntimeCandidate(
+            str(python), "3.13", "Test", True, ("PyKIM", "Pyxel")
+        )
+
+    monkeypatch.setattr("insi.runtime.selected_runtime", select)
+    monkeypatch.setattr("insi.projects.sandbox_popen", lambda *_args, **_kwargs: None)
+
+    launch_project(project, tmp_path)
+
+    assert requested == [
+        (
+            tmp_path.resolve(),
+            {"additional_requirements": ("Pyxel==2.9.9",)},
+        )
+    ]
 
 
 def test_project_slug_rejects_empty_names():
@@ -1555,8 +1612,62 @@ def test_runtime_discovery_includes_current_suite_python(tmp_path, monkeypatch):
 
     current_path = str(Path(__import__("sys").executable).absolute())
     current = next(item for item in candidates if item.executable == current_path)
-    assert current.supported and current.pykim and current.pyxel
+    assert current.supported
+    assert current.has_package("PyKIM") and current.has_package("Pyxel")
     assert selected_runtime().executable == current.executable
+
+
+def test_runtime_selection_honors_feature_specific_package_version(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
+    old = RuntimeCandidate("/python-old", "3.14.1", "Alt", True, ("Pyxel",))
+    current = RuntimeCandidate("/python-current", "3.14.1", "Aktuell", True, ("Pyxel",))
+    monkeypatch.setattr(
+        "insi.runtime.discover_runtimes", lambda _course=None: (old, current)
+    )
+    monkeypatch.setattr(
+        "insi.runtime._package_checks",
+        lambda candidate, requirements: tuple(
+            RuntimePackageCheck(
+                requirement,
+                "2.8.0" if candidate is old else "2.9.9",
+                candidate is current,
+            )
+            for requirement in requirements
+        ),
+    )
+
+    selected = selected_runtime(
+        additional_requirements=("Pyxel==2.9.9",)
+    )
+
+    assert selected is current
+
+
+def test_runtime_discovery_probes_independent_interpreters_in_parallel(
+    tmp_path, monkeypatch
+):
+    first = tmp_path / "python-a"
+    second = tmp_path / "python-b"
+    first.write_text("", encoding="utf-8")
+    second.write_text("", encoding="utf-8")
+    barrier = threading.Barrier(2, timeout=2)
+
+    monkeypatch.setattr(
+        "insi.runtime._candidate_paths",
+        lambda _course: [(first, "A"), (second, "B")],
+    )
+
+    def inspect(executable, source):
+        barrier.wait()
+        return RuntimeCandidate(str(executable), "3.14.1", source, True, ())
+
+    monkeypatch.setattr("insi.runtime.inspect_runtime", inspect)
+
+    candidates = discover_runtimes()
+
+    assert [item.source for item in candidates] == ["A", "B"]
 
 
 def test_managed_runtime_is_local_and_stable(tmp_path, monkeypatch):
@@ -1570,6 +1681,38 @@ def test_managed_runtime_is_local_and_stable(tmp_path, monkeypatch):
     assert first == second
     assert first.parent == local
     assert not first.is_relative_to(course)
+
+
+def test_managed_runtime_generation_is_a_real_isolated_venv(tmp_path, monkeypatch):
+    course = tmp_path / "course"
+    course.mkdir()
+    monkeypatch.setenv("INSI_RUNTIME_DIR", str(tmp_path / "runtimes"))
+
+    candidate = create_managed_runtime(course, sys.executable)
+
+    environment = Path(candidate.executable).parent.parent
+    assert candidate.supported
+    assert environment.parent == managed_runtime_path(course) / "versions"
+    assert (environment / "pyvenv.cfg").is_file()
+    assert _active_managed_python(course) is None
+
+
+def test_managed_runtime_marker_rejects_paths_outside_course_root(
+    tmp_path, monkeypatch
+):
+    course = tmp_path / "course"
+    course.mkdir()
+    monkeypatch.setenv("INSI_RUNTIME_DIR", str(tmp_path / "runtimes"))
+    root = managed_runtime_path(course)
+    root.mkdir(parents=True)
+    outside = tmp_path / "outside" / "bin" / "python"
+    outside.parent.mkdir(parents=True)
+    outside.write_text("", encoding="utf-8")
+    (root / "active.json").write_text(
+        json.dumps({"environment": "../../outside"}), encoding="utf-8"
+    )
+
+    assert _active_managed_python(course) is None
 
 
 def test_runtime_discovery_scans_conda_pyenv_and_uv(tmp_path, monkeypatch):
@@ -1595,18 +1738,25 @@ def test_runtime_discovery_scans_conda_pyenv_and_uv(tmp_path, monkeypatch):
 def test_provisioned_runtime_installs_package_and_becomes_preferred(tmp_path, monkeypatch):
     course = tmp_path / "course"
     course.mkdir()
-    python = tmp_path / "runtime" / "bin" / "python"
+    monkeypatch.setenv("INSI_RUNTIME_DIR", str(tmp_path / "runtimes"))
+    python = managed_runtime_path(course) / "versions" / "test" / "bin" / "python"
     python.parent.mkdir(parents=True)
     python.write_text("", encoding="utf-8")
-    source = tmp_path / "PyKIM.whl"
-    source.write_text("", encoding="utf-8")
     calls = []
-    ready = RuntimeCandidate(str(python), "3.13.1", "PyKIM-Kursumgebung", True, True, True)
+    ready = RuntimeCandidate(
+        str(python), "3.13.1", "Kursumgebung", True, ("PyKIM", "Pyxel")
+    )
     monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
     monkeypatch.setattr("insi.runtime.create_managed_runtime", lambda *args: ready)
-    monkeypatch.setattr("insi.runtime._package_source", lambda: source)
     monkeypatch.setattr("insi.runtime.bundled_wheelhouse", lambda: None)
     monkeypatch.setattr("insi.runtime.inspect_runtime", lambda *args: ready)
+    monkeypatch.setattr(
+        "insi.runtime._package_checks",
+        lambda _candidate, requirements: tuple(
+            RuntimePackageCheck(item, item.split("==", 1)[1], True)
+            for item in requirements
+        ),
+    )
     monkeypatch.setattr(
         "insi.runtime.subprocess.run",
         lambda command, **kwargs: calls.append((command, kwargs)),
@@ -1615,21 +1765,127 @@ def test_provisioned_runtime_installs_package_and_becomes_preferred(tmp_path, mo
     result = provision_managed_runtime(course, python)
 
     assert result == ready
-    assert calls[0][0] == [str(python), "-m", "pip", "install", "--upgrade", str(source)]
+    assert calls[0][0] == [
+        str(python),
+        "-m",
+        "pip",
+        "install",
+        "--upgrade",
+        "PyKIM==0.6.0",
+        "Pyxel==2.9.9",
+        "PyYAML==6.0.3",
+    ]
     assert get_runtime_preference() == str(python.resolve())
+    marker = json.loads(
+        (managed_runtime_path(course) / "active.json").read_text(encoding="utf-8")
+    )
+    assert marker == {"environment": "versions/test"}
+
+
+def test_failed_runtime_repair_preserves_active_generation(tmp_path, monkeypatch):
+    course = tmp_path / "course"
+    course.mkdir()
+    monkeypatch.setenv("INSI_RUNTIME_DIR", str(tmp_path / "runtimes"))
+    root = managed_runtime_path(course)
+    old_python = root / "versions" / "old" / "bin" / "python"
+    new_python = root / "versions" / "new" / "bin" / "python"
+    for executable in (old_python, new_python):
+        executable.parent.mkdir(parents=True)
+        executable.write_text("", encoding="utf-8")
+    (root / "active.json").write_text(
+        json.dumps({"environment": "versions/old"}), encoding="utf-8"
+    )
+    set_runtime_preference(old_python)
+    old = RuntimeCandidate(
+        str(old_python), "3.13.1", "Kursumgebung", True, ("PyKIM", "Pyxel")
+    )
+    new = RuntimeCandidate(
+        str(new_python), "3.13.1", "Kursumgebung", True, ("PyKIM", "Pyxel")
+    )
+    bases = []
+    monkeypatch.setattr("insi.runtime.inspect_runtime", lambda *args: old)
+    monkeypatch.setattr(
+        "insi.runtime.create_managed_runtime",
+        lambda _course, base: bases.append(base) or new,
+    )
+    monkeypatch.setattr(
+        "insi.runtime._install_runtime_packages",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("abgebrochen")),
+    )
+
+    with pytest.raises(RuntimeError, match="abgebrochen"):
+        repair_runtime(course)
+
+    assert old_python.is_file()
+    assert not new_python.parent.parent.exists()
+    assert bases == [old]
+    assert get_runtime_preference() == str(old_python.resolve())
+    assert json.loads((root / "active.json").read_text(encoding="utf-8")) == {
+        "environment": "versions/old"
+    }
+
+
+def test_successful_runtime_repair_activates_new_generation(tmp_path, monkeypatch):
+    course = tmp_path / "course"
+    course.mkdir()
+    monkeypatch.setenv("INSI_RUNTIME_DIR", str(tmp_path / "runtimes"))
+    root = managed_runtime_path(course)
+    old_python = root / "versions" / "old" / "bin" / "python"
+    new_python = root / "versions" / "new" / "bin" / "python"
+    for executable in (old_python, new_python):
+        executable.parent.mkdir(parents=True)
+        executable.write_text("", encoding="utf-8")
+    (root / "active.json").write_text(
+        json.dumps({"environment": "versions/old"}), encoding="utf-8"
+    )
+    set_runtime_preference(old_python)
+    old = RuntimeCandidate(
+        str(old_python), "3.13.1", "Kursumgebung", True, ("PyKIM", "Pyxel")
+    )
+    new = RuntimeCandidate(
+        str(new_python), "3.13.1", "Kursumgebung", True, ("PyKIM", "Pyxel")
+    )
+    bases = []
+    monkeypatch.setattr(
+        "insi.runtime.inspect_runtime",
+        lambda executable, *_args: (
+            old if Path(executable) == old_python else new
+        ),
+    )
+    monkeypatch.setattr(
+        "insi.runtime.create_managed_runtime",
+        lambda _course, base: bases.append(base) or new,
+    )
+    monkeypatch.setattr(
+        "insi.runtime._install_runtime_packages", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(
+        "insi.runtime._package_checks",
+        lambda _candidate, requirements: tuple(
+            RuntimePackageCheck(item, item.split("==", 1)[1], True)
+            for item in requirements
+        ),
+    )
+
+    assert repair_runtime(course) == new
+
+    assert old_python.is_file()
+    assert new_python.is_file()
+    assert bases == [old]
+    assert get_runtime_preference() == str(new_python.resolve())
+    assert json.loads((root / "active.json").read_text(encoding="utf-8")) == {
+        "environment": "versions/new"
+    }
 
 
 def test_runtime_install_uses_bundled_wheels_offline(tmp_path, monkeypatch):
     wheelhouse = tmp_path / "wheels"
     wheelhouse.mkdir()
-    (wheelhouse / "PyKIM-1.0-py3-none-any.whl").write_text("", encoding="utf-8")
-    source = tmp_path / "PyKIM.whl"
-    source.write_text("", encoding="utf-8")
+    (wheelhouse / "PyKIM-0.6.0-py3-none-any.whl").write_text("", encoding="utf-8")
     python = tmp_path / "python"
     python.write_text("", encoding="utf-8")
     calls = []
     monkeypatch.setenv("PYKIM_WHEELHOUSE", str(wheelhouse))
-    monkeypatch.setattr("insi.runtime._package_source", lambda: source)
     monkeypatch.setattr(
         "insi.runtime.subprocess.run",
         lambda command, **kwargs: calls.append((command, kwargs)),
@@ -1641,6 +1897,7 @@ def test_runtime_install_uses_bundled_wheels_offline(tmp_path, monkeypatch):
     assert bundled_wheelhouse() == wheelhouse
     assert "--no-index" in calls[0][0]
     assert calls[0][0][calls[0][0].index("--find-links") + 1] == str(wheelhouse)
+    assert calls[0][0][-3:] == ["PyKIM==0.6.0", "Pyxel==2.9.9", "PyYAML==6.0.3"]
 
 
 def test_runtime_diagnostics_does_not_contain_student_files(tmp_path, monkeypatch):
@@ -1852,23 +2109,60 @@ def test_system_status_reports_versions_and_tools(monkeypatch):
     assert status.pyxel and status.thonny and status.vscode
 
 
-def test_launch_pyxel_editor_uses_official_edit_command(tmp_path, monkeypatch):
+def test_launch_pyxel_editor_opens_requested_official_editor(tmp_path, monkeypatch):
     calls = []
-    monkeypatch.setattr(
-        "insi.system.shutil.which",
-        lambda name: "/usr/local/bin/pyxel" if name == "pyxel" else None,
-    )
+
+    class RunningProcess:
+        def wait(self, timeout=None):
+            raise subprocess.TimeoutExpired("pyxel-editor", timeout)
+
+    monkeypatch.setattr("insi.system.python_command", lambda: ["/runtime/python"])
     monkeypatch.setattr(
         "insi.system.subprocess.Popen",
-        lambda command, cwd=None: calls.append((command, cwd)),
+        lambda command, cwd=None, **_options: (
+            calls.append((command, cwd)) or RunningProcess()
+        ),
     )
     resource = tmp_path / "assets" / "game.pyxres"
 
-    assert launch_pyxel_editor(resource) == resource
+    assert launch_pyxel_editor(resource, editor="music") == resource
     assert resource.parent.exists()
-    assert calls == [
-        (["/usr/local/bin/pyxel", "edit", str(resource)], resource.parent)
-    ]
+    command, cwd = calls[0]
+    assert command[:2] == ["/runtime/python", "-c"]
+    assert command[-2:] == [str(resource), "music"]
+    assert "edit_pyxel_resource" in command[2]
+    assert cwd == resource.parent
+
+
+def test_launch_pyxel_editor_rejects_unknown_editor(tmp_path):
+    with pytest.raises(ValueError, match="Unbekannter Pyxel-Editor"):
+        launch_pyxel_editor(tmp_path / "game.pyxres", editor="video")
+
+
+def test_launch_pyxel_editor_preserves_virtualenv_symlink_and_reports_failure(
+    tmp_path, monkeypatch
+):
+    interpreter = tmp_path / "venv" / "bin" / "python"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.symlink_to("/usr/bin/python3")
+    calls = []
+
+    class FailedProcess:
+        def wait(self, timeout=None):
+            return 1
+
+    def fail(command, cwd=None, stdout=None, **_options):
+        calls.append(command)
+        stdout.write("ModuleNotFoundError: No module named 'pyxel'\n")
+        stdout.flush()
+        return FailedProcess()
+
+    monkeypatch.setattr("insi.system.subprocess.Popen", fail)
+
+    with pytest.raises(RuntimeError, match="No module named 'pyxel'"):
+        launch_pyxel_editor(tmp_path / "game.pyxres", python=interpreter)
+
+    assert calls[0][0] == str(interpreter.absolute())
 
 
 def test_pyxel_tools_use_bundled_python_without_global_command(tmp_path, monkeypatch):
@@ -1883,28 +2177,63 @@ def test_pyxel_tools_use_bundled_python_without_global_command(tmp_path, monkeyp
     monkeypatch.setattr("insi.system.shutil.which", lambda _name: None)
     monkeypatch.setattr(
         "insi.system.python_command",
-        lambda: ["/Applications/insi.app/Contents/MacOS/insi-python", "--pykim-python"],
+        lambda: ["/Applications/insi.app/Contents/MacOS/insi-python", "--insi-python"],
     )
     calls = []
+
+    class RunningProcess:
+        def wait(self, timeout=None):
+            raise subprocess.TimeoutExpired("pyxel-editor", timeout)
+
     monkeypatch.setattr(
         "insi.system.subprocess.Popen",
-        lambda command, cwd=None: calls.append((command, cwd)),
+        lambda command, cwd=None, **_options: (
+            calls.append((command, cwd)) or RunningProcess()
+        ),
     )
     resource = tmp_path / "assets" / "game.pyxres"
 
-    assert launch_pyxel_editor(resource) == resource
+    assert launch_pyxel_editor(resource, editor="image") == resource
     assert launch_pyxel_example(example) == example
     runner = "/Applications/insi.app/Contents/MacOS/insi-python"
     assert calls == [
         (
-            [runner, "--pykim-python", "-m", "pyxel", "edit", str(resource)],
+            [
+                runner,
+                "--insi-python",
+                "-c",
+                PYXEL_EDITOR_LAUNCHER,
+                str(resource),
+                "image",
+            ],
             resource.parent,
         ),
         (
-            [runner, "--pykim-python", "-m", "pyxel", "run", str(example)],
+            [runner, "--insi-python", "-m", "pyxel", "run", str(example)],
             example.parent,
         ),
     ]
+
+
+def test_project_editor_uses_selected_runtime_and_requested_area(tmp_path, monkeypatch):
+    project = create_project(tmp_path, "Spiel", "pyxel")
+    python = tmp_path / "runtime" / "python"
+    calls = []
+    monkeypatch.setattr(
+        "insi.runtime.selected_runtime",
+        lambda course=None, **_options: RuntimeCandidate(
+            str(python), "3.13", "Test", True, ("PyKIM", "Pyxel")
+        ),
+    )
+    monkeypatch.setattr(
+        "insi.system.launch_pyxel_editor",
+        lambda resource, python=None, editor="image": calls.append(
+            (resource, python, editor)
+        ) or Path(resource),
+    )
+
+    assert launch_project_editor(project, tmp_path, "music") == project.resources
+    assert calls == [(project.resources, str(python), "music")]
 
 
 def test_frozen_python_runner_keeps_windows_executable_suffix(tmp_path, monkeypatch):
@@ -1916,7 +2245,22 @@ def test_frozen_python_runner_keeps_windows_executable_suffix(tmp_path, monkeypa
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(suite))
 
-    assert command_for(str(suite)) == [str(runner), "--pykim-python"]
+    assert command_for(str(suite)) == [str(runner), "--insi-python"]
+
+
+def test_frozen_python_runner_uses_old_switch_only_for_legacy_bundle(
+    tmp_path,
+    monkeypatch,
+):
+    from insi.interpreter import command_for
+
+    suite = tmp_path / "PyKIM.exe"
+    legacy_runner = tmp_path / "PyKIM Python.exe"
+    legacy_runner.touch()
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(suite))
+
+    assert command_for(str(suite)) == [str(legacy_runner), "--pykim-python"]
 
 
 def test_list_and_launch_installed_pyxel_example(tmp_path, monkeypatch):
@@ -2314,7 +2658,11 @@ def test_run_student_program_is_limited_to_python_files_in_course(
     monkeypatch.setattr(
         "insi.runtime.selected_runtime",
         lambda course=None: RuntimeCandidate(
-            __import__("sys").executable, "3.11.0", "Test", True, True, True
+            __import__("sys").executable,
+            "3.11.0",
+            "Test",
+            True,
+            ("PyKIM", "Pyxel"),
         ),
     )
 
@@ -2359,7 +2707,11 @@ def test_execute_student_program_captures_output(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "insi.runtime.selected_runtime",
         lambda course=None: RuntimeCandidate(
-            __import__("sys").executable, "3.11.0", "Test", True, True, True
+            __import__("sys").executable,
+            "3.11.0",
+            "Test",
+            True,
+            ("PyKIM", "Pyxel"),
         ),
     )
 

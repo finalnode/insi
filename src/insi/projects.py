@@ -19,8 +19,8 @@ from .sandbox import sandbox_popen
 from .workspace_files import (
     project_files_directory,
     sandbox_readable_roots,
-    snapshot_project,
 )
+from .project_history import snapshot_project_if_changed
 from tempfile import NamedTemporaryFile
 
 PROJECTS_DIRECTORY = "Projekte"
@@ -261,14 +261,21 @@ def launch_project(project: StudentProject, course: str | Path) -> Path:
         raise FileNotFoundError(f"{project.entrypoint.name} wurde nicht gefunden.")
     if project.resources is not None and not project.resources.is_file():
         raise RuntimeError(
-            "Die Ressourcendatei fehlt noch. Öffne zuerst den Sprite- und Musikeditor "
+            "Die Ressourcendatei fehlt noch. Öffne zuerst den Sprite- oder Musikeditor "
             "und speichere die Ressourcen."
         )
-    from .runtime import selected_runtime
+    from .runtime import PYXEL_RUNTIME_REQUIREMENT, selected_runtime
 
-    python = selected_runtime(course_root).executable
+    python = (
+        selected_runtime(
+            course_root,
+            additional_requirements=(PYXEL_RUNTIME_REQUIREMENT,),
+        ).executable
+        if project.kind == "pyxel"
+        else selected_runtime(course_root).executable
+    )
     project_files = project_files_directory(project.directory, create=True)
-    snapshot_project(project.directory, course_root)
+    snapshot_project_if_changed(project.directory, course_root)
     policy = student_policy(
         project.directory,
         readable_roots=sandbox_readable_roots(course_root),
@@ -292,11 +299,18 @@ def launch_project(project: StudentProject, course: str | Path) -> Path:
     return project.entrypoint
 
 
-def launch_project_editor(project: StudentProject, course: str | Path) -> Path:
+def launch_project_editor(
+    project: StudentProject,
+    course: str | Path,
+    editor: str,
+) -> Path:
     if project.resources is None:
         raise ValueError("Dieses Projekt besitzt keine Pyxel-Ressourcendatei.")
-    from .runtime import selected_runtime
+    from .runtime import PYXEL_RUNTIME_REQUIREMENT, selected_runtime
     from .system import launch_pyxel_editor
 
-    python = selected_runtime(course).executable
-    return launch_pyxel_editor(project.resources, python=python)
+    python = selected_runtime(
+        course,
+        additional_requirements=(PYXEL_RUNTIME_REQUIREMENT,),
+    ).executable
+    return launch_pyxel_editor(project.resources, python=python, editor=editor)

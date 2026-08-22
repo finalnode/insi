@@ -19,11 +19,19 @@ def latest_attempts(progress: dict[str, object]) -> dict[str, dict[str, object]]
     return latest
 
 
-def render_task_hints(ui, task: str, hints: tuple[str, ...]) -> None:
+def render_task_hints(
+    ui,
+    task: str,
+    hints: tuple[str, ...],
+    *,
+    progress: dict[str, object] | None = None,
+) -> None:
     """Zeige Autorenhinweise schrittweise und merke den geöffneten Stand."""
     if not hints:
         return
-    state = {"count": min(revealed_hint_count(task), len(hints))}
+    state = {
+        "count": min(revealed_hint_count(task, progress=progress), len(hints))
+    }
     container = ui.column().classes("w-full gap-2")
 
     def reveal_next() -> None:
@@ -71,8 +79,15 @@ def render_task_sources(ui, sources) -> None:
                 ui.label(source.label)
 
 
-def render_test_results(ui, exercise_name: str) -> None:
-    attempt = latest_attempts(load_progress()).get(exercise_name)
+def render_test_results(
+    ui,
+    exercise_name: str,
+    *,
+    progress: dict[str, object] | None = None,
+) -> None:
+    attempt = latest_attempts(
+        load_progress() if progress is None else progress
+    ).get(exercise_name)
     if attempt is None:
         empty_state(
             ui,

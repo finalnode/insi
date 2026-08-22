@@ -30,7 +30,10 @@ class WorkspaceLayout:
 
 def render_workspace_header(ui, course_selection) -> WorkspaceLayout:
     """Erzeuge Kopfzeile und Hauptnavigation und liefere deren Bindungen zurück."""
-    ui.link("Zum Hauptinhalt springen", "#pykim-main").classes("pykim-skip-link")
+    ui.link("Zum Hauptinhalt springen", "#pykim-main").classes(
+        "fixed left-4 -top-20 z-[9999] px-4 py-2 rounded-md "
+        "bg-grey-10 text-white focus:top-4"
+    )
     configured = get_course_directory()
     course_setup = None
     if configured is not None:
@@ -40,13 +43,23 @@ def render_workspace_header(ui, course_selection) -> WorkspaceLayout:
             course_setup = None
     student_name = get_student_name(configured) or system_user_name()
 
-    with ui.header().classes("pykim-header"):
-        with ui.row().classes("pykim-header-top w-full items-center no-wrap"):
-            ui.image(browser_favicon()).classes("insi-header-logo").props(
+    with ui.header().classes(
+        "column items-stretch q-pa-none bg-white text-dark shadow-2"
+    ):
+        with ui.row().classes(
+            "w-full min-h-[3.25rem] items-center no-wrap q-px-md q-py-sm "
+            "q-ma-none bg-primary text-white"
+        ):
+            ui.image(browser_favicon()).classes(
+                "flex-none w-[2.35rem] h-[2.35rem] rounded-lg drop-shadow-sm"
+            ).props(
                 f'alt="{APP_DISPLAY_NAME}"'
             )
             if course_setup is not None:
-                ui.label(course_setup.course).classes("insi-course-title")
+                ui.label(course_setup.course).classes(
+                    "flex items-center min-w-0 ml-3 overflow-hidden text-white/90 "
+                    "text-base font-medium leading-tight truncate"
+                )
             ui.space()
             ui.label(f"Hallo, {student_name}").classes("text-sm")
             update_badge = ui.badge("Updates prüfen", color="grey")
@@ -108,7 +121,7 @@ def render_workspace_footer(ui) -> None:
         documentation_error = str(error)
 
     with ui.dialog() as documentation_dialog, ui.card().classes(
-        "w-full max-w-5xl insi-documentation-dialog"
+        "w-full max-w-5xl max-h-[min(90vh,58rem)]"
     ):
         with ui.row().classes("w-full items-center gap-2"):
             ui.icon("menu_book", color="primary", size="md")
@@ -121,7 +134,7 @@ def render_workspace_footer(ui) -> None:
                 english_tab = ui.tab("English")
             with ui.tab_panels(
                 documentation_tabs, value=german_tab, animated=False
-            ).classes("w-full insi-documentation-panels"):
+            ).classes("w-full min-h-[28rem] max-h-[68vh] overflow-y-auto"):
                 with ui.tab_panel(german_tab):
                     ui.markdown(documentation["de"]).classes("prose max-w-none")
                 with ui.tab_panel(english_tab):
@@ -141,7 +154,7 @@ def render_workspace_footer(ui) -> None:
         legal_error = str(error)
 
     with ui.dialog() as legal_dialog, ui.card().classes(
-        "w-full max-w-5xl insi-legal-dialog"
+        "w-full max-w-5xl max-h-[min(90vh,58rem)]"
     ):
         with ui.row().classes("w-full items-center gap-2"):
             ui.icon("gavel", color="primary", size="md")
@@ -154,7 +167,7 @@ def render_workspace_footer(ui) -> None:
                 scope_tab = ui.tab("Lizenzumfang")
                 third_party_tab = ui.tab("Drittanbieter")
             with ui.tab_panels(legal_tabs, value=agpl_tab).classes(
-                "w-full insi-legal-panels"
+                "w-full min-h-[28rem]"
             ):
                 with ui.tab_panel(agpl_tab):
                     ui.textarea(value=legal_texts["agpl"]).props(
@@ -214,12 +227,15 @@ def render_workspace_footer(ui) -> None:
         with ui.row().classes("w-full justify-end"):
             ui.button("Schließen", on_click=sources_dialog.close).props("flat")
 
-    with ui.element("footer").classes("pykim-footer w-full"):
+    with ui.element("footer").classes(
+        "fixed inset-x-0 bottom-0 z-[2000] w-full min-h-7 q-px-md q-py-xs "
+        "bg-grey-8 text-grey-2 border-t-2 border-[#f36b2b] shadow-up-2"
+    ):
         with ui.row().classes(
             "w-full max-w-screen-2xl mx-auto items-center justify-between gap-3 no-wrap"
         ):
             ui.label("Concept by human. Crafted by human + AI.").classes(
-                "pykim-footer-claim"
+                "text-grey-2 text-xs tracking-wide"
             )
             if configured is not None:
                 ui.button(
@@ -230,9 +246,7 @@ def render_workspace_footer(ui) -> None:
                     f'flat dense color=white title="Kursordner öffnen: {configured}"'
                 ).classes("insi-footer-course-path")
             with ui.row().classes("items-center gap-2 no-wrap"):
-                ui.label(f"Version {__version__}").classes(
-                    "pykim-footer-version"
-                )
+                ui.label(f"Version {__version__}").classes("text-grey-4 text-xs")
                 ui.button(
                     "Hilfe",
                     icon="menu_book",

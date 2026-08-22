@@ -71,7 +71,7 @@ def _run_isolation_probe(root: Path) -> None:
         "try:\n socket.create_connection(('127.0.0.1',9),.25); result['network']='allowed'\n"
         "except Exception:\n result['network']='blocked'\n"
         "command=[sys.executable]\n"
-        "if getattr(sys,'frozen',False): command.append('--pykim-python')\n"
+        "if getattr(sys,'frozen',False): command.append('--insi-python')\n"
         "child=subprocess.run([*command,'-c','print(\"child-ok\")'],capture_output=True,text=True)\n"
         "result['child']=child.stdout.strip()\n"
         "Path('inside.txt').write_text('ok')\n"
@@ -93,7 +93,7 @@ def _run_process_limit_probe(root: Path) -> None:
     source = (
         "import subprocess,sys,time\n"
         "command=[sys.executable]\n"
-        "if getattr(sys,'frozen',False): command.append('--pykim-python')\n"
+        "if getattr(sys,'frozen',False): command.append('--insi-python')\n"
         "command += ['-c','import time; time.sleep(20)']\n"
         "children=[subprocess.Popen(command) for _ in range(5)]\n"
         "time.sleep(20)\n"

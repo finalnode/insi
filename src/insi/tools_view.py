@@ -125,7 +125,7 @@ def render_tools_panel(
         ui.markdown(
             "Ressourcendateien gehören immer zu einem Projekt. Lege unter "
             "**Meine Projekte** ein Pyxel-Spiel an und öffne dort den "
-            "Sprite- und Musikeditor."
+            "Spriteeditor oder Musikeditor."
         )
         ui.button(
             "Zu meinen Projekten",

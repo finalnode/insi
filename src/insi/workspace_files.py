@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
-import shutil
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -18,8 +16,6 @@ MAX_IMPORTED_FILE_BYTES = 100 * 1024 * 1024
 GLOBAL_FILES_DIRECTORY = "Dateien"
 COURSE_FILES_DIRECTORY = "Dateien"
 PROJECT_FILES_DIRECTORY = "Dateien"
-SNAPSHOT_DIRECTORY = "project-snapshots"
-MAX_PROJECT_SNAPSHOTS = 10
 
 
 class FileScope(str, Enum):
@@ -34,6 +30,8 @@ class ImportedWorkspaceFile:
     path: Path
     size: int
     sha256: str
+
+
 
 
 def global_workspace_directory() -> Path:
@@ -211,45 +209,6 @@ def import_workspace_file(
     )
 
 
-def snapshot_project(
-    project: str | Path,
-    course: str | Path,
-    *,
-    keep: int = MAX_PROJECT_SNAPSHOTS,
-) -> Path:
-    """Sichere ein Projekt vor dem Start und behalte nur begrenzt viele Stände."""
-
-    project_root = Path(project).expanduser().resolve()
-    course_root = Path(course).expanduser().resolve()
-    projects_root = course_root / "Projekte"
-    if not project_root.is_dir() or not project_root.is_relative_to(projects_root):
-        raise ValueError("Nur ein vorhandenes Projekt des Kurses kann gesichert werden.")
-    if keep <= 0:
-        raise ValueError("Mindestens ein Projektstand muss erhalten bleiben.")
-    try:
-        linked = next((item for item in project_root.rglob("*") if item.is_symlink()), None)
-    except OSError as error:
-        raise ValueError(f"Das Projekt kann nicht sicher gelesen werden: {error}") from error
-    if linked is not None:
-        raise ValueError(
-            "Projekte mit symbolischen Links werden nur in der externen IDE gestartet."
-        )
-    backup_root = course_root / ".pykim" / "backups" / SNAPSHOT_DIRECTORY
-    relative = project_root.relative_to(projects_root)
-    target_root = backup_root.joinpath(*relative.parts)
-    target_root.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
-    target = target_root / stamp
-    shutil.copytree(project_root, target, symlinks=False)
-    snapshots = sorted(
-        (item for item in target_root.iterdir() if item.is_dir()),
-        key=lambda item: item.name,
-        reverse=True,
-    )
-    for expired in snapshots[keep:]:
-        if expired.parent == target_root and expired.is_relative_to(backup_root):
-            shutil.rmtree(expired)
-    return target
 
 
 __all__ = [
@@ -258,7 +217,6 @@ __all__ = [
     "GLOBAL_FILES_DIRECTORY",
     "ImportedWorkspaceFile",
     "MAX_IMPORTED_FILE_BYTES",
-    "MAX_PROJECT_SNAPSHOTS",
     "PROJECT_FILES_DIRECTORY",
     "course_files_directory",
     "global_files_directory",
@@ -267,6 +225,5 @@ __all__ = [
     "import_workspace_file",
     "project_files_directory",
     "sandbox_readable_roots",
-    "snapshot_project",
     "workspace_file_roots",
 ]

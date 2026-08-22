@@ -6,12 +6,8 @@ import hashlib
 import re
 from dataclasses import asdict, dataclass
 
-import pykim
-
-ALGORITHM = "pykim-ast-v1"
-PROTECTED = frozenset(dir(builtins)) | frozenset(
-    name for name in dir(pykim) if not name.startswith("_")
-)
+ALGORITHM = "insi-python-ast-v1"
+PYTHON_NAMES = frozenset(dir(builtins))
 
 
 @dataclass(frozen=True)
@@ -46,8 +42,9 @@ def _text_fallback(source: str) -> str:
 class _AlphaRenamer(ast.NodeTransformer):
     """Ersetze selbst gebundene Namen pro Gültigkeitsbereich deterministisch."""
 
-    def __init__(self) -> None:
+    def __init__(self, protected_names: frozenset[str]) -> None:
         self.scopes: list[dict[str, str]] = [{}]
+        self.protected_names = PYTHON_NAMES | protected_names
 
     @staticmethod
     def _label(index: int) -> str:
@@ -61,7 +58,7 @@ class _AlphaRenamer(ast.NodeTransformer):
             number -= 1
 
     def _bind(self, name: str) -> str:
-        if name in PROTECTED:
+        if name in self.protected_names:
             return name
         scope = self.scopes[-1]
         if name not in scope:
@@ -123,21 +120,26 @@ class _AlphaRenamer(ast.NodeTransformer):
         return node
 
 
-def code_fingerprints(source: str) -> CodeFingerprints:
+def code_fingerprints(
+    source: str,
+    *,
+    protected_names: frozenset[str] = frozenset(),
+    algorithm: str = ALGORITHM,
+) -> CodeFingerprints:
     """Bilde exakten, formatierten und alpha-normalisierten SHA-256-Hash."""
     exact = _exact_source(source)
     try:
         tree = ast.parse(exact)
     except SyntaxError:
         fallback = _text_fallback(exact)
-        return CodeFingerprints(ALGORITHM, _hash(exact), _hash(fallback), None, False)
+        return CodeFingerprints(algorithm, _hash(exact), _hash(fallback), None, False)
 
     canonical = ast.unparse(tree)
-    structural_tree = _AlphaRenamer().visit(ast.parse(exact))
+    structural_tree = _AlphaRenamer(protected_names).visit(ast.parse(exact))
     ast.fix_missing_locations(structural_tree)
     structural = ast.dump(structural_tree, include_attributes=False)
     return CodeFingerprints(
-        ALGORITHM,
+        algorithm,
         _hash(exact),
         _hash(canonical),
         _hash(structural),

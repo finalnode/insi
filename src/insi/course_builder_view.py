@@ -1,4 +1,4 @@
-"""Kleine Kurswerkstatt zum Erzeugen portabler PyKIM-Kurse."""
+"""Datei- und Exportfunktionen für die visuelle Kurswerkstatt."""
 
 from __future__ import annotations
 
@@ -8,19 +8,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from pykim.trainer.authoring import RULE_LABELS, RULE_TEMPLATES, generate_exercise_source
-
-from .author_workspace import AuthorDraft, assignment_markdown, validate_author_draft
+from .author_workspace import AuthorDraft, validate_author_draft
 
 from .course_archive import build_course_archive
 from .course_runtime import (
     RUNTIME_FILENAME,
-    RUNTIME_PYTHON,
-    RUNTIME_TARGETS,
     RuntimeManifest,
-    combined_runtime_requirements,
     download_offline_wheels,
     manifest_with_wheels,
+    parse_runtime_manifest,
     parse_runtime_requirements,
     runtime_manifest_bytes,
     write_runtime_manifest,
@@ -263,7 +259,8 @@ def create_portable_course(
     course: str,
     repository: str = "",
     branch: str = "main",
-    additional_requirements: str | tuple[str, ...] = (),
+    runtime_python: str,
+    runtime_requirements: str | tuple[str, ...],
     include_offline_packages: bool = False,
     offline_targets: tuple[str, ...] = (),
 ) -> tuple[Path, Path]:
@@ -271,14 +268,12 @@ def create_portable_course(
     root = Path(source).expanduser().resolve()
     if not root.is_dir():
         raise FileNotFoundError("Der Kursordner wurde nicht gefunden.")
-    extra = parse_runtime_requirements(additional_requirements)
-    requirements = combined_runtime_requirements(extra)
+    requirements = parse_runtime_requirements(runtime_requirements)
     if offline_targets and not include_offline_packages:
         raise ValueError("Zielplattformen benötigen den aktivierten Offline-Export.")
-    if include_offline_packages and not extra:
+    if include_offline_packages and not requirements:
         raise ValueError(
-            "Gib mindestens ein zusätzliches Paket an, bevor du Pakete einbettest. "
-            "PyKIM und Pyxel liefert in:si bereits selbst mit."
+            "Gib mindestens ein Kurspaket an, bevor du Pakete einbettest."
         )
     if include_offline_packages and not offline_targets:
         raise ValueError("Wähle mindestens eine Zielplattform für das Offlinepaket.")
@@ -291,16 +286,19 @@ def create_portable_course(
         branch=branch,
     )
     output = _available_output(root.parent / f"{setup.stem}.zip")
-    source_manifest = RuntimeManifest(RUNTIME_PYTHON, requirements)
+    source_manifest = parse_runtime_manifest(
+        runtime_manifest_bytes(RuntimeManifest(runtime_python, requirements))
+    )
     manifest_path = write_runtime_manifest(root / RUNTIME_FILENAME, source_manifest)
     if include_offline_packages:
         with TemporaryDirectory(prefix="insi-offline-export-") as temporary:
             wheels = download_offline_wheels(
-                extra,
+                requirements,
                 tuple(offline_targets),
                 temporary,
             )
             manifest = manifest_with_wheels(
+                source_manifest.python,
                 requirements,
                 tuple(offline_targets),
                 wheels,
@@ -320,484 +318,6 @@ def create_portable_course(
     return setup, output
 
 
-def register_course_builder_page(ui, nicegui_app, nicegui_run, *, desktop: bool) -> None:
-    @ui.page("/course-builder")
-    def course_builder() -> None:
-        ui.colors(primary="#f36b2b", secondary="#9b9da0", accent="#5f6164")
-        with ui.column().classes("w-full max-w-3xl mx-auto gap-4 p-6"):
-            with ui.row().classes("w-full items-center gap-2"):
-                ui.button(
-                    icon="arrow_back",
-                    on_click=lambda: ui.navigate.to("/"),
-                ).props("flat round")
-                ui.label("PyKIM Kurswerkstatt").classes("text-2xl font-bold text-primary")
-            ui.label(
-                "Erzeugt eine Setupdatei im Kursordner und ein direkt "
-                "importierbares Kurs-ZIP."
-            ).classes("text-grey-7")
-
-            with ui.card().classes("w-full shadow-none border"):
-                ui.label("Kursordner").classes("text-lg font-bold")
-                source = ui.input(
-                    "Ordner mit Skripte, Aufgaben und Trainer",
-                    placeholder=str(Path.home() / "Mein-PyKIM-Kurs"),
-                ).classes("w-full")
-                source_status = ui.label("Noch kein Kursordner ausgewählt.").classes(
-                    "text-sm text-grey-7"
-                )
-
-                def refresh_source_status() -> None:
-                    if not source.value:
-                        source_status.set_text("Noch kein Kursordner ausgewählt.")
-                        return
-                    counts = course_source_counts(source.value)
-                    source_status.set_text(
-                        f"{counts['scripts']} Skriptdateien · "
-                        f"{counts['assignments']} Aufgaben · "
-                        f"{counts['trainers']} Trainerdateien"
-                    )
-
-                async def choose_source() -> None:
-                    if not desktop or nicegui_app.native.main_window is None:
-                        return
-                    import webview
-
-                    selected = await nicegui_app.native.main_window.create_file_dialog(
-                        dialog_type=webview.FileDialog.FOLDER,
-                        directory=str(Path.home()),
-                    )
-                    if selected:
-                        source.set_value(str(Path(selected[0]).resolve()))
-                        refresh_source_status()
-
-                with ui.row().classes("items-center gap-2"):
-                    if desktop:
-                        ui.button(
-                            "Ordner auswählen", icon="folder_open", on_click=choose_source
-                        ).props("outline")
-
-                    def create_structure() -> None:
-                        if not source.value:
-                            ui.notify("Gib zuerst einen Kursordner an.", type="warning")
-                            return
-                        ensure_course_source(source.value)
-                        refresh_source_status()
-                        ui.notify("Kursstruktur ist bereit.", type="positive")
-
-                    ui.button(
-                        "Struktur anlegen", icon="create_new_folder", on_click=create_structure
-                    ).props("outline")
-                source.on_value_change(lambda _: refresh_source_status())
-
-            with ui.card().classes("w-full shadow-none border"):
-                ui.label("Kursangaben").classes("text-lg font-bold")
-                course_name = ui.input("Kursname").classes("w-full")
-                with ui.row().classes("w-full gap-3 items-start flex-wrap"):
-                    teacher = ui.input("Lehrkraft oder Herausgeber").classes("grow")
-                    school = ui.input("Schule oder Organisation").classes("grow")
-                repository = ui.input(
-                    "Repository (optional)",
-                    placeholder="https://github.com/name/kurs.git",
-                ).classes("w-full")
-                branch = ui.input("Branch", value="main").classes("w-48")
-                ui.label(
-                    "Die Setupdatei wird auch in den Kursstamm geschrieben. Damit "
-                    "ist später ebenfalls das normale Repository-ZIP importierbar."
-                ).classes("text-sm text-grey-7")
-
-            with ui.card().classes("w-full shadow-none border"):
-                ui.label("Runtime und Exportgröße").classes("text-lg font-bold")
-                ui.label(
-                    "PyKIM und Pyxel werden von in:si bereitgestellt. Zusätzliche "
-                    "Pakete müssen mit einer exakten Version angegeben werden."
-                ).classes("text-sm text-grey-7")
-                additional_packages = ui.textarea(
-                    "Zusätzliche Pythonpakete – eines pro Zeile",
-                    placeholder="numpy==2.2.3\nrequests==2.32.5",
-                ).props("outlined autogrow").classes("w-full")
-                include_offline_packages = ui.checkbox(
-                    "Zusätzliche Pakete für eine vollständig offline nutzbare Installation einbetten",
-                    value=False,
-                )
-                ui.label(
-                    "Standardmäßig bleibt das Kurs-ZIP klein. Aktiviere diese "
-                    "Option nur, wenn die Zusatzpakete ohne Internet installiert werden müssen."
-                ).classes("text-sm text-grey-7")
-                offline_options = ui.column().classes(
-                    "w-full gap-2 rounded border p-3 bg-orange-1"
-                )
-                with offline_options:
-                    ui.label("Zielplattformen").classes("font-bold")
-                    ui.label(
-                        "Jede zusätzliche Plattform kann das Archiv deutlich vergrößern. "
-                        "Die tatsächliche Größe wird nach dem Export angezeigt."
-                    ).classes("text-sm text-orange-10")
-                    target_choices = {
-                        target_id: ui.checkbox(target.label, value=False)
-                        for target_id, target in RUNTIME_TARGETS.items()
-                    }
-                offline_options.bind_visibility_from(
-                    include_offline_packages, "value"
-                )
-
-            with ui.expansion("Skripte schreiben", icon="menu_book").classes(
-                "w-full border rounded"
-            ):
-                ui.label(
-                    "Schreibe Kapitel direkt als Markdown. Python-Blöcke können "
-                    "wie gewohnt mit ```python eingefügt werden."
-                ).classes("text-sm text-grey-7")
-                with ui.row().classes("w-full gap-3 items-end"):
-                    script_paradigm = ui.select(
-                        {"imperativ": "Imperativ", "oop": "OOP"},
-                        value="imperativ",
-                        label="Lernweg",
-                    ).classes("w-40")
-                    script_name = ui.input(
-                        "Dateiname", placeholder="01-erste-schritte"
-                    ).classes("grow")
-                    existing_script = ui.select(
-                        [], label="Vorhandenes Kapitel laden"
-                    ).classes("grow")
-                script_editor = ui.codemirror(
-                    value=(
-                        "# Neues Kapitel\n\n"
-                        "Erkläre hier das Thema.\n\n"
-                        "```python\nfrom pykim import *\n\n# Beispiel\n```\n"
-                    ),
-                    language="Markdown",
-                    line_wrapping=True,
-                ).classes("w-full").style("height: 25rem")
-
-                def refresh_script_options() -> None:
-                    if not source.value:
-                        existing_script.set_options([])
-                        return
-                    existing_script.set_options(
-                        list(
-                            course_documents(
-                                source.value,
-                                "Skripte",
-                                paradigm=script_paradigm.value or "imperativ",
-                            )
-                        )
-                    )
-
-                def load_script() -> None:
-                    if not source.value or not existing_script.value:
-                        return
-                    try:
-                        script_name.set_value(existing_script.value)
-                        script_editor.set_value(
-                            load_course_document(
-                                source.value,
-                                "Skripte",
-                                existing_script.value,
-                                paradigm=script_paradigm.value or "imperativ",
-                            )
-                        )
-                    except (OSError, ValueError) as error:
-                        ui.notify(str(error), type="negative")
-
-                def save_script() -> None:
-                    if not source.value:
-                        ui.notify("Wähle zuerst den Kursordner.", type="warning")
-                        return
-                    try:
-                        target = save_course_markdown(
-                            source.value,
-                            "Skripte",
-                            script_name.value or "",
-                            script_editor.value or "",
-                            paradigm=script_paradigm.value or "imperativ",
-                        )
-                        refresh_script_options()
-                        refresh_source_status()
-                        ui.notify(f"Kapitel gespeichert: {target.name}", type="positive")
-                    except (OSError, ValueError) as error:
-                        ui.notify(str(error), type="negative")
-
-                script_paradigm.on_value_change(lambda _: refresh_script_options())
-                existing_script.on_value_change(lambda _: load_script())
-                ui.button("Skript speichern", icon="save", on_click=save_script)
-
-            with ui.expansion("PyKIM-Aufgabe und Trainer erstellen", icon="rule").classes(
-                "w-full border rounded"
-            ):
-                ui.label(
-                    "Aufgabentext und sichere Trainerdefinition werden gemeinsam "
-                    "erstellt und auf Übereinstimmung geprüft."
-                ).classes("text-sm text-grey-7")
-                with ui.row().classes("w-full gap-3"):
-                    task_name = ui.input(
-                        "Aufgabenkennung", placeholder="meine-aufgabe"
-                    ).classes("grow")
-                    task_title = ui.input("Titel", placeholder="Meine Aufgabe").classes(
-                        "grow"
-                    )
-                    task_paradigm = ui.select(
-                        {"imperativ": "Imperativ", "oop": "OOP"},
-                        value="imperativ",
-                        label="Lernweg",
-                    ).classes("w-40")
-                existing_task = ui.select(
-                    [], label="Vorhandene Aufgabe laden"
-                ).classes("w-full")
-                task_summary = ui.input(
-                    "Kurze Aufgabenstellung", placeholder="Zeichne ..."
-                ).classes("w-full")
-                task_requirements = ui.textarea(
-                    "Anforderungen – eine pro Zeile",
-                    placeholder="Beginne bei ...\nVerwende eine Schleife ...",
-                ).props("outlined autogrow").classes("w-full")
-                with ui.row().classes("w-full gap-3"):
-                    task_difficulty = ui.select(
-                        {
-                            "einfach": "Einfach",
-                            "mittel": "Mittel",
-                            "fortgeschritten": "Fortgeschritten",
-                        },
-                        value="mittel",
-                        label="Schwierigkeit",
-                    ).classes("w-full sm:w-48")
-                    task_rules = ui.select(
-                        {key: RULE_LABELS[key] for key in RULE_TEMPLATES},
-                        multiple=True,
-                        label="Prüfbausteine",
-                    ).classes("grow min-w-64")
-                    task_optimal = ui.number(
-                        "Optimale Codezeilen", min=1
-                    ).props("hint='optional' persistent-hint").classes(
-                        "w-full sm:w-52"
-                    )
-                with ui.tabs().classes("w-full") as editor_tabs:
-                    markdown_tab = ui.tab("Aufgabe.md")
-                    trainer_tab = ui.tab("Trainer.yml")
-                with ui.tab_panels(editor_tabs, value=markdown_tab).classes("w-full"):
-                    with ui.tab_panel(markdown_tab):
-                        task_markdown = ui.codemirror(
-                            value="", language="Markdown", line_wrapping=True
-                        ).classes("w-full").style("height: 24rem")
-                    with ui.tab_panel(trainer_tab):
-                        task_trainer = ui.codemirror(
-                            value="", language="YAML", line_wrapping=False
-                        ).classes("w-full").style("height: 24rem")
-                task_validation = ui.label("Noch kein Entwurf erzeugt.").classes(
-                    "text-grey-7"
-                )
-
-                def current_task_draft() -> AuthorDraft:
-                    return AuthorDraft(
-                        task_name.value or "",
-                        task_trainer.value or "",
-                        task_markdown.value or "",
-                    )
-
-                def refresh_task_options() -> None:
-                    if not source.value:
-                        existing_task.set_options([])
-                        return
-                    existing_task.set_options(
-                        list(
-                            course_documents(
-                                source.value,
-                                "Aufgaben",
-                                paradigm=task_paradigm.value or "imperativ",
-                            )
-                        )
-                    )
-
-                def load_task() -> None:
-                    if not source.value or not existing_task.value:
-                        return
-                    try:
-                        task_name.set_value(existing_task.value)
-                        markdown = load_course_document(
-                            source.value,
-                            "Aufgaben",
-                            existing_task.value,
-                            paradigm=task_paradigm.value or "imperativ",
-                        )
-                        trainer = load_course_document(
-                            source.value,
-                            "trainer",
-                            existing_task.value,
-                        )
-                        task_markdown.set_value(markdown)
-                        task_trainer.set_value(trainer)
-                        title_line = next(
-                            (
-                                line.removeprefix("# ").strip()
-                                for line in markdown.splitlines()
-                                if line.startswith("# ")
-                            ),
-                            existing_task.value,
-                        )
-                        task_title.set_value(title_line)
-                        validate_task()
-                    except (OSError, ValueError) as error:
-                        ui.notify(str(error), type="negative")
-
-                def validate_task() -> tuple[str, ...]:
-                    issues = validate_author_draft(current_task_draft())
-                    task_validation.set_text(
-                        "✓ Aufgabe und Trainer sind vollständig."
-                        if not issues
-                        else "✗ " + " · ".join(issues)
-                    )
-                    task_validation.classes(
-                        remove="text-grey-7 text-positive text-negative",
-                        add="text-positive" if not issues else "text-negative",
-                    )
-                    return issues
-
-                def generate_task() -> None:
-                    try:
-                        task_trainer.set_value(
-                            generate_exercise_source(
-                                task_name.value or "",
-                                task_title.value or "",
-                                tuple(task_rules.value or ()),
-                                optimal_lines=(
-                                    int(task_optimal.value)
-                                    if task_optimal.value
-                                    else None
-                                ),
-                            )
-                        )
-                        task_markdown.set_value(
-                            assignment_markdown(
-                                task_title.value or "",
-                                task_summary.value or "",
-                                task_requirements.value or "",
-                                task_difficulty.value or "mittel",
-                            )
-                        )
-                        validate_task()
-                        ui.notify("Aufgabe und Trainer wurden erzeugt.", type="positive")
-                    except ValueError as error:
-                        ui.notify(str(error), type="warning")
-
-                def save_task() -> None:
-                    if not source.value:
-                        ui.notify("Wähle zuerst den Kursordner.", type="warning")
-                        return
-                    if validate_task():
-                        ui.notify("Behebe zuerst die angezeigten Fehler.", type="warning")
-                        return
-                    try:
-                        markdown, trainer = save_course_assignment(
-                            source.value,
-                            current_task_draft(),
-                            paradigm=task_paradigm.value or "imperativ",
-                        )
-                        refresh_source_status()
-                        refresh_task_options()
-                        ui.notify(
-                            f"{markdown.name} und {trainer.name} gespeichert.",
-                            type="positive",
-                        )
-                    except (OSError, ValueError) as error:
-                        ui.notify(str(error), type="negative")
-
-                task_markdown.on("update:model-value", lambda: validate_task())
-                task_trainer.on("update:model-value", lambda: validate_task())
-                task_paradigm.on_value_change(lambda _: refresh_task_options())
-                existing_task.on_value_change(lambda _: load_task())
-                source.on_value_change(
-                    lambda _: (refresh_script_options(), refresh_task_options())
-                )
-                with ui.row().classes("gap-2"):
-                    ui.button(
-                        "Entwurf erzeugen", icon="auto_fix_high", on_click=generate_task
-                    )
-                    ui.button(
-                        "Aufgabe und Trainer speichern", icon="save", on_click=save_task
-                    ).props("outline")
-
-            activity = ui.column().classes("w-full gap-1")
-            with activity:
-                with ui.row().classes("items-center gap-2"):
-                    ui.spinner(size="sm", color="primary")
-                    ui.label("Kurs wird geprüft und gepackt …")
-                ui.linear_progress(value=None, color="primary").props("indeterminate")
-            activity.set_visibility(False)
-
-            async def build() -> None:
-                values = (
-                    source.value,
-                    teacher.value,
-                    school.value,
-                    course_name.value,
-                    branch.value,
-                )
-                if not all(str(value or "").strip() for value in values):
-                    ui.notify("Fülle bitte alle Kursangaben aus.", type="warning")
-                    return
-                selected_targets = tuple(
-                    target_id
-                    for target_id, checkbox in target_choices.items()
-                    if checkbox.value
-                )
-                if include_offline_packages.value and not selected_targets:
-                    ui.notify(
-                        "Wähle mindestens eine Zielplattform für das Offlinepaket.",
-                        type="warning",
-                    )
-                    return
-                activity.set_visibility(True)
-                build_button.disable()
-                try:
-                    setup, archive = await nicegui_run.io_bound(
-                        create_portable_course,
-                        source.value,
-                        teacher=teacher.value,
-                        school=school.value,
-                        course=course_name.value,
-                        repository=repository.value or "",
-                        branch=branch.value,
-                        additional_requirements=additional_packages.value or "",
-                        include_offline_packages=bool(include_offline_packages.value),
-                        offline_targets=selected_targets,
-                    )
-                    refresh_source_status()
-                    ui.notify(
-                        f"Kurs erstellt: {archive.name}",
-                        type="positive",
-                        timeout=6000,
-                    )
-                    with ui.dialog() as result_dialog, ui.card().classes("w-full max-w-xl"):
-                        ui.label("Kurs ist bereit").classes("text-xl font-bold")
-                        ui.label(f"Setupdatei: {setup}").classes("break-all")
-                        ui.label(f"Kurs-ZIP: {archive}").classes("break-all")
-                        ui.label(
-                            f"Archivgröße: {archive.stat().st_size / (1024 * 1024):.1f} MB"
-                        )
-                        if include_offline_packages.value:
-                            labels = ", ".join(
-                                RUNTIME_TARGETS[target].label
-                                for target in selected_targets
-                            )
-                            ui.label(f"Eingebettete Zielplattformen: {labels}")
-                        else:
-                            ui.label(
-                                "Kompakter Export ohne eingebettete Zusatzpakete."
-                            ).classes("text-grey-7")
-                        with ui.row().classes("w-full justify-end"):
-                            ui.button("Schließen", on_click=result_dialog.close)
-                    result_dialog.open()
-                except Exception as error:
-                    ui.notify(f"Kurs konnte nicht erstellt werden: {error}", type="negative")
-                finally:
-                    activity.set_visibility(False)
-                    build_button.enable()
-
-            build_button = ui.button(
-                "Setupdatei und Kurs-ZIP erstellen",
-                icon="inventory_2",
-                on_click=build,
-            ).classes("self-end")
-
 
 __all__ = [
     "CourseFileCandidate",
@@ -808,7 +328,6 @@ __all__ = [
     "ensure_course_source",
     "load_course_document",
     "import_course_candidates",
-    "register_course_builder_page",
     "save_course_assignment",
     "save_course_markdown",
 ]

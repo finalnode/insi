@@ -1,6 +1,10 @@
 """Komposition der Kursansichten innerhalb des NiceGUI-Workspace."""
 
+import asyncio
+from pathlib import Path
+
 from .course_selection_view import render_course_selection
+from insi.course import get_course_directory
 from insi.course_studio_view import register_course_studio_page
 from insi.examples_view import render_examples_view
 from insi.extensions_view import render_extensions_view
@@ -14,7 +18,11 @@ from .reference_views import (
     render_script_panel,
 )
 from insi.script_api import register_script_api
-from .setup_view import preferred_ide_label, render_setup_panel
+from .setup_view import (
+    inspect_setup_runtime,
+    preferred_ide_label,
+    render_setup_panel,
+)
 from .submission_view import render_submission_panel
 from .tasks_view import render_tasks_panel
 from insi.theme import configure_theme
@@ -63,60 +71,172 @@ def register_workspace(context) -> None:
                 browser_tab,
         ) = layout.pages
 
+        lazy_views = {}
+        project_refresh = {"callback": lambda: None}
+
+        def refresh_projects() -> None:
+            project_refresh["callback"]()
+
+        def render_projects_panel() -> None:
+            project_refresh["callback"] = render_projects_view(
+                ui,
+                nicegui_run,
+                preferred_ide_label(),
+                ide_open_buttons,
+            )
+
+        def lazy_panel(tab, renderer) -> None:
+            with ui.tab_panel(tab):
+                container = ui.column().classes("w-full gap-3")
+                with container:
+                    ui.label("Ansicht wird geladen …").classes("text-grey-7")
+            lazy_views[tab.props["name"]] = {
+                "container": container,
+                "renderer": renderer,
+                "loaded": False,
+                "loading": False,
+            }
+
         with ui.tab_panels(tabs, value=overview_tab).classes(
             "w-full max-w-6xl mx-auto mb-10"
         ).props("id=pykim-main role=main"):
             with ui.tab_panel(setup_tab):
-                render_setup_panel(context, ide_open_buttons, current_student)
-            with ui.tab_panel(tools_tab):
-                render_tools_panel(
+                setup_panel = ui.column().classes("w-full gap-3")
+                with setup_panel:
+                    with ui.row().classes("items-center gap-2"):
+                        ui.spinner(size="sm", color="primary")
+                        ui.label("Setup wird im Hintergrund vorbereitet …")
+            lazy_panel(
+                tools_tab,
+                lambda: render_tools_panel(
                     context,
                     update_badge,
                     header_setup,
                     tabs,
                     projects_tab,
-                )
+                ),
+            )
             with ui.tab_panel(overview_tab):
                 refresh_overview = render_overview_panel(ui)
-
-            with ui.tab_panel(tasks_tab):
-                render_tasks_panel(
+            lazy_panel(
+                tasks_tab,
+                lambda: render_tasks_panel(
                     ui,
                     nicegui_run,
                     ide_open_buttons,
                     refresh_overview,
                     preferred_ide_label,
-                )
-            with ui.tab_panel(examples_tab):
-                render_examples_view(ui, preferred_ide_label(), ide_open_buttons)
-
-            with ui.tab_panel(projects_tab):
-                refresh_projects = render_projects_view(
+                ),
+            )
+            lazy_panel(
+                examples_tab,
+                lambda: render_examples_view(
                     ui, preferred_ide_label(), ide_open_buttons
-                )
-
-            with ui.tab_panel(extensions_tab):
-                render_extensions_view(ui)
-
-            with ui.tab_panel(submission_tab):
-                render_submission_panel(
+                ),
+            )
+            lazy_panel(projects_tab, render_projects_panel)
+            lazy_panel(extensions_tab, lambda: render_extensions_view(ui))
+            lazy_panel(
+                submission_tab,
+                lambda: render_submission_panel(
                     ui,
                     nicegui_app,
                     nicegui_run,
                     desktop=desktop,
-                )
-            with ui.tab_panel(sheet_tab):
-                render_cheatsheet_panel(ui)
-            with ui.tab_panel(script_tab):
-                render_script_panel(ui)
-            with ui.tab_panel(pyxel_tab):
-                render_pyxel_panel(
+                ),
+            )
+            lazy_panel(sheet_tab, lambda: render_cheatsheet_panel(ui))
+            lazy_panel(script_tab, lambda: render_script_panel(ui))
+            lazy_panel(
+                pyxel_tab,
+                lambda: render_pyxel_panel(
                     ui,
                     preferred_ide_label(),
                     ide_open_buttons,
                     on_project_saved=refresh_projects,
-                )
-            with ui.tab_panel(browser_tab):
-                render_browser_playground_panel(ui)
+                ),
+            )
+            lazy_panel(
+                browser_tab,
+                lambda: render_browser_playground_panel(ui),
+            )
 
         render_workspace_footer(ui)
+
+        setup_state = {"task": None, "loaded": False, "loading": False}
+
+        async def setup_snapshot():
+            task = setup_state["task"]
+            if task is None:
+                course = get_course_directory() or Path.home() / "in-si-Kurs"
+                task = asyncio.create_task(
+                    nicegui_run.io_bound(inspect_setup_runtime, course)
+                )
+                setup_state["task"] = task
+            snapshot = await task
+            if snapshot is None:
+                raise RuntimeError("Die Laufzeitprüfung wurde abgebrochen.")
+            return snapshot
+
+        async def preload_setup() -> None:
+            try:
+                await setup_snapshot()
+            except Exception:
+                setup_state["task"] = None
+
+        async def load_setup(event) -> None:
+            if event.value != setup_tab.props["name"]:
+                return
+            if setup_state["loaded"] or setup_state["loading"]:
+                return
+            setup_state["loading"] = True
+            try:
+                snapshot = await setup_snapshot()
+                setup_panel.clear()
+                with setup_panel:
+                    render_setup_panel(
+                        context,
+                        ide_open_buttons,
+                        current_student,
+                        snapshot,
+                    )
+                setup_state["loaded"] = True
+            except Exception as error:
+                setup_state["task"] = None
+                setup_panel.clear()
+                with setup_panel:
+                    ui.label(f"Setup konnte nicht geladen werden: {error}").classes(
+                        "text-negative"
+                    )
+                    ui.button("Erneut versuchen", on_click=lambda: load_setup(event))
+            finally:
+                setup_state["loading"] = False
+
+        async def load_lazy_view(event) -> None:
+            view = lazy_views.get(event.value)
+            if view is None or view["loaded"] or view["loading"]:
+                return
+            view["loading"] = True
+            try:
+                await ui.run_javascript(
+                    "await new Promise(resolve => requestAnimationFrame(resolve))"
+                )
+            except TimeoutError:
+                pass
+            container = view["container"]
+            container.clear()
+            try:
+                with container:
+                    view["renderer"]()
+                view["loaded"] = True
+            except Exception as error:
+                with container:
+                    ui.label(f"Ansicht konnte nicht geladen werden: {error}").classes(
+                        "text-negative"
+                    )
+            finally:
+                view["loading"] = False
+
+        tabs.on_value_change(load_setup)
+        tabs.on_value_change(load_lazy_view)
+        ui.timer(0.25, preload_setup, once=True)

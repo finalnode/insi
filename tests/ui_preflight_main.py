@@ -39,8 +39,7 @@ candidate = RuntimeCandidate(
     f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
     "UI-Testumgebung",
     True,
-    True,
-    True,
+    ("PyKIM", "Pyxel"),
 )
 state = {"ready": False}
 

@@ -341,24 +341,28 @@ funktioniert auch offline.
 
 ### Runtime-Vertrag und ZIP-Größe
 
-Jeder neu exportierte Kurs enthält `runtime.toml` mit Python 3.11, den genauen
-PyKIM-/Pyxel-Versionen und optionalen Zusatzpaketen. Alte Archive ohne Manifest
-bleiben importierbar.
+Jeder neu exportierte Kurs enthält `runtime.toml` mit der vom Kursersteller
+gewählten Python-Version und der vollständigen Liste exakt gepinnter
+Kurspakete. Ein Kurs kann beispielsweise PyKIM, eine andere Trainingsengine
+oder gar kein Fachpaket verlangen. Alte Archive ohne Manifest bleiben über
+einen ausdrücklich begrenzten 0.7-Kompatibilitätsfallback importierbar.
 
-Der Standardexport enthält **keine Paket-Wheels** und bleibt klein. Zusatzpakete
-werden als `paket==version` eingetragen. Nur wenn die standardmäßig deaktivierte
-Option **Zusätzliche Pakete … einbetten** aktiviert und mindestens ein Ziel
-gewählt wird, lädt in:si die vollständige Wheel-Abhängigkeitskette für:
+Der Standardexport enthält **keine Paket-Wheels** und bleibt klein. Kurspakete
+werden als `paket==version` eingetragen. Nur wenn der Offline-Paketexport
+aktiviert und mindestens ein Ziel gewählt wird, lädt in:si die vollständige
+Wheel-Abhängigkeitskette für:
 
 - Windows x86_64;
 - Linux x86_64;
 - macOS Apple Silicon;
 - macOS Intel.
 
-Jede zusätzliche Plattform kann das ZIP deutlich vergrößern. PyKIM und Pyxel
-stellt die jeweilige in:si-Installation bereit und dupliziert sie deshalb nicht
-im Kurs. Manifest und Wheels werden versioniert im Kurs abgelegt und mit
-SHA-256-Prüfsummen abgesichert.
+Jede zusätzliche Plattform kann das ZIP deutlich vergrößern. Python-Version
+und vollständige, exakt gepinnte Kurspaketliste werden vom Kursersteller im
+Runtime-Vertrag festgelegt; in:si ergänzt oder ersetzt darin keine
+Fachmodulversionen. Beim Offline-Export wird die vollständige Wheel-Kette dieses
+Kursvertrags eingebettet. Manifest und Wheels werden versioniert im Kurs
+abgelegt und mit SHA-256-Prüfsummen abgesichert.
 
 Vor jedem Kursstart und nach Inhaltsupdates prüft der Preflight:
 
@@ -505,19 +509,20 @@ sind noch Teil der Roadmap.
 Voraussetzungen: Python 3.10 oder neuer und Git.
 
 ```bash
-git clone https://github.com/finalnode/PyKIM.git
 git clone https://github.com/finalnode/insi.git
 
 cd insi
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e ../PyKIM
+python -m pip install --requirement requirements/pykim-0.6.0.txt
 python -m pip install -e '.[test]'
 python -m pytest
 insi
 ```
 
 Unter Windows wird die Umgebung mit `.venv\Scripts\activate` aktiviert.
+Die Versionsdatei bindet PyKIM 0.6.0 sowie die zugehörige Standard-Runtime an
+den gleichen geprüften Stand, den CI und Desktop-Builds verwenden.
 
 ### Architekturgrenzen
 

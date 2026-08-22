@@ -1,0 +1,5 @@
+# PyKIM 0.6.0. Der unveränderliche Commit ersetzt den zuvor verwendeten main-Branch.
+PyKIM @ git+https://github.com/finalnode/PyKIM.git@7494db55a84e95b6dc13fc4a32a586b62fb5830d
+# Standard-Runtime des mitgelieferten Fachmoduls; Kurs-Zusatzpakete liegen im Kursarchiv.
+Pyxel==2.9.9
+PyYAML==6.0.3
