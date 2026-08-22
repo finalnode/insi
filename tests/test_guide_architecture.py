@@ -222,6 +222,15 @@ def test_tools_view_does_not_schedule_automatic_network_checks():
     assert render.end_lineno - render.lineno + 1 <= 350
     assert source.count("system_status()") == 1
     assert "ui.dialog()" not in source
+    assert source.count("render_local_data_management(context)") == 1
+
+
+def test_local_data_backend_is_ui_free_and_does_not_follow_symlinks():
+    backend = (GUIDE / "local_data.py").read_text(encoding="utf-8")
+
+    assert "nicegui" not in backend.casefold()
+    assert 'frozenset({"content", "runtimes"})' in backend
+    assert "followlinks=False" in backend
 
 
 def test_update_badge_navigates_to_the_single_tools_update_view():

@@ -8,6 +8,9 @@
 - automatische und benannte Projektstände mit Kommentaren, Prüfsummen,
   Aufbewahrungsregeln und sicherer Wiederherstellung in einer sichtbaren
   Zeitleiste umgesetzt;
+- einen portablen Gesamtexport für persönliche App-Daten und alle erreichbaren
+  registrierten Kursordner sowie eine separat bestätigte Papierkorbaktion für
+  sämtliche lokalen in:si-Daten im Werkzeugbereich ergänzt;
 - Pyxel-Sprite- und Musikeditor als getrennte Projektaktionen angebunden und
   fehlgeschlagene Editorstarts sichtbar gemacht;
 - Runtime-, Kursauswahl-, Setup-, Aufgaben- und Workspace-Startpfade
@@ -43,10 +46,10 @@
   festgelegt und plattformspezifische Buildmanifeste ergänzt;
 - externe Trainer-Plugins vor dem Import inventarisiert und an eine sichtbare,
   paket- und versionsbezogene Zustimmung gebunden;
-- Stand 22. August 2026: 467 normale Prüfungen bestanden, eine
+- Stand 23. August 2026: 475 normale Prüfungen bestanden, eine
   plattformbedingt übersprungen und vier E2E-Prüfungen separat auszuführen;
-  selbst gepflegter Python-Produktivcode 18.446 statt 18.746 Zeilen zu Beginn
-  der 0.8-Konsolidierung.
+  selbst gepflegter Python-Produktivcode 18.793 gegenüber 18.746 Zeilen zu
+  Beginn der 0.8-Konsolidierung.
 
 ## 0.7.0 – 2026-08-22
 

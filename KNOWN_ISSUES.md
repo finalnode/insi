@@ -1,6 +1,6 @@
 # Bekannte Probleme und Einschränkungen
 
-Stand: 22. August 2026, Entwicklungsstand 0.8 auf `develop/v0.8`
+Stand: 23. August 2026, Entwicklungsstand 0.8 auf `develop/v0.8`
 
 Diese Liste nennt bekannte, reproduzierbare Probleme und bewusst noch nicht
 erfüllte Produktzusagen. Sie ist keine vollständige Sammlung zukünftiger
@@ -36,8 +36,6 @@ den heutigen Einsatz:
   Projektständen sind umgesetzt, benötigen vor dem Release aber weitere reale
   0.7-Datenbestände, Hardwareproben mit entfernbaren Datenträgern sowie die
   vollständige E2E- und Plattformmatrix;
-- Datenexport und vollständiges lokales Löschen sind noch nicht als
-  zusammenhängender Oberflächenablauf verfügbar;
 - getrennte lokale Profile für mehrere Personen auf demselben Gerät fehlen bis
   0.9;
 - PyKIM ist derzeit das einzige vollständig angebundene Fachmodul; weitere
@@ -48,6 +46,11 @@ den heutigen Einsatz:
   bewusst nicht vorgesehen.
 
 ## Kürzlich behoben
+
+Persönliche App-Daten und alle erreichbaren registrierten Kursordner lassen
+sich nun gemeinsam exportieren. Eine getrennte, exakt zu bestätigende Aktion
+verschiebt registrierte Kurse und den vollständigen lokalen App-Datenordner in
+den Systempapierkorb; externe Kopien und Exporte bleiben unberührt.
 
 Der Wechsel des TOAST UI Editors in den WYSIWYG-Modus konnte Browser und
 NiceGUI-Fenster einfrieren. Ursache war ein globaler DOM-Beobachter, der

@@ -141,8 +141,8 @@ def forget_course_directory(path: str | Path) -> None:
     _save_config(data)
 
 
-def trash_course(path: str | Path) -> None:
-    """Verschiebe einen eindeutig erkannten PyKIM-Kurs in den Systempapierkorb."""
+def validate_registered_course(path: str | Path) -> Path:
+    """Validiere Kennung und Setup eines lokal registrierten Kurses."""
     course = Path(path).expanduser().resolve()
     if course not in get_course_directories():
         raise ValueError("Der Ordner ist kein lokal registrierter PyKIM-Kurs.")
@@ -158,6 +158,12 @@ def trash_course(path: str | Path) -> None:
         for name in (SETUP_FILENAME, LEGACY_SETUP_FILENAME)
     ):
         raise ValueError("Im Ordner fehlt die in:si-Setupdatei.")
+    return course
+
+
+def trash_course(path: str | Path) -> None:
+    """Verschiebe einen eindeutig erkannten PyKIM-Kurs in den Systempapierkorb."""
+    course = validate_registered_course(path)
     try:
         from send2trash import send2trash
     except ImportError as error:

@@ -31,7 +31,7 @@ fertig implementiert.
 > **Entwicklungszweig 0.8:** Auf `develop/v0.8` entstehen derzeit die nächste
 > Datenmigration, sichtbare Projektstände, schnellere Startpfade und ein
 > schlankerer, besser testbarer Kern. Dieser Stand ist noch kein Release. Der
-> aktuelle Nachweis umfasst 467 bestandene, eine plattformbedingt
+> aktuelle Nachweis umfasst 475 bestandene, eine plattformbedingt
 > übersprungene und vier separat auszuführende E2E-Prüfungen. Fortschritt und
 > verbleibende Freigabeblocker stehen im
 > [Entwurf der 0.8-Release-Notes](docs/release-notes-0.8.md).
@@ -191,6 +191,8 @@ Noch offene Arbeiten stehen ausschließlich in der [Roadmap](#roadmap).
 - Projektdokumentationen visuell oder direkt als portables Markdown bearbeiten;
 - Dateien gezielt global, für einen Kurs oder für ein Projekt in den
   in:si-Workspace kopieren;
+- persönliche App-Daten und registrierte Kursordner gemeinsam als portables
+  ZIP exportieren;
 - persönliche Erweiterungen innerhalb des jeweiligen Kurses wiederverwenden;
 - Thonny und VS Code mit dem ausgewählten Kursinterpreter starten;
 - Pyxel-Ressourcen und offizielle Beispiele verwenden.
@@ -206,7 +208,9 @@ Noch offene Arbeiten stehen ausschließlich in der [Roadmap](#roadmap).
 - veröffentlichte Kursinhalte getrennt vom Student Workspace aktualisieren;
 - Dateien und Ordner mit führendem Unterstrich aus Kursen ausblenden;
 - Kursordner in den Systempapierkorb verschieben, ohne andere Verzeichnisse zu
-  löschen.
+  löschen;
+- nach exakter Bestätigung alle registrierten Kurse und lokalen App-Daten in
+  den Systempapierkorb verschieben.
 
 ### Laufzeit und Offlinepakete
 

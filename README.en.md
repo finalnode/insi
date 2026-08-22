@@ -19,7 +19,7 @@ offline after setup.
 > **0.8 development branch:** `develop/v0.8` currently adds versioned data
 > migration, visible project snapshots, faster startup paths and a leaner,
 > more focused test structure. This is not a release yet. The current check
-> reports 467 passed tests, one platform-related skip and four E2E tests that
+> reports 475 passed tests, one platform-related skip and four E2E tests that
 > must be run separately. See the
 > [draft 0.8 release notes](docs/release-notes-0.8.md) for progress and release
 > blockers.

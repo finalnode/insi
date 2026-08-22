@@ -5,6 +5,7 @@ from .branding import APP_DISPLAY_NAME
 from insi.course import get_course_directory, set_runtime_preference
 from insi.course_setup import course_setup_info, sync_installed_course_content
 from insi.library import PACKAGED_CONTENT_ROOT
+from insi.local_data_view import render_local_data_management
 from insi.system import open_in_preferred_ide, open_path, system_status
 from insi.runtime import course_runtime_preflight
 from insi.updates import check_updates, format_content_version, install_content_update
@@ -134,6 +135,8 @@ def render_tools_panel(
             on_click=lambda: tabs.set_value(projects_tab),
             icon="folder_special",
         )
+
+    render_local_data_management(context)
 
     ui.separator()
     ui.label("Updates").classes("text-xl font-bold").props("id=pykim-updates")

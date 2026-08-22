@@ -23,19 +23,24 @@ async def test_student_can_open_overview_tasks_and_script(user):
     await user.should_see("Kursordner einrichten", retries=50)
 
     user.find("Aufgaben").click()
-    await user.should_see("Aufgaben und Testfälle")
+    await user.should_see("Aufgaben und Testfälle", retries=50)
     await user.should_see("Imperative Aufgaben")
 
     user.find("Skript").click()
-    await user.should_see("PyKIM-Skript")
+    await user.should_see("PyKIM-Skript", retries=50)
     await user.should_see("Inhaltsverzeichnis")
     await user.should_see("Erste Schritte mit PyKIM")
 
     user.find("Meine Projekte").click()
-    await user.should_see("Du hast noch kein eigenes Projekt angelegt.")
+    await user.should_see("Du hast noch kein eigenes Projekt angelegt.", retries=50)
 
     user.find("Werkzeuge").click()
-    await user.should_see("IDE, Dateien und Updates")
+    await user.should_see("IDE, Dateien und Updates", retries=50)
+    await user.should_see("Meine lokalen Daten")
+    await user.should_see("Datenexport erstellen")
+    user.find("Lokale Daten entfernen").click()
+    await user.should_see("Alle lokalen Daten in den Papierkorb?")
+    user.find("Abbrechen").click()
     user.find("Trainer-Autorenwerkzeuge").click()
     await user.should_see("Aufgabenprüfung")
     await user.should_see("Kurswerkstatt öffnen")

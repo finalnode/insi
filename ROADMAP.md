@@ -405,10 +405,11 @@ Auch ein während Backup oder atomarem Ersetzen simulierter entfernter
 Datenträger ist abgedeckt: Die Quelldatei bleibt unverändert, ein bereits
 vollständiges Originalbackup erhalten, temporäre Dateien werden nach
 Möglichkeit entfernt und der nächste Versuch kann die Migration abschließen.
-Noch offen sind weitere reale 0.7-Beispieldaten, Hardwareproben auf tatsächlich
-entfernten Datenträgern, dieselben Fehlergrenzen in Import- und Exportpfaden
-sowie die kontrollierte Oberfläche zum Export und vollständigen lokalen
-Löschen.
+Noch offen sind weitere reale 0.7-Beispieldaten und Hardwareproben auf
+tatsächlich entfernten Datenträgern. Die Fehlergrenze des Datenexports und die
+kontrollierte Oberfläche zum Export und vollständigen lokalen Löschen sind
+automatisiert abgedeckt, benötigen vor der Freigabe aber weiterhin die reale
+Plattformmatrix.
 
 ### Verständliche Projektstände statt Git-Pflicht
 
@@ -618,12 +619,29 @@ Paketproben; ein Architekturtest begrenzt `runtime.py` weiterhin auf höchstens
 38 Zeilen unter seinen Stand vor der Konsolidierung. Die vollständige normale
 Testsuite umfasst danach 467 bestandene Prüfungen.
 
-Trotz dieses neuen Funktionsumfangs liegt der selbst gepflegte Python-
-Produktivcode im aktuellen Zwischenstand mit 18.446 Zeilen weiterhin 300
-Zeilen beziehungsweise rund 1,6 Prozent unter der 0.8-Ausgangsbasis. Das neue
-Migrationsmodell erhöht den Kern zunächst sichtbar; die folgende
-Konsolidierung muss diesen Sicherheitsumfang durch Abbau bestehender
-Sonderpfade wieder überkompensieren.
+Der Datenkontroll-Schnitt macht den vollständigen lokalen Datenbestand erstmals
+als zusammenhängenden Oberflächenablauf zugänglich. Ein portables ZIP enthält
+Einstellungen, globale Dateien und sämtliche Daten erreichbarer registrierter
+Kursordner einschließlich Lösungen, Projekte, Lernstände und Backups. Erneut
+ladbare Inhaltscaches und Runtimes werden nicht unnötig dupliziert; symbolische
+Links werden dokumentiert, aber nicht über die Datenwurzeln hinaus verfolgt.
+Exportziele innerhalb der Quelldaten sind gesperrt, der Export wird atomar
+aktiviert und temporäre Archive werden auch bei einem simulierten
+Datenträgerfehler entfernt. Die getrennte Löschaktion validiert zunächst alle
+erreichbaren Kurse, verlangt die exakte Texteingabe `ALLE LOKALEN DATEN` und
+verschiebt danach Kurse sowie den vollständigen App-Datenordner in den
+Systempapierkorb. Exporte und Kopien an anderen Orten bleiben ausdrücklich
+unberührt. Acht neue Backend- und Architekturprüfungen sowie der erweiterte
+NiceGUI-E2E-Schülerweg sichern diesen Ablauf; die vollständige normale
+Testsuite umfasst danach 475 bestandene Prüfungen.
+
+Der selbst gepflegte Python-Produktivcode liegt nach diesem neuen
+Freigabefeature bei 18.793 Zeilen und damit 47 Zeilen beziehungsweise rund 0,3
+Prozent über der 0.8-Ausgangsbasis. Gegenüber dem vorherigen Zwischenstand
+kommen netto 347 klar abgegrenzte Zeilen hinzu. Diese Zahl wird nicht durch
+künstliche Verdichtung kaschiert: Exportvertrag und UI bleiben getrennt und
+gezielt testbar; die folgende Konsolidierung konzentriert sich weiter auf
+vorhandene Sonder- und Doppelpfade.
 
 Freigabekriterium: Ein Upgrade von 0.7 auf 0.8 sowie simulierte Abbrüche und
 beschädigte Laufzeitumgebungen werden reproduzierbar getestet, ohne vorhandene
