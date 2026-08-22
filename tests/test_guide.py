@@ -66,11 +66,7 @@ from insi.runtime import (
 from insi.progress import (
     load_progress,
     clear_exercise_progress,
-    record_attempt,
     remove_packaged_example_attempts,
-    save_journal_entry,
-    save_task_answer,
-    save_revealed_hint_count,
     revealed_hint_count,
 )
 from insi.execution import ExecutionManager, ScriptExampleManager
@@ -93,18 +89,6 @@ from insi.examples import (
     start_example,
 )
 from insi.pyxel_examples_view import copy_pyxel_example_to_course
-from insi.projects import (
-    create_project,
-    launch_project,
-    launch_project_editor,
-    load_project,
-    project_text,
-    project_text_hash,
-    project_slug,
-    save_project_text,
-    student_projects,
-)
-from insi.project_history import project_states
 from insi.library import (
     PACKAGED_CONTENT_ROOT,
     script_chapters,
@@ -177,7 +161,6 @@ from insi.sources import source_references
 from insi.legal import legal_document_path, legal_document_text
 from insi.documentation import documentation_text
 from insi.assignments import ASSIGNMENTS, get_assignment
-from pykim.trainer.models import CheckReport, CheckResult, OptimizationResult
 from pykim.trainer.authoring import generate_exercise_source
 
 
@@ -1334,122 +1317,6 @@ def test_packaged_examples_are_complete_and_copy_without_overwriting(tmp_path):
     assert (target.parent / "projekt.json").exists()
 
 
-def test_create_and_load_pyxel_project_with_relative_resources(tmp_path):
-    project = create_project(tmp_path, "Mein Rätsel!", "pyxel")
-
-    assert project.slug == "mein_ratsel"
-    assert project.entrypoint == tmp_path / "Projekte" / "mein_ratsel" / "main.py"
-    assert project.resources == project.directory / "ressourcen.pyxres"
-    assert project.documentation == project.directory / "README.md"
-    assert "# Mein Projekt" in project.documentation.read_text(encoding="utf-8")
-    assert 'pyxel.load("ressourcen.pyxres")' in project.entrypoint.read_text(encoding="utf-8")
-    assert load_project(project.directory) == project
-    assert student_projects(tmp_path) == (project,)
-    with pytest.raises(FileExistsError, match="existiert bereits"):
-        create_project(tmp_path, "Mein Rätsel!", "pyxel")
-
-
-def test_project_code_and_documentation_detect_external_changes(tmp_path):
-    project = create_project(tmp_path, "Dokumentiertes Spiel", "pykim")
-    documentation = project_text(project, project.documentation)
-
-    save_project_text(
-        project,
-        project.documentation,
-        "# Meine Erklärung\n",
-        expected_hash=project_text_hash(documentation),
-    )
-    assert project.documentation.read_text(encoding="utf-8") == "# Meine Erklärung\n"
-
-    project.documentation.write_text("# Extern geändert\n", encoding="utf-8")
-    with pytest.raises(RuntimeError, match="außerhalb"):
-        save_project_text(
-            project,
-            project.documentation,
-            "# Überschreiben\n",
-            expected_hash=project_text_hash("# Meine Erklärung\n"),
-        )
-
-
-def test_project_metadata_cannot_escape_its_directory(tmp_path):
-    directory = tmp_path / "Projekte" / "boese"
-    directory.mkdir(parents=True)
-    (directory / "projekt.json").write_text(
-        json.dumps({
-            "format": 1,
-            "name": "Böse",
-            "kind": "pyxel",
-            "entrypoint": "../fremd.py",
-            "resources": "ressourcen.pyxres",
-        }),
-        encoding="utf-8",
-    )
-
-    with pytest.raises(ValueError, match="Programmeinstieg"):
-        load_project(directory)
-
-
-def test_project_launch_uses_selected_runtime_and_project_working_directory(
-    tmp_path, monkeypatch
-):
-    project = create_project(tmp_path, "Spiel", "pykim")
-    python = tmp_path / "runtime" / "python"
-    calls = []
-    monkeypatch.setattr(
-        "insi.runtime.selected_runtime",
-        lambda course=None: RuntimeCandidate(
-            str(python), "3.13", "Test", True, ("PyKIM", "Pyxel")
-        ),
-    )
-    monkeypatch.setattr(
-        "insi.projects.sandbox_popen",
-        lambda command, cwd=None, env=None, **_options: calls.append(
-            (command, cwd, env)
-        ),
-    )
-
-    assert launch_project(project, tmp_path) == project.entrypoint
-    assert calls[0][:2] == ([str(python), str(project.entrypoint)], project.directory)
-    assert str(tmp_path.resolve()) in calls[0][2]["PYTHONPATH"].split(__import__("os").pathsep)
-    states = project_states(project.directory, tmp_path)
-    assert len(states) == 1
-    assert states[0].title == "Automatisch vor Ausführung"
-
-    launch_project(project, tmp_path)
-
-    assert len(project_states(project.directory, tmp_path)) == 1
-
-
-def test_pyxel_project_launch_requires_the_pinned_pyxel_runtime(tmp_path, monkeypatch):
-    project = create_project(tmp_path, "Spiel", "pyxel")
-    project.resources.write_bytes(b"resource")
-    python = tmp_path / "runtime" / "python"
-    requested = []
-
-    def select(course=None, **options):
-        requested.append((course, options))
-        return RuntimeCandidate(
-            str(python), "3.13", "Test", True, ("PyKIM", "Pyxel")
-        )
-
-    monkeypatch.setattr("insi.runtime.selected_runtime", select)
-    monkeypatch.setattr("insi.projects.sandbox_popen", lambda *_args, **_kwargs: None)
-
-    launch_project(project, tmp_path)
-
-    assert requested == [
-        (
-            tmp_path.resolve(),
-            {"additional_requirements": ("Pyxel==2.9.9",)},
-        )
-    ]
-
-
-def test_project_slug_rejects_empty_names():
-    with pytest.raises(ValueError, match="Buchstaben"):
-        project_slug("!!!")
-
-
 def test_all_packaged_examples_run_headless():
     failures = []
     for example in example_programs():
@@ -1998,88 +1865,6 @@ def test_launch_thonny_passes_dedicated_user_directory(tmp_path, monkeypatch):
     assert calls[0][1]["THONNY_USER_DIR"] == str(thonny_profile_directory(course))
 
 
-def test_progress_and_journal_travel_inside_the_course_folder(tmp_path):
-    course = tmp_path / "mounted-drive"
-    course.mkdir()
-    report = CheckReport(
-        "Testaufgabe",
-        (
-            CheckResult(True, "Position stimmt.", "Position falsch."),
-            CheckResult(False, "Schleife stimmt.", "Schleife fehlt.", "Nutze for."),
-        ),
-        OptimizationResult(50, maximum=100),
-    )
-
-    assert record_attempt("test", report, "right()", course=course)
-    save_journal_entry("test", "Ich brauche noch eine Schleife.", course=course)
-    save_task_answer(
-        "imperativ/erste-schritte",
-        "Meine freie Antwort.",
-        course=course,
-    )
-    save_revealed_hint_count("imperativ/test", 2, course=course)
-    progress = load_progress(course)
-
-    attempt = progress["attempts"][0]
-    assert attempt["source"] == "right()"
-    assert attempt["tests"][1]["hint"] == "Nutze for."
-    assert attempt["optimization"]["score"] == 50
-    assert progress["journal"]["test"]["text"].startswith("Ich brauche")
-    assert progress["answers"]["imperativ/erste-schritte"]["text"] == (
-        "Meine freie Antwort."
-    )
-    assert revealed_hint_count("imperativ/test", course=course) == 2
-    assert (course / ".pykim" / "progress.json").exists()
-
-
-def test_trainer_records_an_attempt_when_course_is_configured(
-    tmp_path, monkeypatch, capsys
-):
-    course = tmp_path / "course"
-    course.mkdir()
-    monkeypatch.delenv("PYKIM_PROGRESS_MODE")
-    monkeypatch.setenv("PYKIM_COURSE_DIR", str(course))
-    pykim.set_position(50, 50)
-    pykim.paint_start("purple")
-    pykim.right(5)
-    pykim.down(5)
-    pykim.left(5)
-    pykim.up(5)
-
-    from insi.training.runner import check_exercise
-
-    check_exercise("quadrat-5", "right(5)")
-    capsys.readouterr()
-    progress = load_progress(course)
-
-    assert len(progress["attempts"]) == 1
-    assert progress["attempts"][0]["exercise"] == "quadrat-5"
-    assert progress["attempts"][0]["successful"]
-
-
-def test_record_attempt_is_disabled_without_a_configured_course(
-    tmp_path, monkeypatch
-):
-    monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "empty-config"))
-    monkeypatch.delenv("PYKIM_COURSE_DIR", raising=False)
-    report = CheckReport("Leer", ())
-
-    assert not record_attempt("leer", report)
-
-
-def test_trainer_does_not_record_progress_in_example_mode(tmp_path, monkeypatch):
-    course = tmp_path / "course"
-    course.mkdir()
-    monkeypatch.setenv("PYKIM_COURSE_DIR", str(course))
-    monkeypatch.setenv("PYKIM_PROGRESS_MODE", "disabled")
-
-    from insi.training.runner import check_exercise
-
-    check_exercise("quadrat-5", "")
-
-    assert load_progress(course)["attempts"] == []
-
-
 def test_exercise_file_finds_the_generated_starter(tmp_path, monkeypatch):
     monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
     course = tmp_path / "course"
@@ -2213,27 +1998,6 @@ def test_pyxel_tools_use_bundled_python_without_global_command(tmp_path, monkeyp
             example.parent,
         ),
     ]
-
-
-def test_project_editor_uses_selected_runtime_and_requested_area(tmp_path, monkeypatch):
-    project = create_project(tmp_path, "Spiel", "pyxel")
-    python = tmp_path / "runtime" / "python"
-    calls = []
-    monkeypatch.setattr(
-        "insi.runtime.selected_runtime",
-        lambda course=None, **_options: RuntimeCandidate(
-            str(python), "3.13", "Test", True, ("PyKIM", "Pyxel")
-        ),
-    )
-    monkeypatch.setattr(
-        "insi.system.launch_pyxel_editor",
-        lambda resource, python=None, editor="image": calls.append(
-            (resource, python, editor)
-        ) or Path(resource),
-    )
-
-    assert launch_project_editor(project, tmp_path, "music") == project.resources
-    assert calls == [(project.resources, str(python), "music")]
 
 
 def test_frozen_python_runner_keeps_windows_executable_suffix(tmp_path, monkeypatch):

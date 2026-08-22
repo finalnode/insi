@@ -31,6 +31,14 @@ def test_app_is_a_small_application_composer():
     assert main.end_lineno - main.lineno <= 80
 
 
+def test_guide_test_collection_no_longer_owns_every_domain():
+    source = (PROJECT / "tests" / "test_guide.py").read_text(encoding="utf-8")
+
+    assert len(source.splitlines()) <= 2650
+    assert (PROJECT / "tests" / "test_progress.py").is_file()
+    assert (PROJECT / "tests" / "test_projects.py").is_file()
+
+
 def test_heavy_views_are_imported_lazily_inside_main():
     tree = ast.parse((GUIDE / "app.py").read_text(encoding="utf-8"))
     top_level_names = {

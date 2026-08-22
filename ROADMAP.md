@@ -281,7 +281,7 @@ als Verbesserung.
   `theme.py` als prüfbare statische Assets führen und die View-Monolithen in
   kleinere Zustands- und Darstellungsbereiche überführen, ohne dieselbe Logik
   lediglich auf mehr Dateien zu verteilen;
-- `test_guide.py` mit derzeit 2.656 Zeilen nach fachlichen Verträgen aufteilen,
+- `test_guide.py` nach fachlichen Verträgen aufteilen,
   damit Änderungen nicht weiterhin einen zentralen Sammeltest als
   Wissensmonopol benötigen;
 - die Plattform- und Prozessverantwortlichkeiten aus `sandbox.py` mit derzeit
@@ -547,6 +547,15 @@ Aufbau nur noch einmal ausgeführt. `tools_view.py` sank von 516 auf 360 Zeilen,
 seine Hauptfunktion von 493 auf 337 Zeilen; Architekturtests sichern den
 einzigen Updatepfad und beide Größenbudgets. Die vollständige normale Testsuite
 umfasst danach 456 bestandene Prüfungen.
+
+Der erste Schnitt am zentralen Sammeltest verschiebt Lernstand und
+Traineraufzeichnung sowie Projektmodell, Konfliktschutz und Projektstarts in
+zwei eigenständige Testmodule. `test_guide.py` sank dadurch von zwischenzeitlich
+2.862 auf 2.626 Zeilen und wird per Architekturtest auf höchstens 2.650 Zeilen
+begrenzt. Die elf ausgelagerten Fachtests laufen lokal zusammen in weniger als
+einer Sekunde, sodass Änderungen in diesen Bereichen nicht mehr den gesamten
+Guide-Kontext benötigen. Die vollständige normale Testsuite umfasst danach 457
+bestandene Prüfungen.
 
 Trotz dieses neuen Funktionsumfangs liegt der selbst gepflegte Python-
 Produktivcode im aktuellen Zwischenstand mit 18.479 Zeilen weiterhin 267
