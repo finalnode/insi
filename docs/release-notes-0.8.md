@@ -25,7 +25,9 @@ bleiben bis zur Freigabe bei 0.7.0.
 ## Wartbarkeit und Paketgröße
 
 - Große UI- und Testmodule werden mit Architekturbudgets begrenzt und
-  schrittweise fachlich getrennt.
+  schrittweise fachlich getrennt. Der zentrale `test_guide.py` sank bislang von
+  2.862 auf 1.920 Zeilen; 33 Runtime-, IDE- und Pyxel-Prüfungen liegen nun in
+  einem eigenen, lokal rund 3,7 Sekunden schnellen Testmodul.
 - Die doppelte Updateoberfläche wurde entfernt; App-, Kurs- und Inhaltsabgleich
   haben einen gemeinsamen Einstieg.
 - Das Offline-Wheelhouse ist vom App-Paketbaum getrennt. Der lokale

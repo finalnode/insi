@@ -19,6 +19,9 @@
   gemeinsamen Werkzeugbereich zusammengeführt;
 - große Sammeltests schrittweise in fachlich getrennte, schneller ausführbare
   Testmodule zerlegt und Architekturbudgets gegen erneutes Wachstum ergänzt;
+  `test_guide.py` sank dabei bislang von 2.862 auf 1.920 Zeilen, während die
+  ausgelagerten Runtime-, IDE- und Pyxel-Verträge separat in rund 3,7 Sekunden
+  laufen;
 - Offline-Wheelhouse vom App-Paketbaum getrennt und den lokalen
   macOS-ARM-DMG-Prototyp von rund 113 MB auf rund 82 MiB verkleinert;
 - Packaging-Artefakte auf den Namen in:si umgestellt, direkte Abhängigkeiten

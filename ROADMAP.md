@@ -565,6 +565,15 @@ einer Sekunde, sodass Änderungen in diesen Bereichen nicht mehr den gesamten
 Guide-Kontext benötigen. Die vollständige normale Testsuite umfasst danach 457
 bestandene Prüfungen.
 
+Der zweite Schnitt verschiebt 33 Prüfungen für Runtime-Erkennung und -Reparatur,
+IDE-Konfiguration, Systemwerkzeuge und Pyxel-Editoren nach
+`test_runtime_tools.py`. Das neue Fachmodul läuft lokal in rund 3,7 Sekunden;
+`test_guide.py` sinkt von 2.626 auf 1.920 Zeilen. Architekturtests begrenzen den
+verbleibenden Sammeltest auf 2.000 und das neue Modul auf 750 Zeilen. Damit kann
+dieser Integrationsbereich gezielt geprüft werden, ohne die weiterhin im
+Sammeltest liegenden Kurs-, Inhalts- und Updateverträge einzusammeln. Die
+vollständige normale Testsuite umfasst weiterhin 457 bestandene Prüfungen.
+
 Trotz dieses neuen Funktionsumfangs liegt der selbst gepflegte Python-
 Produktivcode im aktuellen Zwischenstand mit 18.479 Zeilen weiterhin 267
 Zeilen beziehungsweise rund 1,4 Prozent unter der 0.8-Ausgangsbasis. Das neue
