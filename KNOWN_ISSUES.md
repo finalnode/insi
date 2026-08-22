@@ -13,7 +13,7 @@ entfernt oder im [Changelog](CHANGELOG.md) als erledigt dokumentiert.
 |---|---|---|---|
 | Die überarbeitete TOAST-UI-Toolbar ist bei den vorgesehenen schmalen Browser- und nativen Fensterbreiten noch nicht vollständig manuell abgenommen. | Die Toolbar bleibt nun innerhalb des Editorrahmens und kann horizontal scrollen; bei unbekannten WebView-Größen sind optische Abweichungen weiterhin möglich. Bearbeitung und Speicherung funktionieren. | Bei Bedarf innerhalb der Toolbar horizontal scrollen. | Browser- und native Breiten in der manuellen 0.8-Matrix abschließend prüfen. |
 | Die manuelle Schulgeräte-Matrix ist noch offen. | Automatisierte Builds prüfen viele technische Eigenschaften, ersetzen aber keinen vollständigen Test auf realen Windows-, macOS- und Linux-Geräten. | Entwicklungstests und CI-Builds verwenden; Alpha-Status beachten. | Dokumentierte Smoke-Tests vor der Freigabe von 0.8. |
-| Vier browsergestützte NiceGUI-E2E-Prüfungen sind vom normalen lokalen Testlauf getrennt. | Der normale Lauf bleibt schnell und reproduzierbar, deckt den vollständigen Browserweg aber nicht ab. In eingeschränkten Entwicklungsumgebungen fehlen dafür nutzbare Prozess-Semaphoren. | E2E-Prüfungen mit `pytest -m e2e` in einer geeigneten lokalen Umgebung oder CI ausführen. | Grüner E2E- und Plattformnachweis vor der 0.8-Freigabe. |
+| Vier browsergestützte NiceGUI-E2E-Prüfungen sind vom normalen Testlauf und der aktuellen CI getrennt. | Der normale Lauf bleibt schnell und reproduzierbar, deckt den vollständigen Browserweg aber nicht ab. Lokal bestehen am 23. August 2026 alle vier Prüfungen; in eingeschränkten Umgebungen können Prozess-Semaphoren fehlen. | E2E-Prüfungen mit `pytest -m e2e` in einer geeigneten lokalen Umgebung ausführen. | Den grünen lokalen Stand vor der 0.8-Freigabe im CI-/Releaseablauf bestätigen. |
 | Reproduzierbare Paket-Locks und Offline-Buildnachweise fehlen noch für Windows, Linux und macOS Intel. | Das verkleinerte Wheelhouse und der vollständige Offline-Runtime-Aufbau sind bislang lokal für macOS ARM nachgewiesen. | 0.8 nicht allein anhand des lokalen ARM-Builds veröffentlichen. | Alle vier Release-Builds samt Manifest, Paketgröße und Offline-Aufbau prüfen. |
 
 ## Plattform- und Sicherheitsgrenzen
@@ -35,7 +35,8 @@ den heutigen Einsatz:
 - die 0.7→0.8-Datenmigration und sichtbare Wiederherstellung von
   Projektständen sind umgesetzt, benötigen vor dem Release aber weitere reale
   0.7-Datenbestände, Hardwareproben mit entfernbaren Datenträgern sowie die
-  vollständige E2E- und Plattformmatrix;
+  Bestätigung der lokal grünen E2E-Abläufe im CI-/Releaseweg und die
+  vollständige Plattformmatrix;
 - getrennte lokale Profile für mehrere Personen auf demselben Gerät fehlen bis
   0.9;
 - PyKIM ist derzeit das einzige vollständig angebundene Fachmodul; weitere

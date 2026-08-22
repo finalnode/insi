@@ -42,7 +42,9 @@ fertig implementiert.
 > aktuelle Nachweis umfasst 475 bestandene, eine plattformbedingt
 > übersprungene und zusätzlich vier bestandene E2E-Prüfungen. Fortschritt und
 > verbleibende Freigabeblocker stehen im
-> [Entwurf der 0.8-Release-Notes](docs/release-notes-0.8.md).
+> [Entwurf der 0.8-Release-Notes](docs/release-notes-0.8.md). Der geschlossene
+> Funktionsumfang und die noch offenen Nachweise stehen kompakt im
+> [0.8-Abschlussprotokoll](docs/v0.8-abschlussprotokoll.md).
 
 Die kompakte, offline auslieferbare Dokumentation beginnt unter
 [docs/de](docs/de/erste-schritte.md). Sie enthält getrennte Einstiege für

@@ -57,7 +57,7 @@ Entwicklungsstand, kein Ersatz für die unten aufgeführte Plattformmatrix.
 - Projektstart mit ausgewählter Runtime und korrektem Arbeitsverzeichnis
 - Offline-Installation mit `--no-index` aus einem plattformspezifischen Wheelhouse
 - isoliertes Thonny-Profil mit derselben Runtime wie Suite und VS Code
-- Reparatur nur innerhalb einer von PyKIM verwalteten Umgebung
+- Reparatur nur innerhalb einer von in:si verwalteten Kursumgebung
 - Wheel-Inhalt einschließlich Markdown-Bibliothek
 - browserloser NiceGUI-Smoke: Übersicht → Aufgaben → Skript → Autorenwerkzeuge
 - macOS-Bundle enthält Runtime, Trainer-Module, Beispiele und Offline-Wheelhouse
@@ -79,7 +79,7 @@ Runner ausgeführt, der den echten Netzwerk-Namespace bereitstellen kann.
 Der UI-Gesamtworkflow benötigt NiceGUI und lokale Prozess-Semaphoren:
 
 ```bash
-python -m pip install -e '.[e2e]'
+python -m pip install -e '.[test]'
 pytest -m e2e
 ```
 
@@ -174,7 +174,7 @@ Der vollständige native Test kann in einer Wayland-Sitzung mit
 5. Unterbrochene Verbindung hinterlässt keine halbe `progress.json`.
 6. Zurücksetzen erzeugt erreichbare Backups unter `.pykim/backups`.
 
-PyKIM unterstützt bewusst das **nacheinander** Arbeiten auf mehreren Geräten.
+in:si unterstützt bewusst das **nacheinander** Arbeiten auf mehreren Geräten.
 Gleichzeitiges Bearbeiten derselben Datei ist kein unterstützter Workflow.
 
 ## Unterrichtspilot

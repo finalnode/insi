@@ -87,6 +87,15 @@ versionsübergreifend getestete Abläufe. Entscheidend ist nicht nur, dass ein
 Backup existiert, sondern dass sein Inhalt verständlich ausgewählt und sicher
 wiederhergestellt werden kann.
 
+### Umfangsschnitt vom 23. August 2026
+
+Der Funktionsumfang für 0.8 ist geschlossen. Neue Produktfunktionen werden vor
+der Freigabe nicht mehr aufgenommen. Die umgesetzten Bereiche, Messwerte,
+bewusst verbleibende Wartungsschuld und sechs noch offene Freigabeschritte sind
+im [0.8-Abschlussprotokoll](docs/v0.8-abschlussprotokoll.md) zusammengefasst.
+Weitere Änderungen müssen unmittelbar aus diesen Freigabeprüfungen entstehen
+oder eine kleine, nachweisbare Korrektur ohne neuen Produktumfang sein.
+
 ### Arbeitsbaseline vom 22. August 2026
 
 Die 0.8.x-Konsolidierung startet mit 18.746 Zeilen selbst gepflegtem
@@ -292,14 +301,12 @@ als Verbesserung.
 - `test_guide.py` nach fachlichen Verträgen aufteilen,
   damit Änderungen nicht weiterhin einen zentralen Sammeltest als
   Wissensmonopol benötigen;
-- die Plattform- und Prozessverantwortlichkeiten aus `sandbox.py` mit derzeit
-  1.408 Zeilen erst als letzten Konsolidierungsschritt unmittelbar vor der
-  0.8.x-Releaseprüfung in klar begrenzte Adaptermodule überführen; den
-  umfangreichen Windows-Helper separat betrachten und gemeinsame
-  Sicherheitsprüfungen nicht zwischen Plattformimplementierungen duplizieren.
-  Wegen der hohen Deploy- und Plattformempfindlichkeit folgt direkt danach die
-  vollständige Build-, Sandbox- und Plattformmatrix, bevor 0.8.x veröffentlicht
-  wird;
+- `sandbox.py` mit derzeit 1.408 Zeilen und den umfangreichen Windows-Helper als
+  bekannte Wartungsschuld protokollieren, vor 0.8 aber nicht allein aufgrund
+  ihrer Größe umbauen. Zuerst folgt die vollständige Build-, Sandbox- und
+  Plattformmatrix; nur ein konkreter Sicherheits-, Build- oder
+  Wartungsbefund rechtfertigt in diesem empfindlichen Bereich noch einen
+  Änderungsschnitt vor der Freigabe;
 - `runtime.py`, `updates.py`, `course_archive.py` und `course_setup.py` entlang
   ihrer bereits erkennbaren Phasen Erkennung, Prüfung, Transaktion, Format und
   Aktivierung entflechten; Schnittstellen nur dann einführen, wenn dadurch
@@ -651,6 +658,11 @@ Release-Versionscheck bestätigt den Stand. Die normale Testsuite umfasst
 weiterhin 475 Prüfungen; alle vier separat markierten NiceGUI-E2E-Abläufe
 bestehen ebenfalls.
 
+Mit dem anschließenden Abschlussaudit endet die funktionale 0.8-Entwicklung.
+Die dokumentierte Plattform-, Sandbox-, Daten- und Buildmatrix bleibt vor der
+Freigabe verbindlich; allgemeine weitere Modulzerlegung wird nicht künstlich
+zum Releaseblocker gemacht.
+
 Der selbst gepflegte Python-Produktivcode liegt nach diesem neuen
 Freigabefeature bei 18.793 Zeilen und damit 47 Zeilen beziehungsweise rund 0,3
 Prozent über der 0.8-Ausgangsbasis. Gegenüber dem vorherigen Zwischenstand
@@ -676,8 +688,14 @@ nachvollziehbaren Kursquellen pilotiert werden.
 Diese Etappe verschiebt den Blick vom einzelnen lokalen Arbeitsplatz auf reale
 Schulumgebungen. Dort teilen sich häufig mehrere Personen ein Gerät, Kurse
 stammen aus unterschiedlichen Quellen und technische Rechte müssen auch ohne
-Entwicklerwissen verständlich sein.
+Entwicklerwissen verständlich sein. Parallel wird der vorhandene Kursbestand
+fertiggestellt: Vor einer weiteren Verbreiterung der Plattform sollen die
+Grundkurse als vollständige, didaktisch geprüfte Lernwege nutzbar sein.
 
+- die vorhandenen Grundkurse mit aufeinander abgestimmten Skripten, Aufgaben,
+  Hinweisen, Trainern und Abschlussprojekten inhaltlich vervollständigen;
+- Lernziele, Voraussetzungen, Reihenfolge und erwartete Bearbeitungszeit der
+  Grundkurse dokumentieren und im Unterrichtspilot überprüfen;
 - lokale Mehrbenutzerprofile mit getrennten Workspaces;
 - sichtbare Berechtigungen für Kursinhalte, Trainer, Dateizugriffe und
   Programmstarts;
@@ -692,8 +710,10 @@ Entwicklerwissen verständlich sein.
   Barrierearmut, Datenschutz und Wiederherstellung auswerten.
 
 Freigabekriterium: Profile und Kursrechte sind voneinander getrennt, ein
-Kursupdate bleibt nachvollziehbar, und mindestens ein realer Unterrichtspilot
-hat keine kritischen Datenverlust-, Sicherheits- oder Bedienprobleme ergeben.
+Kursupdate bleibt nachvollziehbar, mindestens ein vollständiger Grundkurs ist
+didaktisch und technisch pilotfähig, und mindestens ein realer
+Unterrichtspilot hat keine kritischen Datenverlust-, Sicherheits- oder
+Bedienprobleme ergeben.
 
 Der Pilot soll mindestens Installation, Kurswechsel, Aufgabenbearbeitung,
 Projektstart, externe IDE, Kursupdate, Export und Wiederherstellung abdecken.
@@ -719,6 +739,8 @@ Plattformen die Schutzmechanismen tatsächlich geprüft sind.
   abschließen;
 - deutsch- und englischsprachige Dokumentation für Lernende, Lehrkräfte,
   Kursautorinnen und Entwickler vollständig ausliefern;
+- mindestens einen vollständigen, versionierten Grundkurs mit dokumentierten
+  Lernzielen, Aufgaben, Hilfen und Abschlussprojekt veröffentlichen;
 - Installations-, Update-, Offline-, Sandbox- und Wiederherstellungsmatrix auf
   echten Zielgeräten bestehen;
 - alle kritischen Befunde aus dem 0.9-Unterrichtspilot schließen.

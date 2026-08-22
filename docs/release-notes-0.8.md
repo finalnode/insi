@@ -7,6 +7,11 @@ Diese Datei begleitet die Entwicklung von 0.8. Sie wird nach jedem
 abgeschlossenen, getesteten Arbeitsschritt aktualisiert. Die stabilen Downloads
 bleiben bis zur Freigabe bei 0.7.0.
 
+Der Funktionsumfang ist seit dem 23. August 2026 geschlossen. Das
+[Abschlussprotokoll](v0.8-abschlussprotokoll.md) trennt umgesetzte Funktionen,
+lokale Nachweise und die noch offenen Freigabeprüfungen. Bis zu deren Abschluss
+kommen keine weiteren Produktfunktionen hinzu.
+
 ## Was 0.8 sichtbar verbessert
 
 - Lernende können automatische und benannte Projektstände in einer Zeitleiste
@@ -62,8 +67,8 @@ bleiben bis zur Freigabe bei 0.7.0.
 - 475 normale Prüfungen bestanden;
 - eine Linux-Bubblewrap-Prüfung auf macOS übersprungen;
 - vier NiceGUI-E2E-Prüfungen separat ausgeführt und bestanden;
-- vollständige E2E-, Offline-Build-, Sandbox- und Schulgeräte-Matrix vor der
-  Freigabe weiterhin erforderlich.
+- vollständige Offline-Build-, Sandbox-, native GUI- und Schulgeräte-Matrix vor
+  der Freigabe weiterhin erforderlich.
 
 ## Noch offen vor der Freigabe
 
@@ -71,10 +76,10 @@ bleiben bis zur Freigabe bei 0.7.0.
   Migration und Wiederherstellung testen;
 - reproduzierbare Paket-Locks, Offline-Runtime-Aufbau und Paketgrößen für
   Windows, Linux, macOS Intel und macOS ARM nachweisen;
-- Sandbox als letzten großen Plattformblock prüfen und härten;
-- verbleibende große Module und Sammeltests weiter zerlegen, ohne neue
-  Kompatibilitätsschichten aufzubauen;
-- Toolbar, Kernabläufe und Performance auf echten Zielgeräten manuell abnehmen.
+- Sandbox als letzten großen Plattformblock prüfen und nur bei einem konkreten
+  Befund vor der Freigabe ändern;
+- Toolbar, Kernabläufe und Performance auf echten Zielgeräten manuell abnehmen;
+- den Branch über Pull Request beziehungsweise Merge durch die CI führen;
 - nach bestandener Freigabematrix die Entwicklungsversion `0.8.0.dev0` auf
   `0.8.0` setzen und den Release-Tag gegen denselben Stand prüfen.
 
@@ -91,6 +96,6 @@ released
 Version 0.8 focuses on safe 0.7-to-0.8 data migration, visible project-state
 restoration, faster course startup, smaller packages and clearer architectural
 boundaries. The current development check reports 475 passed tests, one
-platform-related skip and four separately executed, passing E2E tests. Full E2E,
-offline-build, sandbox and real-device verification remains required before
-release. Stable downloads therefore continue to point to 0.7.0.
+platform-related skip and four separately executed, passing E2E tests. Full
+offline-build, sandbox, native-GUI and real-device verification remains required
+before release. Stable downloads therefore continue to point to 0.7.0.

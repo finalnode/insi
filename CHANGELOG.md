@@ -7,6 +7,9 @@
 - die ausgeschriebene Bedeutung **informatica simplicissima** und ihre
   didaktische Leitidee in der deutschen und englischen README wieder direkt in
   der Einleitung sichtbar gemacht;
+- den Funktionsumfang für 0.8 geschlossen und in einem Abschlussprotokoll mit
+  umgesetzten Bereichen, Messwerten, Wartungsschuld und sechs verbleibenden
+  Freigabeschritten festgehalten;
 - versionierte, idempotente 0.7→0.8-Migrationen für Einstellungen, Kursmarker
   und Lernstände samt unverändertem Originalbackup und simulierten
   Abbruch-/Datenträgerfehlern ergänzt;

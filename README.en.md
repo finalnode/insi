@@ -28,7 +28,8 @@ and tools behind a simplified learning interface. Its educational principle is:
 > passed tests, one platform-related skip and four additional passing E2E
 > tests. See the
 > [draft 0.8 release notes](docs/release-notes-0.8.md) for progress and release
-> blockers.
+> blockers. The [0.8 scope-cut protocol](docs/v0.8-abschlussprotokoll.md)
+> separates completed scope from outstanding release evidence.
 
 ## Why in:si exists
 
