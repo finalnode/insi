@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import zipfile
 
-from insi.course_archive import course_content_source
+from insi.course_storage import course_content_source
 from insi.course_setup import (
     course_setup_info,
     install_course_archive,

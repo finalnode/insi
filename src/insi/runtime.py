@@ -439,7 +439,7 @@ def _package_checks(
 
 
 def _installed_manifest(course: str | Path):
-    from .course_archive import installed_course_runtime
+    from .course_storage import installed_course_runtime
 
     installed = installed_course_runtime(course)
     return installed[0] if installed is not None else None
@@ -466,7 +466,7 @@ def course_runtime_preflight(
 ) -> RuntimePreflight:
     """Prüfe vor Kursstart Python, Pakete, Plattform und Offline-Integrität."""
     from .course import get_runtime_preference
-    from .course_archive import course_offline_wheelhouse
+    from .course_storage import course_offline_wheelhouse
     from .course_runtime import RUNTIME_TARGETS, current_runtime_target
 
     root = Path(course).expanduser().resolve()
@@ -739,7 +739,7 @@ def _install_runtime_packages(
     course_wheels = None
     manifest = None
     if course is not None:
-        from .course_archive import course_offline_wheelhouse
+        from .course_storage import course_offline_wheelhouse
 
         course_wheels = course_offline_wheelhouse(course)
         manifest = _installed_manifest(course)

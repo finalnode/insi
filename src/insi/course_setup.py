@@ -238,7 +238,7 @@ def _install_repository_course(
     *,
     create_workspace: bool,
 ) -> None:
-    from .course_archive import write_course_content_source
+    from .course_storage import write_course_content_source
     from .updates import sync_certificate_content
 
     content = sync_certificate_content(info)
@@ -279,7 +279,7 @@ def _install_archive_bundle(
     *,
     create_workspace: bool,
 ) -> None:
-    from .course_archive import (
+    from .course_storage import (
         install_course_archive_content,
         install_course_archive_runtime,
         write_course_content_source,
@@ -335,7 +335,7 @@ def sync_installed_course_content(
     if info is None:
         return TrainerVerification(False, False, "Keine Kurs-Setupdatei installiert.")
 
-    from .course_archive import course_content_source
+    from .course_storage import course_content_source
 
     source = course_content_source(selected)
     if source.get("type") == "archive":
@@ -370,7 +370,7 @@ def activate_installed_course_content(course: str | Path) -> None:
 
     info = course_setup_info(selected)
     root = active_content_root(PACKAGED_CONTENT_ROOT)
-    from .course_archive import course_content_source
+    from .course_storage import course_content_source
 
     if course_content_source(selected).get("type") == "repository":
         _activate_repository_runtime(root, selected)
@@ -384,7 +384,7 @@ def activate_installed_course_content(course: str | Path) -> None:
 
 def _activate_repository_runtime(content: Path, course: str | Path) -> None:
     """Übernehme den Runtime-Vertrag des aktiven Repository-Snapshots."""
-    from .course_archive import clear_course_runtime, install_course_runtime
+    from .course_storage import clear_course_runtime, install_course_runtime
     from .course_runtime import RUNTIME_FILENAME
 
     manifest = content / RUNTIME_FILENAME

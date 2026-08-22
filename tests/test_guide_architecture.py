@@ -253,6 +253,18 @@ def test_course_imports_share_one_setup_and_workspace_activation_path():
     assert activation.count("create_course(course)") == 1
 
 
+def test_course_archive_format_and_installed_storage_stay_separate():
+    archive = (GUIDE / "course_archive.py").read_text(encoding="utf-8")
+    storage = (GUIDE / "course_storage.py").read_text(encoding="utf-8")
+
+    assert len(archive.splitlines()) <= 310
+    assert len(storage.splitlines()) <= 250
+    assert "def install_course_runtime" not in archive
+    assert "def course_content_source" not in archive
+    assert "import zipfile" not in storage
+    assert "from .course_setup" not in storage
+
+
 def test_app_context_owns_mutable_session_state():
     context = AppContext(object(), object(), object(), desktop=True)
 

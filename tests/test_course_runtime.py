@@ -8,10 +8,12 @@ import pytest
 
 from insi.course_archive import (
     build_course_archive,
+    parse_course_archive,
+)
+from insi.course_storage import (
     course_offline_wheelhouse,
     install_course_runtime,
     installed_course_runtime,
-    parse_course_archive,
 )
 from insi.course_builder_view import create_portable_course, ensure_course_source
 from insi.course_runtime import (
@@ -254,7 +256,7 @@ def test_installed_offline_runtime_is_versioned_and_used_by_pip(tmp_path, monkey
     python = tmp_path / "python"
     python.write_bytes(b"")
     calls = []
-    monkeypatch.setattr("insi.course_archive.current_runtime_target", lambda: target)
+    monkeypatch.setattr("insi.course_storage.current_runtime_target", lambda: target)
     monkeypatch.setattr("insi.course_runtime.current_runtime_target", lambda: target)
     monkeypatch.setattr("insi.runtime.bundled_wheelhouse", lambda: app_wheels)
     monkeypatch.setattr(

@@ -16,9 +16,9 @@ from insi.course import (
 )
 from insi.course_archive import (
     MAX_ARCHIVE_SIZE,
-    course_content_source,
     parse_course_archive,
 )
+from insi.course_storage import course_content_source
 from .course_import_dialogs import archive_runtime_details, confirm_external_course_import
 from insi.course_setup import (
     course_setup_info,

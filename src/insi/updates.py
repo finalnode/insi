@@ -160,7 +160,7 @@ def active_content_root(packaged_root: Path) -> Path:
     marker = content_directory() / "active.json"
     try:
         from .course import get_course_directory
-        from .course_archive import course_content_source
+        from .course_storage import course_content_source
         from .course_setup import course_setup_info
 
         course = get_course_directory()

@@ -95,9 +95,9 @@ from insi.course_setup import (
 )
 from insi.course_archive import (
     build_course_archive,
-    course_content_source,
     parse_course_archive,
 )
+from insi.course_storage import course_content_source
 from insi.course_builder_view import (
     analyze_course_directory,
     course_documents,

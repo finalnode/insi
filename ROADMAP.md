@@ -597,8 +597,19 @@ Zeilen umfassende Archivprüfung und -speicherung bleibt der nächste getrennte
 Schnitt. Die vollständige normale Testsuite umfasst danach 463 bestandene
 Prüfungen.
 
+Der zweite Kursarchiv-Schnitt trennt ZIP-Format, vollständige Prüfung und
+Erstellung von der atomaren Speicherung installierter Inhalte,
+Runtime-Verträge und Quellenmarker. `course_archive.py` sinkt dadurch von 557
+auf 308 Zeilen; `course_storage.py` hält die getrennte Speicherverantwortung bei
+242 Zeilen. Zusammen umfassen beide Bereiche 550 statt zuvor 557 Zeilen. Ein
+gemeinsamer atomarer JSON-Pfad ersetzt doppelte Markerlogik. Beim Kurs-Export
+werden ausgewählte Quelldateien und Offline-Wheels außerdem nur noch einmal vom
+Datenträger gelesen. Architekturtests begrenzen beide Module und verhindern
+eine Rückvermischung von ZIP- und Speicherlogik. Die vollständige normale
+Testsuite umfasst danach 464 bestandene Prüfungen.
+
 Trotz dieses neuen Funktionsumfangs liegt der selbst gepflegte Python-
-Produktivcode im aktuellen Zwischenstand mit 18.455 Zeilen weiterhin 291
+Produktivcode im aktuellen Zwischenstand mit 18.448 Zeilen weiterhin 298
 Zeilen beziehungsweise rund 1,6 Prozent unter der 0.8-Ausgangsbasis. Das neue
 Migrationsmodell erhöht den Kern zunächst sichtbar; die folgende
 Konsolidierung muss diesen Sicherheitsumfang durch Abbau bestehender
