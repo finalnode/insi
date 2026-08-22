@@ -286,7 +286,7 @@ def render_tools_panel(
         update_badge.text = "Updates werden geprüft …"
         try:
             status = await nicegui_run.io_bound(
-                check_updates, PACKAGED_CONTENT_ROOT
+                check_updates, PACKAGED_CONTENT_ROOT, include_content=header_setup is None
             )
             update_state["status"] = status
             if status.app is None:

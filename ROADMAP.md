@@ -574,8 +574,19 @@ dieser Integrationsbereich gezielt geprüft werden, ohne die weiterhin im
 Sammeltest liegenden Kurs-, Inhalts- und Updateverträge einzusammeln. Die
 vollständige normale Testsuite umfasst weiterhin 457 bestandene Prüfungen.
 
+Der Update-Backend-Schnitt führt die unabhängige App- und allgemeine
+Inhaltsprüfung parallel aus. Ist ein Repositorykurs ausgewählt, entfällt die
+für diesen Kurs wirkungslose Abfrage des allgemeinen Inhaltsmanifests
+vollständig; der bewusste Kursabgleich bleibt davon getrennt. Beide
+Installationswege aktivieren geprüfte Inhaltsstände nun über denselben atomaren
+Markerhelfer. Der zuvor bei jeder manuellen Prüfung geschriebene, aber nirgends
+gelesene `update-status.json`-Cache entfällt. `updates.py` sinkt von 650 auf 649
+Zeilen, `tools_view.py` bleibt bei 360 Zeilen. Drei neue gezielte Prüfungen
+sichern Parallelität, den ausgelassenen Fremdkanal und das Größenbudget; die
+vollständige normale Testsuite umfasst danach 460 bestandene Prüfungen.
+
 Trotz dieses neuen Funktionsumfangs liegt der selbst gepflegte Python-
-Produktivcode im aktuellen Zwischenstand mit 18.479 Zeilen weiterhin 267
+Produktivcode im aktuellen Zwischenstand mit 18.478 Zeilen weiterhin 268
 Zeilen beziehungsweise rund 1,4 Prozent unter der 0.8-Ausgangsbasis. Das neue
 Migrationsmodell erhöht den Kern zunächst sichtbar; die folgende
 Konsolidierung muss diesen Sicherheitsumfang durch Abbau bestehender

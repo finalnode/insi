@@ -31,7 +31,7 @@ fertig implementiert.
 > **Entwicklungszweig 0.8:** Auf `develop/v0.8` entstehen derzeit die nächste
 > Datenmigration, sichtbare Projektstände, schnellere Startpfade und ein
 > schlankerer, besser testbarer Kern. Dieser Stand ist noch kein Release. Der
-> aktuelle Nachweis umfasst 457 bestandene, eine plattformbedingt
+> aktuelle Nachweis umfasst 460 bestandene, eine plattformbedingt
 > übersprungene und vier separat auszuführende E2E-Prüfungen. Fortschritt und
 > verbleibende Freigabeblocker stehen im
 > [Entwurf der 0.8-Release-Notes](docs/release-notes-0.8.md).

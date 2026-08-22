@@ -230,6 +230,16 @@ def test_update_badge_navigates_to_the_single_tools_update_view():
     assert 'update_badge.on("click", lambda: tabs.set_value(tools_tab))' in workspace
 
 
+def test_manual_update_backend_stays_bounded_and_avoids_dead_status_cache():
+    source = (GUIDE / "updates.py").read_text(encoding="utf-8")
+
+    assert len(source.splitlines()) <= 650
+    assert "update-status.json" not in source
+    assert "include_content" in source
+    assert "ThreadPoolExecutor(max_workers=2" in source
+    assert source.count("_activate_content_version(") == 3
+
+
 def test_app_context_owns_mutable_session_state():
     context = AppContext(object(), object(), object(), desktop=True)
 

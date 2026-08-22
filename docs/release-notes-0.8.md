@@ -29,16 +29,19 @@ bleiben bis zur Freigabe bei 0.7.0.
   2.862 auf 1.920 Zeilen; 33 Runtime-, IDE- und Pyxel-Prüfungen liegen nun in
   einem eigenen, lokal rund 3,7 Sekunden schnellen Testmodul.
 - Die doppelte Updateoberfläche wurde entfernt; App-, Kurs- und Inhaltsabgleich
-  haben einen gemeinsamen Einstieg.
+  haben einen gemeinsamen Einstieg. App- und allgemeine Inhaltsprüfung laufen
+  parallel; bei Repositorykursen wird die ungenutzte allgemeine Inhaltsabfrage
+  vollständig übersprungen. Beide Inhaltswege verwenden denselben atomaren
+  Aktivierungspfad, ein nie gelesener Statuscache entfällt.
 - Das Offline-Wheelhouse ist vom App-Paketbaum getrennt. Der lokale
   macOS-ARM-DMG-Prototyp sank von rund 113 MB auf rund 82 MiB.
-- Der selbst gepflegte Python-Produktivcode liegt aktuell bei 18.479 Zeilen,
+- Der selbst gepflegte Python-Produktivcode liegt aktuell bei 18.478 Zeilen,
   gegenüber 18.746 Zeilen zu Beginn der Konsolidierung (−267, rund −1,4 %),
   obwohl Migration und Projektwiederherstellung hinzugekommen sind.
 
 ## Aktueller Teststand
 
-- 457 normale Prüfungen bestanden;
+- 460 normale Prüfungen bestanden;
 - eine Linux-Bubblewrap-Prüfung auf macOS übersprungen;
 - vier NiceGUI-E2E-Prüfungen bewusst separat auszuführen;
 - vollständige E2E-, Offline-Build-, Sandbox- und Schulgeräte-Matrix vor der
@@ -68,7 +71,7 @@ Status: 22 August 2026 · branch: `develop/v0.8` · not released
 
 Version 0.8 focuses on safe 0.7-to-0.8 data migration, visible project-state
 restoration, faster course startup, smaller packages and clearer architectural
-boundaries. The current development check reports 457 passed tests, one
+boundaries. The current development check reports 460 passed tests, one
 platform-related skip and four separately executed E2E tests. Full E2E,
 offline-build, sandbox and real-device verification remains required before
 release. Stable downloads therefore continue to point to 0.7.0.
