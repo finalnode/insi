@@ -4,6 +4,9 @@
 
 - Paket- und Laufzeitversion des Entwicklungszweigs auf `0.8.0.dev0`
   vereinheitlicht; stabile Downloadlinks bleiben bis zur Freigabe bei 0.7.0;
+- die ausgeschriebene Bedeutung **informatica simplicissima** und ihre
+  didaktische Leitidee in der deutschen und englischen README wieder direkt in
+  der Einleitung sichtbar gemacht;
 - versionierte, idempotente 0.7→0.8-Migrationen für Einstellungen, Kursmarker
   und Lernstände samt unverändertem Originalbackup und simulierten
   Abbruch-/Datenträgerfehlern ergänzt;

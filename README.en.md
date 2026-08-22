@@ -13,6 +13,11 @@ installation, learning texts, interactive assignments, automated feedback,
 progress, projects and authoring tools in one application that remains largely
 offline after setup.
 
+The name **in:si** stands for **informatica simplicissima**: computer science
+should be made as accessible as possible without hiding real languages, files
+and tools behind a simplified learning interface. Its educational principle is:
+**Simplify as much as necessary, abstract as little as possible.**
+
 > **Project status: alpha.** Interfaces and local formats may still change.
 > Desktop builds are not production-signed. The macOS build is ad-hoc signed
 > but not notarized.

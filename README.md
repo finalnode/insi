@@ -14,6 +14,12 @@ Die Anwendung bringt Kursinstallation, Lerntexte, interaktive Aufgaben,
 automatische Tests, Lernstand, Projekte und Autorenwerkzeuge in eine gemeinsame
 Anwendung, die nach der Einrichtung weitgehend offline funktioniert.
 
+Der Name **in:si** steht für **informatica simplicissima**: Informatik soll so
+zugänglich wie möglich vermittelt werden, ohne echte Sprachen, Dateien und
+Werkzeuge hinter einer vereinfachten Lernoberfläche zu verstecken. Die
+didaktische Leitidee lautet: **So viel vereinfachen wie nötig, so wenig
+abstrahieren wie möglich.**
+
 in:si soll den Raum zwischen einer losen Materialsammlung und einem großen
 Learning-Management-System füllen: Ein Kurs darf aus echten Markdown-, Python-
 und Projektdateien bestehen, soll sich für Lernende aber trotzdem wie eine
