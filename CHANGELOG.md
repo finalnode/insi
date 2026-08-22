@@ -2,6 +2,8 @@
 
 ## 0.8.0 – in Entwicklung
 
+- Paket- und Laufzeitversion des Entwicklungszweigs auf `0.8.0.dev0`
+  vereinheitlicht; stabile Downloadlinks bleiben bis zur Freigabe bei 0.7.0;
 - versionierte, idempotente 0.7→0.8-Migrationen für Einstellungen, Kursmarker
   und Lernstände samt unverändertem Originalbackup und simulierten
   Abbruch-/Datenträgerfehlern ergänzt;
@@ -37,9 +39,9 @@
   wird bei der anschließenden Suche nicht erneut per Subprocess geprüft;
 - große Sammeltests schrittweise in fachlich getrennte, schneller ausführbare
   Testmodule zerlegt und Architekturbudgets gegen erneutes Wachstum ergänzt;
-  `test_guide.py` sank dabei bislang von 2.862 auf 1.920 Zeilen, während die
-  ausgelagerten Runtime-, IDE- und Pyxel-Verträge separat in rund 3,7 Sekunden
-  laufen;
+  `test_guide.py` sank dabei bislang von 2.862 auf 1.438 Zeilen; 33 Runtime-,
+  IDE- und Pyxel-Verträge sowie 16 Inhalts-, Update- und Zertifikatsverträge
+  liegen in eigenen, gezielt ausführbaren Modulen;
 - Offline-Wheelhouse vom App-Paketbaum getrennt und den lokalen
   macOS-ARM-DMG-Prototyp von rund 113 MB auf rund 82 MiB verkleinert;
 - Packaging-Artefakte auf den Namen in:si umgestellt, direkte Abhängigkeiten
@@ -47,7 +49,8 @@
 - externe Trainer-Plugins vor dem Import inventarisiert und an eine sichtbare,
   paket- und versionsbezogene Zustimmung gebunden;
 - Stand 23. August 2026: 475 normale Prüfungen bestanden, eine
-  plattformbedingt übersprungen und vier E2E-Prüfungen separat auszuführen;
+  plattformbedingt übersprungen sowie vier separat ausgeführte E2E-Prüfungen
+  bestanden;
   selbst gepflegter Python-Produktivcode 18.793 gegenüber 18.746 Zeilen zu
   Beginn der 0.8-Konsolidierung.
 

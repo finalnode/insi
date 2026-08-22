@@ -29,7 +29,7 @@ Probleme als lebende Vorab-Dokumentation. Nach jedem abgeschlossenen und
 getesteten Schritt werden mindestens Teststand, umgesetzte Änderung und
 verbleibende Einschränkungen in den jeweils betroffenen Markdown-Dateien
 aktualisiert. Die stabilen Downloadlinks zeigen bis zur Freigabe weiterhin auf
-0.7.0.
+0.7.0; Paket und Laufzeitanzeige des Zweigs tragen `0.8.0.dev0`.
 
 ## 0.7 – sichere technische Grundlage
 
@@ -371,16 +371,20 @@ ohne den gesamten Anwendungskontext laden oder fachlich unabhängige Module
 anfassen zu müssen. Architekturtests verhindern, dass erneut zentrale
 Sammelmodule oder direkte Abhängigkeiten von einzelnen Fachmodulen entstehen.
 
-- verwaltete Kursumgebungen bei geändertem Runtime-Vertrag automatisch neu
-  aufbauen und versionsübergreifend migrieren;
-- versionierte Migrationen für Einstellungen, Lernstände und Kursdaten;
-- robuste Behandlung entfernter USB-Laufwerke und unerwarteter App-Abbrüche;
-- vorhandene automatische Projektstände sichtbar auswählen und
-  wiederherstellen;
-- Backup-, Import- und Wiederherstellungsabläufe mit realistischen
-  Fehlerfällen testen;
-- Datenexport und vollständiges lokales Löschen in der Oberfläche verständlich
-  zugänglich machen.
+Aktueller Funktionsstand des 0.8-Datenblocks:
+
+- **umgesetzt:** verwaltete Kursumgebungen bei geändertem Runtime-Vertrag als
+  neue, atomar aktivierte Generation aufbauen;
+- **umgesetzt:** versionierte Migrationen für Einstellungen, Lernstände und
+  Kursdaten mit unverändertem Originalbackup;
+- **automatisiert geprüft, Hardwareprobe offen:** entfernte Datenträger und
+  unerwartete Abbrüche bei Migration, Export und Wiederherstellung;
+- **umgesetzt:** automatische und benannte Projektstände sichtbar auswählen,
+  kommentieren und sicher wiederherstellen;
+- **umgesetzt:** Backup-, Import- und Wiederherstellungsabläufe mit
+  simulierten Schreib-, Prüf- und Aktivierungsfehlern absichern;
+- **umgesetzt:** Gesamtexport und vollständiges lokales Entfernen als getrennte,
+  ausdrücklich bestätigte Oberflächenabläufe zugänglich machen.
 
 ### Versionierte Datenmigrationen
 
@@ -634,6 +638,18 @@ Systempapierkorb. Exporte und Kopien an anderen Orten bleiben ausdrücklich
 unberührt. Acht neue Backend- und Architekturprüfungen sowie der erweiterte
 NiceGUI-E2E-Schülerweg sichern diesen Ablauf; die vollständige normale
 Testsuite umfasst danach 475 bestandene Prüfungen.
+
+Der dritte Schnitt am zentralen Sammeltest verschiebt 16 Verträge für
+Inhaltsoverlays, App- und Inhaltsupdates, atomare Aktivierung sowie
+zertifikatsgebundene Kurs- und Trainerabgleiche nach
+`test_content_updates.py`. Das Fachmodul läuft lokal in weniger als einer
+Sekunde; `test_guide.py` sinkt von 1.920 auf 1.438 Zeilen. Architekturtests
+begrenzen den verbleibenden Sammeltest auf 1.500 und das neue Modul auf 550
+Zeilen. Die Paketmetadaten in `pyproject.toml` und die Laufzeitversion melden
+auf dem Entwicklungszweig nun konsistent `0.8.0.dev0`; der vorhandene
+Release-Versionscheck bestätigt den Stand. Die normale Testsuite umfasst
+weiterhin 475 Prüfungen; alle vier separat markierten NiceGUI-E2E-Abläufe
+bestehen ebenfalls.
 
 Der selbst gepflegte Python-Produktivcode liegt nach diesem neuen
 Freigabefeature bei 18.793 Zeilen und damit 47 Zeilen beziehungsweise rund 0,3

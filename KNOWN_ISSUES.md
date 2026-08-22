@@ -1,6 +1,6 @@
 # Bekannte Probleme und Einschränkungen
 
-Stand: 23. August 2026, Entwicklungsstand 0.8 auf `develop/v0.8`
+Stand: 23. August 2026, Entwicklungsstand `0.8.0.dev0` auf `develop/v0.8`
 
 Diese Liste nennt bekannte, reproduzierbare Probleme und bewusst noch nicht
 erfüllte Produktzusagen. Sie ist keine vollständige Sammlung zukünftiger

@@ -5,8 +5,8 @@ in desktop distributions. It can be read offline without a documentation
 website or user account.
 
 The living [draft release notes for 0.8](release-notes-0.8.md) describe the
-current state of `develop/v0.8`. Stable downloads remain at version 0.7.0 until
-that work has passed its release checks.
+current `0.8.0.dev0` state of `develop/v0.8`. Stable downloads remain at
+version 0.7.0 until that work has passed its release checks.
 
 ## Deutsch
 

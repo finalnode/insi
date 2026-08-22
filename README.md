@@ -6,9 +6,11 @@
 
 **Sprache:** Deutsch · [English](README.en.md)
 
-**in:si 0.7.0** ist die aktuelle stabile Veröffentlichung der lokalen
-Desktop-Lernumgebung für modulare
-Informatikkurse. Sie bringt Kursinstallation, Lerntexte, interaktive Aufgaben,
+**Dieser Entwicklungszweig baut in:si 0.8.0.dev0.** Er ist noch kein
+veröffentlichtes Release. **in:si 0.7.0** bleibt die aktuelle stabile
+Veröffentlichung der lokalen Desktop-Lernumgebung für modulare Informatikkurse.
+
+Die Anwendung bringt Kursinstallation, Lerntexte, interaktive Aufgaben,
 automatische Tests, Lernstand, Projekte und Autorenwerkzeuge in eine gemeinsame
 Anwendung, die nach der Einrichtung weitgehend offline funktioniert.
 
@@ -28,11 +30,11 @@ fertig implementiert.
 > ändern. Der macOS-Build ist nur lokal ad-hoc, nicht mit einer Developer-ID
 > signiert und nicht notarisiert; die übrigen Desktop-Builds sind unsigniert.
 
-> **Entwicklungszweig 0.8:** Auf `develop/v0.8` entstehen derzeit die nächste
-> Datenmigration, sichtbare Projektstände, schnellere Startpfade und ein
-> schlankerer, besser testbarer Kern. Dieser Stand ist noch kein Release. Der
+> **Entwicklungsstand 0.8.0.dev0:** Auf `develop/v0.8` sind die versionierte
+> Datenmigration, sichtbare Projektstände, lokale Datenkontrolle, schnellere
+> Startpfade und ein fachlich besser testbarer Kern umgesetzt. Der
 > aktuelle Nachweis umfasst 475 bestandene, eine plattformbedingt
-> übersprungene und vier separat auszuführende E2E-Prüfungen. Fortschritt und
+> übersprungene und zusätzlich vier bestandene E2E-Prüfungen. Fortschritt und
 > verbleibende Freigabeblocker stehen im
 > [Entwurf der 0.8-Release-Notes](docs/release-notes-0.8.md).
 
@@ -527,15 +529,18 @@ Voraussetzungen: Python 3.10 oder neuer und Git.
 git clone https://github.com/finalnode/insi.git
 
 cd insi
-python -m venv .venv
-source .venv/bin/activate
+python -m venv venv
+source venv/bin/activate
 python -m pip install --requirement requirements/pykim-0.6.0.txt
 python -m pip install -e '.[test]'
 python -m pytest
 insi
 ```
 
-Unter Windows wird die Umgebung mit `.venv\Scripts\activate` aktiviert.
+Unter Windows wird die Umgebung mit `venv\Scripts\activate` aktiviert. Der
+sichtbare Ordnername `venv` vermeidet auf macOS mit Python 3.14, dass
+Finder-vererbte Hidden-Flags die `.pth`-Datei einer editierbaren Installation
+deaktivieren.
 Die Versionsdatei bindet PyKIM 0.6.0 sowie die zugehörige Standard-Runtime an
 den gleichen geprüften Stand, den CI und Desktop-Builds verwenden.
 

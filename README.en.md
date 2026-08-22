@@ -6,8 +6,9 @@
 
 **Language:** [Deutsch](README.md) · English
 
-**in:si 0.7.0** is the current stable release of a local desktop learning
-environment for modular computer science courses. It combines course
+**This development branch builds in:si 0.8.0.dev0.** It is not a published
+release yet. **in:si 0.7.0** remains the current stable release of the local
+desktop learning environment for modular computer science courses. The app combines course
 installation, learning texts, interactive assignments, automated feedback,
 progress, projects and authoring tools in one application that remains largely
 offline after setup.
@@ -16,11 +17,11 @@ offline after setup.
 > Desktop builds are not production-signed. The macOS build is ad-hoc signed
 > but not notarized.
 
-> **0.8 development branch:** `develop/v0.8` currently adds versioned data
-> migration, visible project snapshots, faster startup paths and a leaner,
-> more focused test structure. This is not a release yet. The current check
-> reports 475 passed tests, one platform-related skip and four E2E tests that
-> must be run separately. See the
+> **0.8.0.dev0 development state:** `develop/v0.8` now includes versioned data
+> migration, visible project snapshots, local data control, faster startup
+> paths and a more focused test structure. The current check reports 475
+> passed tests, one platform-related skip and four additional passing E2E
+> tests. See the
 > [draft 0.8 release notes](docs/release-notes-0.8.md) for progress and release
 > blockers.
 
@@ -80,8 +81,8 @@ Python 3.10 or newer is required for a source installation:
 ```bash
 git clone https://github.com/finalnode/insi.git
 cd insi
-python -m venv .venv
-source .venv/bin/activate
+python -m venv venv
+source venv/bin/activate
 python -m pip install -e .
 insi
 ```
@@ -89,8 +90,12 @@ insi
 On Windows activate the environment with:
 
 ```powershell
-.venv\Scripts\activate
+venv\Scripts\activate
 ```
+
+The visible `venv` directory name also avoids inherited Finder hidden flags on
+macOS with Python 3.14, which can otherwise disable the `.pth` file of an
+editable installation.
 
 The stable desktop packages for `0.7.0` are built automatically from the
 corresponding version tag and published in the official GitHub release:

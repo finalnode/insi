@@ -5,11 +5,11 @@ auf echten Schulgeräten oder im Unterricht stattfinden müssen.
 
 ## Aktueller Nachweis für 0.8
 
-Auf `develop/v0.8` umfasst der normale Testlauf am 23. August 2026 insgesamt
-475 bestandene Prüfungen, eine auf macOS erwartbar übersprungene
-Linux-Bubblewrap-Prüfung und vier bewusst separat markierte E2E-Prüfungen. Die
-Zahl ist ein fortzuschreibender Entwicklungsstand, kein Ersatz für die unten
-aufgeführte Plattformmatrix.
+Auf `develop/v0.8` umfasst der normale Testlauf für `0.8.0.dev0` am
+23. August 2026 insgesamt 475 bestandene Prüfungen und eine auf macOS erwartbar
+übersprungene Linux-Bubblewrap-Prüfung. Alle vier bewusst separat markierten
+NiceGUI-E2E-Prüfungen bestehen ebenfalls. Die Zahl ist ein fortzuschreibender
+Entwicklungsstand, kein Ersatz für die unten aufgeführte Plattformmatrix.
 
 ## Automatisch geprüft
 

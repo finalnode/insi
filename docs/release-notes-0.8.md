@@ -1,6 +1,7 @@
 # in:si 0.8 – Release-Notes (Entwurf)
 
-Stand: 23. August 2026 · Zweig: `develop/v0.8` · noch nicht veröffentlicht
+Stand: 23. August 2026 · Version: `0.8.0.dev0` · Zweig: `develop/v0.8` · noch
+nicht veröffentlicht
 
 Diese Datei begleitet die Entwicklung von 0.8. Sie wird nach jedem
 abgeschlossenen, getesteten Arbeitsschritt aktualisiert. Die stabilen Downloads
@@ -29,8 +30,9 @@ bleiben bis zur Freigabe bei 0.7.0.
 
 - Große UI- und Testmodule werden mit Architekturbudgets begrenzt und
   schrittweise fachlich getrennt. Der zentrale `test_guide.py` sank bislang von
-  2.862 auf 1.920 Zeilen; 33 Runtime-, IDE- und Pyxel-Prüfungen liegen nun in
-  einem eigenen, lokal rund 3,7 Sekunden schnellen Testmodul.
+  2.862 auf 1.438 Zeilen. Neben 33 Runtime-, IDE- und Pyxel-Prüfungen liegen nun
+  16 Inhalts-, Update- und Zertifikatsprüfungen in einem eigenen, lokal unter
+  einer Sekunde schnellen Testmodul.
 - Die doppelte Updateoberfläche wurde entfernt; App-, Kurs- und Inhaltsabgleich
   haben einen gemeinsamen Einstieg. App- und allgemeine Inhaltsprüfung laufen
   parallel; bei Repositorykursen wird die ungenutzte allgemeine Inhaltsabfrage
@@ -59,7 +61,7 @@ bleiben bis zur Freigabe bei 0.7.0.
 
 - 475 normale Prüfungen bestanden;
 - eine Linux-Bubblewrap-Prüfung auf macOS übersprungen;
-- vier NiceGUI-E2E-Prüfungen bewusst separat auszuführen;
+- vier NiceGUI-E2E-Prüfungen separat ausgeführt und bestanden;
 - vollständige E2E-, Offline-Build-, Sandbox- und Schulgeräte-Matrix vor der
   Freigabe weiterhin erforderlich.
 
@@ -73,6 +75,8 @@ bleiben bis zur Freigabe bei 0.7.0.
 - verbleibende große Module und Sammeltests weiter zerlegen, ohne neue
   Kompatibilitätsschichten aufzubauen;
 - Toolbar, Kernabläufe und Performance auf echten Zielgeräten manuell abnehmen.
+- nach bestandener Freigabematrix die Entwicklungsversion `0.8.0.dev0` auf
+  `0.8.0` setzen und den Release-Tag gegen denselben Stand prüfen.
 
 Die ausführliche technische Historie steht in der [Roadmap](../ROADMAP.md),
 Auswirkungen und Workarounds in den [bekannten Problemen](../KNOWN_ISSUES.md).
@@ -81,11 +85,12 @@ Auswirkungen und Workarounds in den [bekannten Problemen](../KNOWN_ISSUES.md).
 
 # in:si 0.8 – Draft release notes
 
-Status: 23 August 2026 · branch: `develop/v0.8` · not released
+Status: 23 August 2026 · version: `0.8.0.dev0` · branch: `develop/v0.8` · not
+released
 
 Version 0.8 focuses on safe 0.7-to-0.8 data migration, visible project-state
 restoration, faster course startup, smaller packages and clearer architectural
 boundaries. The current development check reports 475 passed tests, one
-platform-related skip and four separately executed E2E tests. Full E2E,
+platform-related skip and four separately executed, passing E2E tests. Full E2E,
 offline-build, sandbox and real-device verification remains required before
 release. Stable downloads therefore continue to point to 0.7.0.

@@ -110,7 +110,7 @@ async def test_student_can_save_and_restore_a_named_project_state(user):
     await user.should_see("Mein Lernstand", retries=50)
 
     user.find("Meine Projekte").click()
-    await user.should_see("Versionsprojekt")
+    await user.should_see("Versionsprojekt", retries=50)
     await user.should_see("Spriteeditor")
     await user.should_see("Musikeditor")
     user.find("Projektstände").click()

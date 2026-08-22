@@ -33,11 +33,15 @@ def test_app_is_a_small_application_composer():
 
 def test_guide_test_collection_no_longer_owns_every_domain():
     source = (PROJECT / "tests" / "test_guide.py").read_text(encoding="utf-8")
+    content_updates = (PROJECT / "tests" / "test_content_updates.py").read_text(
+        encoding="utf-8"
+    )
     runtime_tools = (PROJECT / "tests" / "test_runtime_tools.py").read_text(
         encoding="utf-8"
     )
 
-    assert len(source.splitlines()) <= 2000
+    assert len(source.splitlines()) <= 1500
+    assert len(content_updates.splitlines()) <= 550
     assert len(runtime_tools.splitlines()) <= 750
     assert (PROJECT / "tests" / "test_progress.py").is_file()
     assert (PROJECT / "tests" / "test_projects.py").is_file()

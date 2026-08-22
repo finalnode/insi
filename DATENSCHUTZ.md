@@ -1,6 +1,6 @@
 # Datenschutz und Datenbestand
 
-Stand: 23. August 2026, Entwicklungszweig in:si 0.8
+Stand: 23. August 2026, Entwicklungszweig in:si `0.8.0.dev0`
 
 Dieses Dokument beschreibt technisch, welche Daten in:si verarbeitet, wo sie
 gespeichert und wann sie übertragen werden. Es ist keine fertige
