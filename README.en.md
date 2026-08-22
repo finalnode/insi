@@ -6,14 +6,23 @@
 
 **Language:** [Deutsch](README.md) · English
 
-**in:si 0.7.0** is a local desktop learning environment for
-modular computer science courses. It combines course installation, learning
-texts, interactive assignments, automated feedback, progress, projects and
-authoring tools in one application that remains largely offline after setup.
+**in:si 0.7.0** is the current stable release of a local desktop learning
+environment for modular computer science courses. It combines course
+installation, learning texts, interactive assignments, automated feedback,
+progress, projects and authoring tools in one application that remains largely
+offline after setup.
 
 > **Project status: alpha.** Interfaces and local formats may still change.
 > Desktop builds are not production-signed. The macOS build is ad-hoc signed
 > but not notarized.
+
+> **0.8 development branch:** `develop/v0.8` currently adds versioned data
+> migration, visible project snapshots, faster startup paths and a leaner,
+> more focused test structure. This is not a release yet. The current check
+> reports 457 passed tests, one platform-related skip and four E2E tests that
+> must be run separately. See the
+> [draft 0.8 release notes](docs/release-notes-0.8.md) for progress and release
+> blockers.
 
 ## Why in:si exists
 
@@ -56,6 +65,8 @@ proprietary format.
 - solve code, free-text, matching and Parsons-style assignments;
 - run automated trainers through a subject-neutral engine contract;
 - keep progress, projects and notes in the selected course workspace;
+- save automatic or named project states and restore them without discarding
+  the current working state;
 - edit course texts in WYSIWYG or Markdown mode while storing plain Markdown;
 - create and validate course packages and portable ZIP archives;
 - use controlled, fail-closed execution on Windows, macOS and Linux;
@@ -81,8 +92,8 @@ On Windows activate the environment with:
 .venv\Scripts\activate
 ```
 
-The desktop packages for `0.7.0` are built automatically from the corresponding
-version tag and published in the official GitHub release:
+The stable desktop packages for `0.7.0` are built automatically from the
+corresponding version tag and published in the official GitHub release:
 
 | Operating system | Architecture | Download |
 |---|---|---|
@@ -113,8 +124,9 @@ deletion paths are listed in [DATENSCHUTZ.md](DATENSCHUTZ.md) in German.
   widths; the previously observed WYSIWYG freeze is fixed.
 - The real-device school matrix for Windows, macOS and Linux is not complete.
 - Desktop packages are not production-signed or notarized.
-- Automated cross-version migrations, visible snapshot restoration and local
-  multi-user profiles belong to later milestones.
+- The 0.7-to-0.8 migration and visible snapshot restoration are implemented on
+  the development branch but still require release and platform verification.
+- Local multi-user profiles belong to a later milestone.
 - Setup, course, trainer and data formats do not receive a 1.x stability promise
   before version 1.0.
 

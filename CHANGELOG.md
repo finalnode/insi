@@ -1,6 +1,36 @@
 # Änderungen
 
-## 0.7.0 – unveröffentlicht
+## 0.8.0 – in Entwicklung
+
+- versionierte, idempotente 0.7→0.8-Migrationen für Einstellungen, Kursmarker
+  und Lernstände samt unverändertem Originalbackup und simulierten
+  Abbruch-/Datenträgerfehlern ergänzt;
+- automatische und benannte Projektstände mit Kommentaren, Prüfsummen,
+  Aufbewahrungsregeln und sicherer Wiederherstellung in einer sichtbaren
+  Zeitleiste umgesetzt;
+- Pyxel-Sprite- und Musikeditor als getrennte Projektaktionen angebunden und
+  fehlgeschlagene Editorstarts sichtbar gemacht;
+- Runtime-, Kursauswahl-, Setup-, Aufgaben- und Workspace-Startpfade
+  konsolidiert; unnötige Prozessstarts, Dateizugriffe, Animationen und eine
+  künstliche Mindestwartezeit entfernt;
+- zunächst nur die sichtbare Kursansicht aufgebaut und die übrigen Ansichten
+  bei ihrer ersten Auswahl nachgeladen;
+- doppelte Updateoberfläche entfernt und App-, Kurs- und Inhaltsabgleich im
+  gemeinsamen Werkzeugbereich zusammengeführt;
+- große Sammeltests schrittweise in fachlich getrennte, schneller ausführbare
+  Testmodule zerlegt und Architekturbudgets gegen erneutes Wachstum ergänzt;
+- Offline-Wheelhouse vom App-Paketbaum getrennt und den lokalen
+  macOS-ARM-DMG-Prototyp von rund 113 MB auf rund 82 MiB verkleinert;
+- Packaging-Artefakte auf den Namen in:si umgestellt, direkte Abhängigkeiten
+  festgelegt und plattformspezifische Buildmanifeste ergänzt;
+- externe Trainer-Plugins vor dem Import inventarisiert und an eine sichtbare,
+  paket- und versionsbezogene Zustimmung gebunden;
+- Stand 22. August 2026: 457 normale Prüfungen bestanden, eine
+  plattformbedingt übersprungen und vier E2E-Prüfungen separat auszuführen;
+  selbst gepflegter Python-Produktivcode 18.479 statt 18.746 Zeilen zu Beginn
+  der 0.8-Konsolidierung.
+
+## 0.7.0 – 2026-08-22
 
 - in:si von MIT auf `AGPL-3.0-or-later` umgestellt; bereits veröffentlichte
   MIT-Versionen, PyKIM, externe Kurse und Drittanbieterbestandteile behalten

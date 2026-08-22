@@ -3,6 +3,14 @@
 Dieses Dokument trennt automatisiert geprüfte Eigenschaften von Prüfungen, die
 auf echten Schulgeräten oder im Unterricht stattfinden müssen.
 
+## Aktueller Nachweis für 0.8
+
+Auf `develop/v0.8` umfasst der normale Testlauf am 22. August 2026 insgesamt
+457 bestandene Prüfungen, eine auf macOS erwartbar übersprungene
+Linux-Bubblewrap-Prüfung und vier bewusst separat markierte E2E-Prüfungen. Die
+Zahl ist ein fortzuschreibender Entwicklungsstand, kein Ersatz für die unten
+aufgeführte Plattformmatrix.
+
 ## Automatisch geprüft
 
 - Kern-API, Welt, Pixel, Farben, Töne und Parallelplanung
@@ -56,10 +64,10 @@ auf echten Schulgeräten oder im Unterricht stattfinden müssen.
 - Startprüfung für getrennte App- und Inhaltsversionen blockiert Offline-Starts nicht
 - Inhaltsupdates prüfen Archiv- und Einzeldateihashes und verändern keinen Schülercode
 
-Normale Tests:
+Normaler Entwicklungsnachweis:
 
 ```bash
-pytest
+python -m pytest
 ```
 
 Die Linux-Sicherheitsjobs verwenden derzeit den weiterhin unterstützten

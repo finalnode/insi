@@ -23,6 +23,14 @@ die jeweilige öffentliche Zusage gilt aber erst mit dem genannten Meilenstein.
 Der jeweils aktuelle Ist-Stand mit Auswirkungen und Workarounds wird getrennt
 in [Bekannte Probleme und Einschränkungen](KNOWN_ISSUES.md) gepflegt.
 
+Für den Arbeitszweig `develop/v0.8` dienen README, Changelog,
+[0.8-Release-Notes](docs/release-notes-0.8.md), diese Roadmap und die bekannten
+Probleme als lebende Vorab-Dokumentation. Nach jedem abgeschlossenen und
+getesteten Schritt werden mindestens Teststand, umgesetzte Änderung und
+verbleibende Einschränkungen in den jeweils betroffenen Markdown-Dateien
+aktualisiert. Die stabilen Downloadlinks zeigen bis zur Freigabe weiterhin auf
+0.7.0.
+
 ## 0.7 – sichere technische Grundlage
 
 Ziel: Fremden Kurs- und Schülercode kontrolliert ausführen und Kurse unabhängig

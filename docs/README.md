@@ -4,6 +4,10 @@ The documentation is deliberately stored as portable Markdown and is included
 in desktop distributions. It can be read offline without a documentation
 website or user account.
 
+The living [draft release notes for 0.8](release-notes-0.8.md) describe the
+current state of `develop/v0.8`. Stable downloads remain at version 0.7.0 until
+that work has passed its release checks.
+
 ## Deutsch
 
 - [Erste Schritte](de/erste-schritte.md)

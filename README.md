@@ -6,7 +6,8 @@
 
 **Sprache:** Deutsch · [English](README.en.md)
 
-**in:si 0.7.0** ist eine lokale Desktop-Lernumgebung für modulare
+**in:si 0.7.0** ist die aktuelle stabile Veröffentlichung der lokalen
+Desktop-Lernumgebung für modulare
 Informatikkurse. Sie bringt Kursinstallation, Lerntexte, interaktive Aufgaben,
 automatische Tests, Lernstand, Projekte und Autorenwerkzeuge in eine gemeinsame
 Anwendung, die nach der Einrichtung weitgehend offline funktioniert.
@@ -26,6 +27,14 @@ fertig implementiert.
 > **Projektstatus: Alpha.** Lokale Datenformate und Oberflächen können sich noch
 > ändern. Der macOS-Build ist nur lokal ad-hoc, nicht mit einer Developer-ID
 > signiert und nicht notarisiert; die übrigen Desktop-Builds sind unsigniert.
+
+> **Entwicklungszweig 0.8:** Auf `develop/v0.8` entstehen derzeit die nächste
+> Datenmigration, sichtbare Projektstände, schnellere Startpfade und ein
+> schlankerer, besser testbarer Kern. Dieser Stand ist noch kein Release. Der
+> aktuelle Nachweis umfasst 457 bestandene, eine plattformbedingt
+> übersprungene und vier separat auszuführende E2E-Prüfungen. Fortschritt und
+> verbleibende Freigabeblocker stehen im
+> [Entwurf der 0.8-Release-Notes](docs/release-notes-0.8.md).
 
 Die kompakte, offline auslieferbare Dokumentation beginnt unter
 [docs/de](docs/de/erste-schritte.md). Sie enthält getrennte Einstiege für
@@ -154,7 +163,7 @@ in:si ist noch eine Alpha-Version. Die wichtigsten aktuell offenen Punkte sind:
   Überlaufverhalten wurden überarbeitet, und der zuvor beobachtete Freeze beim
   WYSIWYG-Wechsel ist behoben;
 - manuelle Tests auf echten Windows-, macOS- und Linux-Schulgeräten sind für
-  den Abschluss von 0.7 noch offen;
+  den Abschluss von 0.8 noch offen;
 - die Desktop-Pakete sind nicht produktionssigniert; unter Linux benötigt die
   integrierte Sandbox Bubblewrap und für grafische Starts Wayland.
 
@@ -177,6 +186,8 @@ Noch offene Arbeiten stehen ausschließlich in der [Roadmap](#roadmap).
 - automatische Trainer mit verständlichem Feedback ausführen;
 - Lernstand, Antworten und Versuche lokal speichern;
 - eigene Python-/Pyxel-Projekte anlegen und im Dateimanager öffnen;
+- automatische und benannte Projektstände mit Kommentar sichern, prüfen und
+  ohne Verlust des aktuellen Arbeitsstands wiederherstellen;
 - Projektdokumentationen visuell oder direkt als portables Markdown bearbeiten;
 - Dateien gezielt global, für einen Kurs oder für ein Projekt in den
   in:si-Workspace kopieren;
@@ -263,8 +274,8 @@ Noch offene Arbeiten stehen ausschließlich in der [Roadmap](#roadmap).
 
 ### Desktop-App
 
-Die Pakete für `0.7.0` werden automatisiert aus dem zugehörigen Versionstag
-gebaut und im offiziellen GitHub Release veröffentlicht:
+Die stabilen Pakete für `0.7.0` werden automatisiert aus dem zugehörigen
+Versionstag gebaut und im offiziellen GitHub Release veröffentlicht:
 
 | Betriebssystem | Architektur | Download |
 |---|---|---|
@@ -615,7 +626,7 @@ Release.
 
 Die Meilensteine und Freigabekriterien von 0.7 bis 1.3 stehen in der
 [Roadmap bis in:si 1.3](ROADMAP.md). Sie trennt die noch offenen Arbeiten an
-Datenschutz und Dokumentation für 0.7 von Zuverlässigkeit in 0.8,
+Zuverlässigkeit, Wartbarkeit und Performance in 0.8 vom
 Schuleinsatz in 0.9, dem stabilen Produktvertrag für 1.0 und den darauf
 aufbauenden Kurs-, Projekt- und Zusammenarbeitsfunktionen.
 
