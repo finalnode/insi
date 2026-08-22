@@ -240,6 +240,19 @@ def test_manual_update_backend_stays_bounded_and_avoids_dead_status_cache():
     assert source.count("_activate_content_version(") == 3
 
 
+def test_course_imports_share_one_setup_and_workspace_activation_path():
+    source = (GUIDE / "course_setup.py").read_text(encoding="utf-8")
+    activation = source.split("def _activate_course_workspace", 1)[1].split(
+        "def _install_repository_course", 1
+    )[0]
+
+    assert len(source.splitlines()) <= 450
+    assert source.count("_install_repository_course(") == 3
+    assert source.count("_install_archive_bundle(") == 3
+    assert activation.count("activate_content_registries(") == 1
+    assert activation.count("create_course(course)") == 1
+
+
 def test_app_context_owns_mutable_session_state():
     context = AppContext(object(), object(), object(), desktop=True)
 

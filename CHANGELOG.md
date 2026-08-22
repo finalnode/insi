@@ -21,6 +21,10 @@
   Repositorykurse überflüssige allgemeine Inhaltsabfrage übersprungen und den
   nie gelesenen Update-Statuscache entfernt; beide Inhaltswege aktivieren einen
   geprüften Stand nun über denselben atomaren Markerpfad;
+- die vier parallelen Installationsfolgen für neue beziehungsweise vorhandene
+  Repository- und ZIP-Kurse auf je eine gemeinsame Transaktion und einen
+  gemeinsamen Workspace-Aktivierungspfad zurückgeführt; Regressionstests
+  sichern den Erhalt vorhandener Schülerdateien;
 - große Sammeltests schrittweise in fachlich getrennte, schneller ausführbare
   Testmodule zerlegt und Architekturbudgets gegen erneutes Wachstum ergänzt;
   `test_guide.py` sank dabei bislang von 2.862 auf 1.920 Zeilen, während die
@@ -32,9 +36,9 @@
   festgelegt und plattformspezifische Buildmanifeste ergänzt;
 - externe Trainer-Plugins vor dem Import inventarisiert und an eine sichtbare,
   paket- und versionsbezogene Zustimmung gebunden;
-- Stand 22. August 2026: 460 normale Prüfungen bestanden, eine
+- Stand 22. August 2026: 463 normale Prüfungen bestanden, eine
   plattformbedingt übersprungen und vier E2E-Prüfungen separat auszuführen;
-  selbst gepflegter Python-Produktivcode 18.478 statt 18.746 Zeilen zu Beginn
+  selbst gepflegter Python-Produktivcode 18.455 statt 18.746 Zeilen zu Beginn
   der 0.8-Konsolidierung.
 
 ## 0.7.0 – 2026-08-22

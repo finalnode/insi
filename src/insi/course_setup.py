@@ -200,33 +200,60 @@ def course_import_target(
     """Liefere den regulären Zielordner, um Namenskollisionen vorab anzuzeigen."""
     return _managed_course_directory(info, base_directory, collision="reuse")
 
-
-def install_course_setup(data: bytes, course: str | Path) -> CourseSetup:
-    """Lese, synchronisiere und installiere eine Kurs-Setupdatei."""
-    data = canonical_setup_data(data)
-    info = setup_info(data)
+def _repository_setup(data: bytes) -> tuple[bytes, CourseSetup]:
+    canonical = canonical_setup_data(data)
+    info = setup_info(canonical)
     if not info.repository:
         raise ValueError(
             "Diese lokale Setupdatei gehört in ein Kurs-ZIP und besitzt keine "
             "Onlinequelle. Importiere stattdessen das exportierte ZIP."
         )
-    from .updates import sync_certificate_content
+    return canonical, info
 
-    target = sync_certificate_content(info)
-    _write_course_setup(data, course)
-    from .course_archive import write_course_content_source
 
-    write_course_content_source(course, "repository")
-    _activate_repository_runtime(target, course)
-    from .course import provision_course_exercises
+def _activate_course_workspace(
+    info: CourseSetup,
+    content: Path,
+    course: str | Path,
+    *,
+    create_workspace: bool,
+) -> None:
+    from .course import create_course, provision_course_exercises
     from .registries import activate_content_registries
 
+    if create_workspace:
+        create_course(course)
     activate_content_registries(
-        target,
+        content,
         trainers_path=info.trainers_path,
         assignments_path=info.assignments_path,
     )
     provision_course_exercises(course)
+
+
+def _install_repository_course(
+    data: bytes,
+    info: CourseSetup,
+    course: str | Path,
+    *,
+    create_workspace: bool,
+) -> None:
+    from .course_archive import write_course_content_source
+    from .updates import sync_certificate_content
+
+    content = sync_certificate_content(info)
+    _write_course_setup(data, course)
+    write_course_content_source(course, "repository")
+    _activate_repository_runtime(content, course)
+    _activate_course_workspace(
+        info, content, course, create_workspace=create_workspace
+    )
+
+
+def install_course_setup(data: bytes, course: str | Path) -> CourseSetup:
+    """Lese, synchronisiere und installiere eine Kurs-Setupdatei."""
+    canonical, info = _repository_setup(data)
+    _install_repository_course(canonical, info, course, create_workspace=False)
     return info
 
 
@@ -237,40 +264,34 @@ def install_new_course_setup(
     collision: str = "reuse",
 ) -> tuple[CourseSetup, Path]:
     """Lege aus einer hochgeladenen Setupdatei einen lokal bekannten Kurs an."""
-    data = canonical_setup_data(data)
-    info = setup_info(data)
-    if not info.repository:
-        raise ValueError(
-            "Diese lokale Setupdatei gehört in ein Kurs-ZIP und besitzt keine "
-            "Onlinequelle. Importiere stattdessen das exportierte ZIP."
-        )
-    course = _managed_course_directory(
-        info, base_directory, collision=collision
-    )
+    canonical, info = _repository_setup(data)
+    course = _managed_course_directory(info, base_directory, collision=collision)
 
     # Erst vollständig synchronisieren; ein ungültiger oder nicht erreichbarer
     # Kurs wird dadurch nicht als halbfertiger Eintrag registriert.
-    from .updates import sync_certificate_content
-
-    target = sync_certificate_content(info)
-    _write_course_setup(data, course)
-    from .course_archive import write_course_content_source
-
-    write_course_content_source(course, "repository")
-    _activate_repository_runtime(target, course)
-
-    from .course import create_course, provision_course_exercises
-
-    create_course(course)
-    from .registries import activate_content_registries
-
-    activate_content_registries(
-        target,
-        trainers_path=info.trainers_path,
-        assignments_path=info.assignments_path,
-    )
-    provision_course_exercises(course)
+    _install_repository_course(canonical, info, course, create_workspace=True)
     return info, course
+
+
+def _install_archive_bundle(
+    bundle,
+    course: str | Path,
+    *,
+    create_workspace: bool,
+) -> None:
+    from .course_archive import (
+        install_course_archive_content,
+        install_course_archive_runtime,
+        write_course_content_source,
+    )
+
+    content = install_course_archive_content(bundle)
+    _write_course_setup(bundle.setup_data, course)
+    install_course_archive_runtime(bundle, course)
+    write_course_content_source(course, "archive", content_version=bundle.revision)
+    _activate_course_workspace(
+        bundle.setup, content, course, create_workspace=create_workspace
+    )
 
 
 def install_new_course_archive(
@@ -280,64 +301,20 @@ def install_new_course_archive(
     collision: str = "copy",
 ) -> tuple[CourseSetup, Path]:
     """Installiere einen geprüften ZIP-Snapshot vollständig ohne Netzwerk."""
-    from .course_archive import (
-        install_course_archive_content,
-        install_course_archive_runtime,
-        parse_course_archive,
-        write_course_content_source,
-    )
+    from .course_archive import parse_course_archive
 
     bundle = parse_course_archive(data)
-    course = _managed_course_directory(
-        bundle.setup, base_directory, collision=collision
-    )
-    target = install_course_archive_content(bundle)
-    _write_course_setup(bundle.setup_data, course)
-    install_course_archive_runtime(bundle, course)
-    write_course_content_source(
-        course, "archive", content_version=bundle.revision
-    )
-
-    from .course import create_course, provision_course_exercises
-
-    create_course(course)
-    from .registries import activate_content_registries
-
-    activate_content_registries(
-        target,
-        trainers_path=bundle.setup.trainers_path,
-        assignments_path=bundle.setup.assignments_path,
-    )
-    provision_course_exercises(course)
+    course = _managed_course_directory(bundle.setup, base_directory, collision=collision)
+    _install_archive_bundle(bundle, course, create_workspace=True)
     return bundle.setup, course
 
 
 def install_course_archive(data: bytes, course: str | Path) -> CourseSetup:
     """Aktiviere einen ZIP-Snapshot in einem bestehenden Student Workspace."""
-    from .course_archive import (
-        install_course_archive_content,
-        install_course_archive_runtime,
-        parse_course_archive,
-        write_course_content_source,
-    )
+    from .course_archive import parse_course_archive
 
     bundle = parse_course_archive(data)
-    target = install_course_archive_content(bundle)
-    _write_course_setup(bundle.setup_data, course)
-    install_course_archive_runtime(bundle, course)
-    write_course_content_source(
-        course, "archive", content_version=bundle.revision
-    )
-    from .course import provision_course_exercises
-
-    from .registries import activate_content_registries
-
-    activate_content_registries(
-        target,
-        trainers_path=bundle.setup.trainers_path,
-        assignments_path=bundle.setup.assignments_path,
-    )
-    provision_course_exercises(course)
+    _install_archive_bundle(bundle, course, create_workspace=False)
     return bundle.setup
 
 

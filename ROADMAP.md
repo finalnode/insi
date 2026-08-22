@@ -585,9 +585,21 @@ Zeilen, `tools_view.py` bleibt bei 360 Zeilen. Drei neue gezielte Prüfungen
 sichern Parallelität, den ausgelassenen Fremdkanal und das Größenbudget; die
 vollständige normale Testsuite umfasst danach 460 bestandene Prüfungen.
 
+Der erste gemeinsame Kursimport-Schnitt ersetzt die jeweils doppelt gepflegten
+Installationsfolgen für neue und vorhandene Repository- beziehungsweise
+ZIP-Kurse durch je eine interne Transaktion. Schreiben von Setup, Quelle und
+Runtime sowie Registry-Aktivierung und Starterbereitstellung laufen dadurch
+über denselben Pfad; nur das kontrollierte Neuanlegen eines Workspaces bleibt
+eine ausdrückliche Option. Zwei neue Regressionstests sichern, dass beide
+Importarten vorhandene Schülerdateien erhalten. `course_setup.py` sinkt von 467
+auf 444 Zeilen und wird auf höchstens 450 Zeilen begrenzt. Die weiterhin 557
+Zeilen umfassende Archivprüfung und -speicherung bleibt der nächste getrennte
+Schnitt. Die vollständige normale Testsuite umfasst danach 463 bestandene
+Prüfungen.
+
 Trotz dieses neuen Funktionsumfangs liegt der selbst gepflegte Python-
-Produktivcode im aktuellen Zwischenstand mit 18.478 Zeilen weiterhin 268
-Zeilen beziehungsweise rund 1,4 Prozent unter der 0.8-Ausgangsbasis. Das neue
+Produktivcode im aktuellen Zwischenstand mit 18.455 Zeilen weiterhin 291
+Zeilen beziehungsweise rund 1,6 Prozent unter der 0.8-Ausgangsbasis. Das neue
 Migrationsmodell erhöht den Kern zunächst sichtbar; die folgende
 Konsolidierung muss diesen Sicherheitsumfang durch Abbau bestehender
 Sonderpfade wieder überkompensieren.
