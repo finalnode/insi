@@ -41,15 +41,19 @@ bleiben bis zur Freigabe bei 0.7.0.
   Runtime-Stände und Quellenmarker getrennt. Die beiden Module umfassen
   zusammen 550 statt 557 Zeilen; Kursdateien und Offline-Wheels werden beim
   Export nur noch einmal gelesen.
+- Der Runtime-Preflight wiederholt fehlgeschlagene Paketprüfungen nicht mehr
+  und prüft einen bereits verworfenen bevorzugten Interpreter bei der
+  anschließenden Suche nicht erneut. `runtime.py` sank damit von ursprünglich
+  901 auf 863 Zeilen.
 - Das Offline-Wheelhouse ist vom App-Paketbaum getrennt. Der lokale
   macOS-ARM-DMG-Prototyp sank von rund 113 MB auf rund 82 MiB.
-- Der selbst gepflegte Python-Produktivcode liegt aktuell bei 18.448 Zeilen,
-  gegenüber 18.746 Zeilen zu Beginn der Konsolidierung (−298, rund −1,6 %),
+- Der selbst gepflegte Python-Produktivcode liegt aktuell bei 18.446 Zeilen,
+  gegenüber 18.746 Zeilen zu Beginn der Konsolidierung (−300, rund −1,6 %),
   obwohl Migration und Projektwiederherstellung hinzugekommen sind.
 
 ## Aktueller Teststand
 
-- 464 normale Prüfungen bestanden;
+- 467 normale Prüfungen bestanden;
 - eine Linux-Bubblewrap-Prüfung auf macOS übersprungen;
 - vier NiceGUI-E2E-Prüfungen bewusst separat auszuführen;
 - vollständige E2E-, Offline-Build-, Sandbox- und Schulgeräte-Matrix vor der
@@ -79,7 +83,7 @@ Status: 22 August 2026 · branch: `develop/v0.8` · not released
 
 Version 0.8 focuses on safe 0.7-to-0.8 data migration, visible project-state
 restoration, faster course startup, smaller packages and clearer architectural
-boundaries. The current development check reports 464 passed tests, one
+boundaries. The current development check reports 467 passed tests, one
 platform-related skip and four separately executed E2E tests. Full E2E,
 offline-build, sandbox and real-device verification remains required before
 release. Stable downloads therefore continue to point to 0.7.0.

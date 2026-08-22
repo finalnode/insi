@@ -608,8 +608,18 @@ Datenträger gelesen. Architekturtests begrenzen beide Module und verhindern
 eine Rückvermischung von ZIP- und Speicherlogik. Die vollständige normale
 Testsuite umfasst danach 464 bestandene Prüfungen.
 
+Der dritte Runtime-Schnitt entfernt zwei verbliebene doppelte Paketprüfungen.
+Schlägt eine Prüfung im Preflight fehl, wird derselbe Interpreter nicht mehr
+unmittelbar mit einem identischen Subprocess-Aufruf geprüft. Ebenso überspringt
+die anschließende Laufzeitsuche einen bereits geprüften und verworfenen
+bevorzugten Interpreter. Zwei Verhaltensprüfungen sichern die genaue Zahl der
+Paketproben; ein Architekturtest begrenzt `runtime.py` weiterhin auf höchstens
+865 Zeilen. Das Modul sinkt von zuletzt 865 auf 863 Zeilen und damit insgesamt
+38 Zeilen unter seinen Stand vor der Konsolidierung. Die vollständige normale
+Testsuite umfasst danach 467 bestandene Prüfungen.
+
 Trotz dieses neuen Funktionsumfangs liegt der selbst gepflegte Python-
-Produktivcode im aktuellen Zwischenstand mit 18.448 Zeilen weiterhin 298
+Produktivcode im aktuellen Zwischenstand mit 18.446 Zeilen weiterhin 300
 Zeilen beziehungsweise rund 1,6 Prozent unter der 0.8-Ausgangsbasis. Das neue
 Migrationsmodell erhöht den Kern zunächst sichtbar; die folgende
 Konsolidierung muss diesen Sicherheitsumfang durch Abbau bestehender

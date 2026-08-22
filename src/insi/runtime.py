@@ -551,13 +551,7 @@ def course_runtime_preflight(
     )
     packages = ready_packages
     if selected is not None and ready_candidate is None and requirements:
-        try:
-            packages = checked.get(selected.executable) or _package_checks(
-                selected, requirements
-            )
-        except RuntimeError as error:
-            probe_errors[selected.executable] = str(error)
-            packages = ()
+        packages = checked.get(selected.executable, ())
 
     if selected is None:
         version_note = f" {required_python}" if required_python else ""
@@ -640,12 +634,16 @@ def selected_runtime(
             return False
 
     preference = get_runtime_preference()
+    checked_paths: set[Path] = set()
     if preference:
         preferred = inspect_runtime(preference, "Ausgewählt")
+        checked_paths.add(_executable_path(preferred.executable))
         if suitable(preferred):
             return preferred
     candidates = discover_runtimes(course)
     for candidate in candidates:
+        if _executable_path(candidate.executable) in checked_paths:
+            continue
         if suitable(candidate):
             return candidate
     version_note = f" in Version {required_python}" if required_python else ""

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from insi.course import set_runtime_preference
 from insi.course_archive import (
     build_course_archive,
     parse_course_archive,
@@ -32,6 +33,7 @@ from insi.runtime import (
     _suite_packages,
     course_runtime_preflight,
     managed_runtime_path,
+    selected_runtime,
 )
 
 
@@ -363,6 +365,62 @@ def test_course_preflight_reuses_discovered_preferred_runtime(tmp_path, monkeypa
 
     assert report.ready
     assert report.candidate is candidate
+
+
+def test_course_preflight_does_not_retry_failed_package_probe(tmp_path, monkeypatch):
+    course = tmp_path / "course"
+    candidate = RuntimeCandidate(
+        str(tmp_path / "python"), "3.13.1", "System", True, ("PyKIM",)
+    )
+    calls = []
+
+    def fail_once(_candidate, _requirements):
+        calls.append(_candidate.executable)
+        raise RuntimeError("Probe absichtlich fehlgeschlagen")
+
+    monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setattr("insi.runtime._package_checks", fail_once)
+
+    report = course_runtime_preflight(course, candidates=(candidate,))
+
+    assert calls == [candidate.executable]
+    assert not report.ready
+    assert "absichtlich fehlgeschlagen" in " ".join(report.issues)
+
+
+def test_runtime_selection_does_not_recheck_rejected_preference(
+    tmp_path, monkeypatch
+):
+    preferred_path = tmp_path / "preferred-python"
+    current_path = tmp_path / "current-python"
+    for path in (preferred_path, current_path):
+        path.write_text("", encoding="utf-8")
+    preferred = RuntimeCandidate(
+        str(preferred_path.resolve()), "3.13.1", "Ausgewählt", True, ("Pyxel",)
+    )
+    current = RuntimeCandidate(
+        str(current_path.resolve()), "3.13.1", "System", True, ("Pyxel",)
+    )
+    checks = []
+    monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
+    set_runtime_preference(preferred_path)
+    monkeypatch.setattr("insi.runtime.inspect_runtime", lambda *_args: preferred)
+    monkeypatch.setattr(
+        "insi.runtime.discover_runtimes", lambda _course=None: (preferred, current)
+    )
+
+    def package_checks(candidate, requirements):
+        checks.append(candidate.executable)
+        ready = candidate is current
+        return tuple(
+            RuntimePackageCheck(item, item.split("==", 1)[1] if ready else "", ready)
+            for item in requirements
+        )
+
+    monkeypatch.setattr("insi.runtime._package_checks", package_checks)
+
+    assert selected_runtime() is current
+    assert checks == [preferred.executable, current.executable]
 
 
 def test_course_preflight_accepts_manifest_without_standard_training_engine(

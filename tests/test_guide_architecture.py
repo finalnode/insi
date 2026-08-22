@@ -265,6 +265,20 @@ def test_course_archive_format_and_installed_storage_stay_separate():
     assert "from .course_setup" not in storage
 
 
+def test_runtime_selection_avoids_duplicate_package_probes():
+    source = (GUIDE / "runtime.py").read_text(encoding="utf-8")
+    preflight = source.split("def course_runtime_preflight", 1)[1].split(
+        "def selected_runtime", 1
+    )[0]
+    selection = source.split("def selected_runtime", 1)[1].split(
+        "def _provision_target", 1
+    )[0]
+
+    assert len(source.splitlines()) <= 865
+    assert preflight.count("_package_checks(") == 1
+    assert "checked_paths" in selection
+
+
 def test_app_context_owns_mutable_session_state():
     context = AppContext(object(), object(), object(), desktop=True)
 

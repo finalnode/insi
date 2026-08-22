@@ -29,6 +29,9 @@
   Kursinhalte, Runtime-Stände und Quellenmarker getrennt; gemeinsame
   JSON-Aktivierung vereinheitlicht und Exportdateien sowie Offline-Wheels nur
   noch einmal vom Datenträger gelesen;
+- fehlgeschlagene Paketprüfungen im Runtime-Preflight werden nicht mehr
+  unmittelbar wiederholt; ein bereits verworfener bevorzugter Interpreter
+  wird bei der anschließenden Suche nicht erneut per Subprocess geprüft;
 - große Sammeltests schrittweise in fachlich getrennte, schneller ausführbare
   Testmodule zerlegt und Architekturbudgets gegen erneutes Wachstum ergänzt;
   `test_guide.py` sank dabei bislang von 2.862 auf 1.920 Zeilen, während die
@@ -40,9 +43,9 @@
   festgelegt und plattformspezifische Buildmanifeste ergänzt;
 - externe Trainer-Plugins vor dem Import inventarisiert und an eine sichtbare,
   paket- und versionsbezogene Zustimmung gebunden;
-- Stand 22. August 2026: 464 normale Prüfungen bestanden, eine
+- Stand 22. August 2026: 467 normale Prüfungen bestanden, eine
   plattformbedingt übersprungen und vier E2E-Prüfungen separat auszuführen;
-  selbst gepflegter Python-Produktivcode 18.448 statt 18.746 Zeilen zu Beginn
+  selbst gepflegter Python-Produktivcode 18.446 statt 18.746 Zeilen zu Beginn
   der 0.8-Konsolidierung.
 
 ## 0.7.0 – 2026-08-22
