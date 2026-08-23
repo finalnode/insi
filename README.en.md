@@ -12,6 +12,9 @@ desktop learning environment for modular computer science courses. The app combi
 installation, learning texts, interactive assignments, automated feedback,
 progress, projects and authoring tools in one application that remains largely
 offline after setup.
+The current work is available on
+[`develop/v0.8`](https://github.com/finalnode/insi/tree/develop/v0.8); `main`
+remains on the 0.7 state until the new version passes its release checks.
 
 The name **in:si** stands for **informatica simplicissima**: computer science
 should be made as accessible as possible without hiding real languages, files
@@ -21,6 +24,14 @@ and tools behind a simplified learning interface. Its educational principle is:
 > **Project status: alpha.** Interfaces and local formats may still change.
 > Desktop builds are not production-signed. The macOS build is ad-hoc signed
 > but not notarized.
+
+> **Known `main` build finding:** The latest 0.7 desktop workflow built Linux
+> and both macOS architectures successfully. On Windows only the AppContainer
+> self-test failed because the PyInstaller runner could not reopen its embedded
+> PKG archive inside the container; a rerun reproduced the failure. A working
+> 0.7.0 release remains available. The finding will be fixed and verified as a
+> mandatory Windows sandbox release gate for 0.8 instead of prompting another
+> 0.7 release.
 
 > **0.8.0.dev0 development state:** `develop/v0.8` now includes versioned data
 > migration, visible project snapshots, local data control, faster startup

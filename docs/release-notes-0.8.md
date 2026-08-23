@@ -77,7 +77,9 @@ kommen keine weiteren Produktfunktionen hinzu.
 - reproduzierbare Paket-Locks, Offline-Runtime-Aufbau und Paketgrößen für
   Windows, Linux, macOS Intel und macOS ARM nachweisen;
 - Sandbox als letzten großen Plattformblock prüfen und nur bei einem konkreten
-  Befund vor der Freigabe ändern;
+  Befund vor der Freigabe ändern; der reproduzierte Windows-AppContainer-Fehler
+  beim erneuten Lesen des eingebetteten PyInstaller-PKG-Archivs ist ein solcher
+  verbindlicher Befund;
 - Toolbar, Kernabläufe und Performance auf echten Zielgeräten manuell abnehmen;
 - den Branch über Pull Request beziehungsweise Merge durch die CI führen;
 - nach bestandener Freigabematrix die Entwicklungsversion `0.8.0.dev0` auf

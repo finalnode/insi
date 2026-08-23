@@ -95,6 +95,10 @@ bewusst verbleibende Wartungsschuld und sechs noch offene Freigabeschritte sind
 im [0.8-Abschlussprotokoll](docs/v0.8-abschlussprotokoll.md) zusammengefasst.
 Weitere Änderungen müssen unmittelbar aus diesen Freigabeprüfungen entstehen
 oder eine kleine, nachweisbare Korrektur ohne neuen Produktumfang sein.
+Der in zwei `main`-CI-Versuchen reproduzierte Windows-AppContainer-Fehler beim
+erneuten Lesen des eingebetteten PyInstaller-PKG-Archivs wird deshalb in 0.8
+übernommen. Die vorhandene 0.7.0-Veröffentlichung bleibt nutzbar; ein neues
+0.7-Release wird allein für diesen CI-Befund nicht eröffnet.
 
 ### Arbeitsbaseline vom 22. August 2026
 

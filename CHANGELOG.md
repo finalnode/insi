@@ -10,6 +10,9 @@
 - den Funktionsumfang für 0.8 geschlossen und in einem Abschlussprotokoll mit
   umgesetzten Bereichen, Messwerten, Wartungsschuld und sechs verbleibenden
   Freigabeschritten festgehalten;
+- den reproduzierten Windows-AppContainer-Fehler des letzten `main`-Builds als
+  0.8-Releaseblocker übernommen; die vorhandene lauffähige 0.7.0 bleibt davon
+  unberührt;
 - versionierte, idempotente 0.7→0.8-Migrationen für Einstellungen, Kursmarker
   und Lernstände samt unverändertem Originalbackup und simulierten
   Abbruch-/Datenträgerfehlern ergänzt;

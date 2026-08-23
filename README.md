@@ -9,6 +9,9 @@
 **Dieser Entwicklungszweig baut in:si 0.8.0.dev0.** Er ist noch kein
 veröffentlichtes Release. **in:si 0.7.0** bleibt die aktuelle stabile
 Veröffentlichung der lokalen Desktop-Lernumgebung für modulare Informatikkurse.
+Der aktuelle Arbeitsstand liegt auf
+[`develop/v0.8`](https://github.com/finalnode/insi/tree/develop/v0.8); `main`
+bleibt bis zur geprüften Freigabe auf dem 0.7-Stand.
 
 Die Anwendung bringt Kursinstallation, Lerntexte, interaktive Aufgaben,
 automatische Tests, Lernstand, Projekte und Autorenwerkzeuge in eine gemeinsame
@@ -35,6 +38,15 @@ fertig implementiert.
 > **Projektstatus: Alpha.** Lokale Datenformate und Oberflächen können sich noch
 > ändern. Der macOS-Build ist nur lokal ad-hoc, nicht mit einer Developer-ID
 > signiert und nicht notarisiert; die übrigen Desktop-Builds sind unsigniert.
+
+> **Bekannter Buildbefund auf `main`:** Der letzte Desktop-Workflow baute 0.7
+> für Linux sowie beide macOS-Architekturen erfolgreich. Unter Windows
+> scheiterte ausschließlich der AppContainer-Selbsttest, weil der
+> PyInstaller-Runner sein eigenes eingebettetes PKG-Archiv im Container nicht
+> erneut lesen konnte; ein Wiederholungslauf bestätigte den Fehler. Eine
+> lauffähige 0.7.0-Veröffentlichung ist vorhanden. Der Befund wird nicht durch
+> ein neues 0.7-Release umgangen, sondern als verbindlicher Windows-Sandbox-
+> Releaseblocker in 0.8 behoben und erneut auf echten Zielsystemen geprüft.
 
 > **Entwicklungsstand 0.8.0.dev0:** Auf `develop/v0.8` sind die versionierte
 > Datenmigration, sichtbare Projektstände, lokale Datenkontrolle, schnellere
