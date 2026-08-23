@@ -27,6 +27,10 @@ fertig implementiert.
 > ändern. Der macOS-Build ist nur lokal ad-hoc, nicht mit einer Developer-ID
 > signiert und nicht notarisiert; die übrigen Desktop-Builds sind unsigniert.
 
+> **Entwicklung:** Die kommende Version 0.8 entsteht auf dem Branch
+> [`develop/v0.8`](https://github.com/finalnode/insi/tree/develop/v0.8).
+> Dieser Entwicklungsstand ist noch nicht veröffentlicht und kann sich ändern.
+
 Die kompakte, offline auslieferbare Dokumentation beginnt unter
 [docs/de](docs/de/erste-schritte.md). Sie enthält getrennte Einstiege für
 Lernende, Lehrkräfte und Kursautorinnen beziehungsweise Kursautoren. Die

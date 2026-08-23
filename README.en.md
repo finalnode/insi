@@ -15,6 +15,10 @@ authoring tools in one application that remains largely offline after setup.
 > Desktop builds are not production-signed. The macOS build is ad-hoc signed
 > but not notarized.
 
+> **Development:** The upcoming version 0.8 is being developed on the
+> [`develop/v0.8`](https://github.com/finalnode/insi/tree/develop/v0.8) branch.
+> This development state has not been released yet and may change.
+
 ## Why in:si exists
 
 Introductory programming classes often split their work across an LMS, PDFs,
