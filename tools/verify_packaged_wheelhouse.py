@@ -5,17 +5,18 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import tempfile
 import venv
 from pathlib import Path
 
-from packaging.requirements import Requirement
-from packaging.utils import canonicalize_name
-
-
 MANIFEST_NAME = "wheelhouse-manifest.json"
+
+
+def normalized_name(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name.casefold())
 
 
 def packaged_wheelhouse(application: Path) -> Path:
@@ -48,7 +49,7 @@ def verified_requirements(wheelhouse: Path) -> tuple[str, ...]:
             raise RuntimeError(f"Die Prüfsumme stimmt nicht: {filename}")
         if wheel.stat().st_size != item.get("size"):
             raise RuntimeError(f"Die Dateigröße stimmt nicht: {filename}")
-        name = canonicalize_name(str(item["distribution"]))
+        name = normalized_name(str(item["distribution"]))
         versions[name] = str(item["version"])
         declared_files.add(filename)
 
@@ -58,16 +59,20 @@ def verified_requirements(wheelhouse: Path) -> tuple[str, ...]:
 
     requirements = []
     for raw in document.get("requirements", ()):
-        requirement = Requirement(str(raw))
-        if requirement.url:
-            version = versions.get(canonicalize_name(requirement.name))
+        requirement = str(raw).strip()
+        direct_reference = re.fullmatch(
+            r"([A-Za-z0-9][A-Za-z0-9._-]*)\s*@\s*\S+", requirement
+        )
+        if direct_reference:
+            name = direct_reference.group(1)
+            version = versions.get(normalized_name(name))
             if version is None:
                 raise RuntimeError(
-                    f"Für {requirement.name} fehlt ein paketiertes Wheel."
+                    f"Für {name} fehlt ein paketiertes Wheel."
                 )
-            requirements.append(f"{requirement.name}=={version}")
+            requirements.append(f"{name}=={version}")
         else:
-            requirements.append(str(requirement))
+            requirements.append(requirement)
     if not requirements:
         raise RuntimeError("Das Wheelhouse-Manifest enthält keine Anforderungen.")
     return tuple(requirements)
