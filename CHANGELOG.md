@@ -7,6 +7,9 @@
 - die Mindestversion für Quellinstallationen und erkannte Laufzeiten auf
   Python 3.11 angehoben, weil das festgelegte Pyxel 2.9.9 für Python 3.10
   nicht veröffentlicht wird;
+- Windows-AppContainer erhalten für den gestarteten PyInstaller-Runner neben
+  dem Runtimeordner eine explizite Datei-Lesefreigabe, damit das eingebettete
+  PKG-Archiv unabhängig von geerbten ACLs erneut geöffnet werden kann;
 - Paket- und Laufzeitversion des Entwicklungszweigs auf `0.8.0.dev0`
   vereinheitlicht; stabile Downloadlinks bleiben bis zur Freigabe bei 0.7.1;
 - die ausgeschriebene Bedeutung **informatica simplicissima** und ihre
