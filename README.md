@@ -39,16 +39,16 @@ fertig implementiert.
 > ändern. Der macOS-Build ist nur lokal ad-hoc, nicht mit einer Developer-ID
 > signiert und nicht notarisiert; die übrigen Desktop-Builds sind unsigniert.
 
-> **Aktueller Buildnachweis:** Das Release `v0.7.1` wurde für Windows, Linux
-> sowie beide macOS-Architekturen erfolgreich gebaut. Der Windows-AppContainer-
-> Selbsttest und der echte Windows-Fensterstart bestanden im Release-Workflow.
-> Für 0.8 bleibt derselbe Nachweis auf dem Entwicklungsstand und auf echten
-> Schulgeräten verbindlich.
+> **Aktueller Buildnachweis:** `develop/v0.8` wurde auf Commit `87da018` für
+> Windows, Linux sowie beide macOS-Architekturen erfolgreich gebaut. Windows-
+> AppContainer und echter Fensterstart, Linux-Bubblewrap/Wayland sowie beide
+> macOS-Seatbelt-Prüfungen bestanden. Die Abnahme auf echten Schulgeräten bleibt
+> verbindlich.
 
 > **Entwicklungsstand 0.8.0.dev0:** Auf `develop/v0.8` sind die versionierte
 > Datenmigration, sichtbare Projektstände, lokale Datenkontrolle, schnellere
 > Startpfade und ein fachlich besser testbarer Kern umgesetzt. Der
-> aktuelle Nachweis umfasst 476 bestandene, eine plattformbedingt
+> aktuelle Nachweis umfasst 477 bestandene, eine plattformbedingt
 > übersprungene und zusätzlich vier bestandene E2E-Prüfungen. Fortschritt und
 > verbleibende Freigabeblocker stehen im
 > [Entwurf der 0.8-Release-Notes](docs/release-notes-0.8.md). Der geschlossene

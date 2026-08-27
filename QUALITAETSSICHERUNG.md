@@ -6,16 +6,21 @@ auf echten Schulgeräten oder im Unterricht stattfinden müssen.
 ## Aktueller Nachweis für 0.8
 
 Auf `develop/v0.8` umfasst der normale Testlauf für `0.8.0.dev0` am
-27. August 2026 insgesamt 476 bestandene Prüfungen und eine auf macOS erwartbar
+27. August 2026 insgesamt 477 bestandene Prüfungen und eine auf macOS erwartbar
 übersprungene Linux-Bubblewrap-Prüfung. Alle vier bewusst separat markierten
 NiceGUI-E2E-Prüfungen bestehen ebenfalls. Die Zahl ist ein fortzuschreibender
 Entwicklungsstand, kein Ersatz für die unten aufgeführte Plattformmatrix.
 
-Das vollständige `v0.7.1`-Release bestand die Desktop-Jobs unter Windows, Linux
-und beiden macOS-Architekturen. Unter Windows bestanden insbesondere der
-AppContainer-Selbsttest und der echte Fensterstart. Wegen der zusätzlichen
-0.8-Änderungen bleibt derselbe Nachweis auf dem zusammengeführten
-Entwicklungsstand sowie auf einem echten Windows-Schulgerät verbindlich.
+Der [Desktop-Workflow auf Commit `87da018`](https://github.com/finalnode/insi/actions/runs/33096663990)
+bestand unter Windows, Linux und beiden macOS-Architekturen. Windows bestand
+AppContainer-, Job-Object- und echten Fensterstart, Linux Bubblewrap und den
+geschützten Wayland-Start, beide macOS-Builds den Seatbelt-Selbsttest. Die
+komprimierten Artefakte messen 72,0 MiB unter Windows, 127,6 MiB unter Linux,
+80,8 MiB unter macOS Intel und 78,6 MiB unter macOS ARM. Alle vier enthalten
+Build- und Wheelhouse-Manifeste mit dem PyKIM-Commit
+`7494db55a84e95b6dc13fc4a32a586b62fb5830d` und Prüfsummen der Offline-Wheels.
+Der tatsächliche Offline-Neuaufbau einer Kurs-Runtime sowie die echte
+Schulgeräteprobe bleiben getrennte Abnahmepunkte.
 
 ## Automatisch geprüft
 

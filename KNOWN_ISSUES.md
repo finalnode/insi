@@ -13,9 +13,8 @@ entfernt oder im [Changelog](CHANGELOG.md) als erledigt dokumentiert.
 |---|---|---|---|
 | Die überarbeitete TOAST-UI-Toolbar ist bei den vorgesehenen schmalen Browser- und nativen Fensterbreiten noch nicht vollständig manuell abgenommen. | Die Toolbar bleibt nun innerhalb des Editorrahmens und kann horizontal scrollen; bei unbekannten WebView-Größen sind optische Abweichungen weiterhin möglich. Bearbeitung und Speicherung funktionieren. | Bei Bedarf innerhalb der Toolbar horizontal scrollen. | Browser- und native Breiten in der manuellen 0.8-Matrix abschließend prüfen. |
 | Die manuelle Schulgeräte-Matrix ist noch offen. | Automatisierte Builds prüfen viele technische Eigenschaften, ersetzen aber keinen vollständigen Test auf realen Windows-, macOS- und Linux-Geräten. | Entwicklungstests und CI-Builds verwenden; Alpha-Status beachten. | Dokumentierte Smoke-Tests vor der Freigabe von 0.8. |
-| Der Windows-AppContainer-Nachweis fehlt noch für den zusammengeführten 0.8-Stand und ein echtes Schulgerät. | Das vollständige `v0.7.1`-Release bestand AppContainer-Selbsttest und echten Windows-Fensterstart; dieser Nachweis ist wegen der zusätzlichen 0.8-Änderungen nicht automatisch übertragbar. | Für den stabilen Einsatz `v0.7.1` verwenden; 0.8 bis zur eigenen Build- und Gerätematrix als Entwicklungsstand behandeln. | AppContainer-Selbsttest, echten Fensterstart und Schulgerätetest auf dem 0.8-Releasekandidaten bestehen. |
 | Vier browsergestützte NiceGUI-E2E-Prüfungen sind vom normalen Testlauf und der aktuellen CI getrennt. | Der normale Lauf bleibt schnell und reproduzierbar, deckt den vollständigen Browserweg aber nicht ab. Lokal bestehen am 27. August 2026 alle vier Prüfungen; in eingeschränkten Umgebungen können Prozess-Semaphoren fehlen. | E2E-Prüfungen mit `pytest -m e2e` in einer geeigneten lokalen Umgebung ausführen. | Den grünen lokalen Stand vor der 0.8-Freigabe im CI-/Releaseablauf bestätigen. |
-| Reproduzierbare Paket-Locks und Offline-Buildnachweise fehlen noch für Windows, Linux und macOS Intel. | Das verkleinerte Wheelhouse und der vollständige Offline-Runtime-Aufbau sind bislang lokal für macOS ARM nachgewiesen. | 0.8 nicht allein anhand des lokalen ARM-Builds veröffentlichen. | Alle vier Release-Builds samt Manifest, Paketgröße und Offline-Aufbau prüfen. |
+| Der tatsächliche Neuaufbau einer Kurs-Runtime ausschließlich aus den paketierten Wheelhouses ist in der Plattformmatrix noch offen. | Alle vier Buildartefakte enthalten plattformspezifische Wheelhouse- und Paketmanifeste mit Prüfsummen; ihre Offline-Installation wurde im Releaseweg aber noch nicht als eigener Schritt ausgeführt. Das Linux-Paket liegt mit 127,6 MiB über dem weichen 100-MiB-Ziel. | Die geprüften Artefakte nur als Releasekandidaten verwenden; für den stabilen Einsatz bleibt `v0.7.1` maßgeblich. | Offline-Neuaufbau auf allen vier Zielplattformen ausführen und die Linux-Abweichung dokumentiert akzeptieren oder verkleinern. |
 
 ## Plattform- und Sicherheitsgrenzen
 
@@ -48,6 +47,11 @@ den heutigen Einsatz:
   bewusst nicht vorgesehen.
 
 ## Kürzlich behoben
+
+Der Windows-AppContainer erhält neben dem Runtimeordner eine explizite
+Lesefreigabe auf die gestartete PyInstaller-EXE. Auf Commit `87da018` bestanden
+dadurch AppContainer- und Job-Object-Selbsttest sowie der echte Fensterstart in
+der Windows-Buildmatrix gemeinsam.
 
 Persönliche App-Daten und alle erreichbaren registrierten Kursordner lassen
 sich nun gemeinsam exportieren. Eine getrennte, exakt zu bestätigende Aktion

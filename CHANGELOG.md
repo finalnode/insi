@@ -56,7 +56,7 @@
   wird bei der anschließenden Suche nicht erneut per Subprocess geprüft;
 - große Sammeltests schrittweise in fachlich getrennte, schneller ausführbare
   Testmodule zerlegt und Architekturbudgets gegen erneutes Wachstum ergänzt;
-  `test_guide.py` sank dabei bislang von 2.862 auf 1.438 Zeilen; 33 Runtime-,
+  `test_guide.py` sank dabei bislang von 2.862 auf 1.460 Zeilen; 33 Runtime-,
   IDE- und Pyxel-Verträge sowie 16 Inhalts-, Update- und Zertifikatsverträge
   liegen in eigenen, gezielt ausführbaren Modulen;
 - Offline-Wheelhouse vom App-Paketbaum getrennt und den lokalen
@@ -65,10 +65,10 @@
   festgelegt und plattformspezifische Buildmanifeste ergänzt;
 - externe Trainer-Plugins vor dem Import inventarisiert und an eine sichtbare,
   paket- und versionsbezogene Zustimmung gebunden;
-- Stand 27. August 2026: 476 normale Prüfungen bestanden, eine
+- Stand 27. August 2026: 477 normale Prüfungen bestanden, eine
   plattformbedingt übersprungen sowie vier separat ausgeführte E2E-Prüfungen
   bestanden;
-  selbst gepflegter Python-Produktivcode 18.793 gegenüber 18.746 Zeilen zu
+  selbst gepflegter Python-Produktivcode 18.806 gegenüber 18.746 Zeilen zu
   Beginn der 0.8-Konsolidierung.
 
 ## 0.7.1 – 2026-08-27

@@ -25,14 +25,14 @@ and tools behind a simplified learning interface. Its educational principle is:
 > Desktop builds are not production-signed. The macOS build is ad-hoc signed
 > but not notarized.
 
-> **Current build evidence:** Release `v0.7.1` built successfully for Windows,
-> Linux and both macOS architectures. The Windows AppContainer self-test and
-> real Windows window launch passed in the release workflow. The same evidence
-> remains mandatory for the 0.8 development state and on real school devices.
+> **Current build evidence:** Commit `87da018` of `develop/v0.8` built
+> successfully for Windows, Linux and both macOS architectures. Windows
+> AppContainer and real window launch, Linux Bubblewrap/Wayland and both macOS
+> Seatbelt checks passed. Verification on real school devices remains required.
 
 > **0.8.0.dev0 development state:** `develop/v0.8` now includes versioned data
 > migration, visible project snapshots, local data control, faster startup
-> paths and a more focused test structure. The current check reports 476
+> paths and a more focused test structure. The current check reports 477
 > passed tests, one platform-related skip and four additional passing E2E
 > tests. See the
 > [draft 0.8 release notes](docs/release-notes-0.8.md) for progress and release
