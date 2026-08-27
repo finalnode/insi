@@ -268,6 +268,28 @@ def test_ci_runs_the_separate_nicegui_e2e_suite():
     assert "python -m pytest -m e2e" in workflow
 
 
+def test_workflows_use_node24_action_generations():
+    workflows = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (PROJECT / ".github" / "workflows").glob("*.yml")
+    )
+
+    for expected in (
+        "actions/checkout@v7",
+        "actions/setup-python@v7",
+        "actions/upload-artifact@v7",
+        "actions/download-artifact@v8",
+    ):
+        assert expected in workflows
+    for obsolete in (
+        "actions/checkout@v4",
+        "actions/setup-python@v5",
+        "actions/upload-artifact@v4",
+        "actions/download-artifact@v4",
+    ):
+        assert obsolete not in workflows
+
+
 def test_pyinstaller_specs_are_valid_python_and_use_common_entrypoint():
     for relative in (
         "packaging/desktop/insi.spec",
