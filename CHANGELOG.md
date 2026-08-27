@@ -77,7 +77,7 @@
   Linux- und macOS-Buildumgebungen erzwungen;
 - externe Trainer-Plugins vor dem Import inventarisiert und an eine sichtbare,
   paket- und versionsbezogene Zustimmung gebunden;
-- Stand 27. August 2026: 481 normale Prüfungen bestanden, eine
+- Stand 27. August 2026: 483 normale Prüfungen bestanden, eine
   plattformbedingt übersprungen sowie vier im eigenen CI-Job ausgeführte
   E2E-Prüfungen bestanden;
   selbst gepflegter Python-Produktivcode 18.806 gegenüber 18.746 Zeilen zu

@@ -66,11 +66,11 @@ kommen keine weiteren Produktfunktionen hinzu.
 
 ## Aktueller Teststand
 
-- 481 normale Prüfungen bestanden;
+- 483 normale Prüfungen bestanden;
 - eine Linux-Bubblewrap-Prüfung auf macOS übersprungen;
 - vier NiceGUI-E2E-Prüfungen im eigenen PR-CI-Job ausgeführt und bestanden;
 - CI auf Python 3.11 bis 3.13 sowie Desktop-, Sandbox- und native GUI-Matrix auf
-  Commit `5a78e27` bestanden;
+  Commit `c3e2923` bestanden;
 - eine frische Kurs-Runtime auf Windows, Linux und beiden macOS-Architekturen
   ausschließlich aus dem paketierten Wheelhouse offline aufgebaut und geprüft.
 
@@ -96,7 +96,7 @@ released
 
 Version 0.8 focuses on safe 0.7-to-0.8 data migration, visible project-state
 restoration, faster course startup, smaller packages and clearer architectural
-boundaries. The current development check reports 481 passed tests, one
+boundaries. The current development check reports 483 passed tests, one
 platform-related skip and four passing E2E tests in a dedicated CI job. Full
 offline runtime rebuilds passed on all four packaged targets. Real-device
 verification remains required before release. Stable downloads therefore
