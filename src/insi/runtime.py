@@ -19,7 +19,7 @@ from tempfile import NamedTemporaryFile, mkdtemp
 from .interpreter import command_for
 
 
-MINIMUM_PYTHON = (3, 10)
+MINIMUM_PYTHON = (3, 11)
 RUNTIME_ENV = "INSI_PYTHON"
 LEGACY_RUNTIME_ENV = "PYKIM_PYTHON"
 PYXEL_RUNTIME_REQUIREMENT = "Pyxel==2.9.9"

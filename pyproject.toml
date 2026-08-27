@@ -7,7 +7,7 @@ name = "insi"
 version = "0.8.0.dev0"
 description = "Offline-first desktop learning environment for modular computer science courses"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { text = "AGPL-3.0-or-later" }
 authors = [{ name = "in:si contributors" }]
 classifiers = [

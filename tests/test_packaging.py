@@ -30,6 +30,21 @@ def test_direct_project_and_build_dependencies_are_exactly_pinned():
     assert configuration["build-system"]["requires"] == ["setuptools==84.0.0"]
 
 
+def test_python_support_matches_the_pinned_runtime_contract():
+    from insi.runtime import MINIMUM_PYTHON
+
+    with (PROJECT / "pyproject.toml").open("rb") as source:
+        project = tomllib.load(source)["project"]
+    workflow = (PROJECT / ".github/workflows/tests.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert project["requires-python"] == ">=3.11"
+    assert MINIMUM_PYTHON == (3, 11)
+    assert 'python-version: ["3.11", "3.12", "3.13"]' in workflow
+    assert '"3.10"' not in workflow
+
+
 def test_build_bootstrap_uses_one_pinned_pip_version():
     requirement = (
         PROJECT / "requirements" / "build-bootstrap.txt"

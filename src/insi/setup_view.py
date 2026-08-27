@@ -639,7 +639,7 @@ def render_setup_panel(
     with ui.column().classes("w-full gap-1"):
         status_line(
             f"Python {status.python}"
-            + ("" if status.python_supported else " – benötigt wird mindestens 3.10"),
+            + ("" if status.python_supported else " – benötigt wird mindestens 3.11"),
             status.python_supported,
         )
         status_line(f"PyKIM-Fachmodul {status.pykim}")

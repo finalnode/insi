@@ -101,7 +101,7 @@ def detected_ides() -> dict[str, str]:
 def system_status() -> SystemStatus:
     return SystemStatus(
         python=platform.python_version(),
-        python_supported=sys.version_info >= (3, 10),
+        python_supported=sys.version_info >= (3, 11),
         pykim=version("PyKIM"),
         pyxel=shutil.which("pyxel") is not None,
         thonny=shutil.which("thonny") is not None or _application_exists("Thonny"),

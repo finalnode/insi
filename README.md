@@ -540,7 +540,7 @@ sind noch Teil der Roadmap.
 
 ### Entwicklungsinstallation
 
-Voraussetzungen: Python 3.10 oder neuer und Git.
+Voraussetzungen: Python 3.11 oder neuer und Git.
 
 ```bash
 git clone https://github.com/finalnode/insi.git

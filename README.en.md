@@ -90,7 +90,7 @@ proprietary format.
 
 ## Installation and development
 
-Python 3.10 or newer is required for a source installation:
+Python 3.11 or newer is required for a source installation:
 
 ```bash
 git clone https://github.com/finalnode/insi.git
