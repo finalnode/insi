@@ -261,6 +261,13 @@ def test_desktop_workflow_covers_all_release_targets():
         assert expected in workflow
 
 
+def test_ci_runs_the_separate_nicegui_e2e_suite():
+    workflow = (PROJECT / ".github/workflows/tests.yml").read_text(encoding="utf-8")
+
+    assert "NiceGUI E2E" in workflow
+    assert "python -m pytest -m e2e" in workflow
+
+
 def test_pyinstaller_specs_are_valid_python_and_use_common_entrypoint():
     for relative in (
         "packaging/desktop/insi.spec",
