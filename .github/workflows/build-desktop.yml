@@ -68,6 +68,8 @@ jobs:
       - name: Echtes Windows-Fenster prüfen
         shell: pwsh
         run: ./tools/check_windows_desktop.ps1
+      - name: Kurs-Runtime aus paketiertem Wheelhouse neu aufbauen
+        run: python tools/verify_packaged_wheelhouse.py dist/windows/insi
       - name: Windows-Startdiagnose hochladen
         if: failure()
         uses: actions/upload-artifact@v4
@@ -122,6 +124,8 @@ jobs:
           done
           test -S "$runtime/$WAYLAND_DISPLAY"
           "dist/linux/insi/insi-python" --insi-python tools/check_linux_sandbox.py --gui
+      - name: Kurs-Runtime aus paketiertem Wheelhouse neu aufbauen
+        run: python tools/verify_packaged_wheelhouse.py dist/linux/insi
       - run: python tools/package_desktop_app.py
       - uses: actions/upload-artifact@v4
         with:
@@ -152,6 +156,8 @@ jobs:
         run: '"dist/macos/insi.app/Contents/MacOS/insi-python" --insi-python -c "import pykim; print(pykim.__version__)"'
       - name: macOS-Seatbelt und Ressourcengrenzen prüfen
         run: '"dist/macos/insi.app/Contents/MacOS/insi-python" --insi-python tools/check_macos_sandbox.py'
+      - name: Kurs-Runtime aus paketiertem Wheelhouse neu aufbauen
+        run: python tools/verify_packaged_wheelhouse.py dist/macos/insi.app
       - name: Release-Datei in Buildordner kopieren
         run: |
           mkdir -p "dist/releases/macos-${{ matrix.architecture }}"

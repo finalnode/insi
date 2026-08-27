@@ -151,6 +151,71 @@ def test_wheelhouse_contains_only_the_course_runtime(monkeypatch, tmp_path):
     assert options == {"check": True}
 
 
+def test_packaged_wheelhouse_is_located_and_verified(tmp_path):
+    from tools.verify_packaged_wheelhouse import (
+        packaged_wheelhouse,
+        verified_requirements,
+    )
+
+    application = tmp_path / "insi"
+    wheelhouse = application / "_internal" / "wheels"
+    wheelhouse.mkdir(parents=True)
+    wheel = wheelhouse / "PyKIM-0.6.0-py3-none-any.whl"
+    wheel.write_bytes(b"wheel")
+    manifest = {
+        "format": 1,
+        "requirements": [
+            "PyKIM @ git+https://example.invalid/PyKIM.git@abc123",
+            "PyYAML==6.0.3",
+        ],
+        "wheels": [
+            {
+                "distribution": "PyKIM",
+                "filename": wheel.name,
+                "sha256": hashlib.sha256(b"wheel").hexdigest(),
+                "size": len(b"wheel"),
+                "version": "0.6.0",
+            }
+        ],
+    }
+    (wheelhouse / "wheelhouse-manifest.json").write_text(
+        json.dumps(manifest), encoding="utf-8"
+    )
+
+    assert packaged_wheelhouse(application) == wheelhouse
+    assert verified_requirements(wheelhouse) == ("PyKIM==0.6.0", "PyYAML==6.0.3")
+
+
+def test_packaged_wheelhouse_rejects_tampering(tmp_path):
+    from tools.verify_packaged_wheelhouse import verified_requirements
+
+    wheelhouse = tmp_path / "wheels"
+    wheelhouse.mkdir()
+    wheel = wheelhouse / "demo-1.0-py3-none-any.whl"
+    wheel.write_bytes(b"tampered")
+    (wheelhouse / "wheelhouse-manifest.json").write_text(
+        json.dumps(
+            {
+                "format": 1,
+                "requirements": ["demo==1.0"],
+                "wheels": [
+                    {
+                        "distribution": "demo",
+                        "filename": wheel.name,
+                        "sha256": hashlib.sha256(b"original").hexdigest(),
+                        "size": len(b"tampered"),
+                        "version": "1.0",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="Prüfsumme"):
+        verified_requirements(wheelhouse)
+
+
 def test_test_extra_contains_collection_time_dependencies():
     with (PROJECT / "pyproject.toml").open("rb") as source:
         project = tomllib.load(source)["project"]
