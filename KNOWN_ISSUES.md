@@ -18,7 +18,7 @@ entfernt oder im [Changelog](CHANGELOG.md) als erledigt dokumentiert.
 
 | Einschränkung | Bedeutung und sicherer Umgang | Geplante Einordnung |
 |---|---|---|
-| Das Linux-x86_64-Paket liegt mit 127,6 MiB über dem weichen 100-MiB-Ziel. | Der Mehrumfang stammt aus der vollständigen GTK/WebKit-Laufzeit und dem geprüften Offline-Wheelhouse; Funktion und Offline-Neuaufbau sind auf Commit `d038417` nachgewiesen. Für 0.8 ist dies eine akzeptierte Größenabweichung, kein Sicherheits- oder Funktionsfehler. | Nach 0.8 weiter verkleinern, sofern dies ohne schwächere Offline- oder Plattformzusage möglich ist. |
+| Das Linux-x86_64-Paket liegt mit 127,6 MiB über dem weichen 100-MiB-Ziel. | Der Mehrumfang stammt aus der vollständigen GTK/WebKit-Laufzeit und dem geprüften Offline-Wheelhouse; Funktion und Offline-Neuaufbau sind auf Commit `5a78e27` nachgewiesen. Für 0.8 ist dies eine akzeptierte Größenabweichung, kein Sicherheits- oder Funktionsfehler. | Nach 0.8 weiter verkleinern, sofern dies ohne schwächere Offline- oder Plattformzusage möglich ist. |
 | Die Desktop-Pakete sind noch nicht produktionssigniert; der macOS-Build ist nur ad-hoc signiert und nicht notarisiert. | Betriebssysteme können Warnungen anzeigen oder den Start blockieren. Pakete nur aus den offiziellen GitHub Releases beziehungsweise den zugehörigen dokumentierten Builds beziehen. | Produktionsverteilung spätestens für 1.0. |
 | Ein unter einem synchronisierten macOS-`Documents`-Ordner erzeugter loser `.app`-Ordner kann nach dem Signieren erneut Finder-/File-Provider-Metadaten erhalten. | `codesign --verify` kann für den losen lokalen Build fehlschlagen, obwohl der Buildinhalt korrekt ist. | Für die Verteilung `build_macos_dmg.py` verwenden; es bereinigt und signiert den tatsächlichen Payload im privaten Tempordner. Der erzeugte 0.7-DMG-Payload wurde lokal erfolgreich verifiziert. | Dauerhafte Buildumgebungen außerhalb synchronisierter Ordner verwenden; der CI- und Releaseweg bleibt der DMG. |
 | Der macOS-Runner verwendet derzeit `/usr/bin/sandbox-exec` und eine von Apple nicht als stabile öffentliche API zugesagte Profilsprache. | Nach einem macOS-Update kann der Selbsttest scheitern. in:si startet Fremdcode dann nicht ungeschützt, sondern sperrt den integrierten Start. | Signierter und notarisierter Sandbox-Helper für 1.0. |
@@ -47,7 +47,7 @@ den heutigen Einsatz:
 ## Kürzlich behoben
 
 Der Windows-AppContainer erhält neben dem Runtimeordner eine explizite
-Lesefreigabe auf die gestartete PyInstaller-EXE. Auf Commit `d038417` bestanden
+Lesefreigabe auf die gestartete PyInstaller-EXE. Auf Commit `5a78e27` bestanden
 dadurch AppContainer- und Job-Object-Selbsttest sowie der echte Fensterstart in
 der Windows-Buildmatrix gemeinsam.
 

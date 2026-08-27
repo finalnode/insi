@@ -6,14 +6,14 @@ auf echten Schulgeräten oder im Unterricht stattfinden müssen.
 ## Aktueller Nachweis für 0.8
 
 Auf `develop/v0.8` umfasst der normale Testlauf für `0.8.0.dev0` am
-27. August 2026 insgesamt 480 bestandene Prüfungen und eine auf macOS erwartbar
+27. August 2026 insgesamt 481 bestandene Prüfungen und eine auf macOS erwartbar
 übersprungene Linux-Bubblewrap-Prüfung. Alle vier bewusst separat markierten
 NiceGUI-E2E-Prüfungen bestehen ebenfalls als eigener Job im
-[PR-CI-Lauf auf Commit `cec44ed`](https://github.com/finalnode/insi/actions/runs/33101953430).
+[PR-CI-Lauf auf Commit `5a78e27`](https://github.com/finalnode/insi/actions/runs/33111334601).
 Die Zahl ist ein fortzuschreibender Entwicklungsstand, kein Ersatz für die
 unten aufgeführte Plattformmatrix.
 
-Der [Desktop-Workflow auf Commit `d038417`](https://github.com/finalnode/insi/actions/runs/33101143844)
+Der [Desktop-Workflow auf Commit `5a78e27`](https://github.com/finalnode/insi/actions/runs/33111664277)
 bestand unter Windows, Linux und beiden macOS-Architekturen. Windows bestand
 AppContainer-, Job-Object- und echten Fensterstart, Linux Bubblewrap und den
 geschützten Wayland-Start, beide macOS-Builds den Seatbelt-Selbsttest. Die
@@ -24,6 +24,10 @@ Build- und Wheelhouse-Manifeste mit dem PyKIM-Commit
 In allen vier Jobs wurde zusätzlich eine leere Kurs-Runtime mit `--no-index`
 ausschließlich aus dem jeweils paketierten Wheelhouse aufgebaut; Manifest,
 Prüfsummen und die anschließenden Importe von PyKIM, Pyxel und PyYAML bestanden.
+Der erste Windows-Versuch konnte einmalig das eingebettete PyInstaller-PKG der
+Hilfs-EXE nicht erneut öffnen. Der unveränderte Wiederholungslauf bestand die
+vollständige Windows-Matrix; der Befund bleibt bis zur realen Geräteprobe als
+sporadischer CI-Hinweis dokumentiert.
 Die Linux-Größe von 127,6 MiB ist für 0.8 als bekannte sichere Abweichung vom
 weichen 100-MiB-Ziel akzeptiert. Die echte Schulgeräteprobe bleibt offen.
 

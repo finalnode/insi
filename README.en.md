@@ -25,7 +25,7 @@ and tools behind a simplified learning interface. Its educational principle is:
 > Desktop builds are not production-signed. The macOS build is ad-hoc signed
 > but not notarized.
 
-> **Current build evidence:** Commit `d038417` of `develop/v0.8` built
+> **Current build evidence:** Commit `5a78e27` of `develop/v0.8` built
 > successfully for Windows, Linux and both macOS architectures. Windows
 > AppContainer and real window launch, Linux Bubblewrap/Wayland and both macOS
 > Seatbelt checks passed. Each platform also rebuilt a fresh course runtime
@@ -34,7 +34,7 @@ and tools behind a simplified learning interface. Its educational principle is:
 
 > **0.8.0.dev0 development state:** `develop/v0.8` now includes versioned data
 > migration, visible project snapshots, local data control, faster startup
-> paths and a more focused test structure. The current check reports 480
+> paths and a more focused test structure. The current check reports 481
 > passed tests, one platform-related skip and four additional E2E tests passing
 > in their dedicated CI job. See the
 > [draft 0.8 release notes](docs/release-notes-0.8.md) for progress and release

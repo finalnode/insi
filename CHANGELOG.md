@@ -69,9 +69,12 @@
   macOS-ARM-DMG-Prototyp von rund 113 MB auf rund 82 MiB verkleinert;
 - Packaging-Artefakte auf den Namen in:si umgestellt, direkte Abhängigkeiten
   festgelegt und plattformspezifische Buildmanifeste ergänzt;
+- GitHub-Actions auf die Node-24-basierten Generationen von Checkout,
+  Python-Setup sowie Artefakt-Upload und -Download aktualisiert und die
+  bisherige Node-20-Abkündigungswarnung beseitigt;
 - externe Trainer-Plugins vor dem Import inventarisiert und an eine sichtbare,
   paket- und versionsbezogene Zustimmung gebunden;
-- Stand 27. August 2026: 480 normale Prüfungen bestanden, eine
+- Stand 27. August 2026: 481 normale Prüfungen bestanden, eine
   plattformbedingt übersprungen sowie vier im eigenen CI-Job ausgeführte
   E2E-Prüfungen bestanden;
   selbst gepflegter Python-Produktivcode 18.806 gegenüber 18.746 Zeilen zu
