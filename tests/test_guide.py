@@ -319,6 +319,28 @@ def test_footer_sources_collect_software_course_and_assignment_sources(
     assert all(item.label != "Versteckt" for item in references)
 
 
+def test_footer_course_path_props_accept_windows_user_directory():
+    from nicegui.props import Props
+
+    from insi.layout import _configure_course_path_button
+
+    class TestProps(dict):
+        def __call__(self, value):
+            self.update(Props.parse(value))
+
+    button = SimpleNamespace(props=TestProps())
+    windows_course = r"C:\Users\Schueler\IServ\PyKIM-Kurs"
+
+    _configure_course_path_button(button, windows_course)
+
+    assert button.props == {
+        "flat": True,
+        "dense": True,
+        "color": "white",
+        "title": f"Kursordner öffnen: {windows_course}",
+    }
+
+
 def test_legal_documents_are_available_offline():
     assert legal_document_text("agpl").lstrip().startswith(
         "GNU AFFERO GENERAL PUBLIC LICENSE"
