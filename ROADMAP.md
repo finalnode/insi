@@ -137,9 +137,13 @@ Die direkten Anwendungs-, Test-, Build- und Bootstrap-Abhängigkeiten sind auf
 den gemeinsam geprüften Stand festgelegt. Zusätzlich enthält jedes
 Desktop-Artefakt ein plattformspezifisches Buildmanifest aller tatsächlich
 aufgelösten Pakete und Versionen sowie der veröffentlichbaren VCS-Herkunft. Die
-transitiven Stände werden zunächst damit nachvollziehbar; reproduzierbare
-plattformspezifische Locks werden aus den Windows-, Linux-, macOS-Intel- und
-macOS-ARM-Builds abgeleitet und bleiben vor der 0.8.x-Freigabe offen.
+Aus den nachgewiesenen Windows-, Linux-, macOS-Intel- und macOS-ARM-Builds sind
+inzwischen reproduzierbare plattformspezifische Python-3.11-Constraint-Locks
+abgeleitet. Die Desktop-Buildskripte wählen den passenden Lock anhand von
+Betriebssystem und Architektur und erzwingen ihn bei der Installation der
+Fachmodul-, App- und Buildabhängigkeiten. Ein Generator hält die Ableitung aus
+dem jeweiligen Buildmanifest nachvollziehbar; das feste PyKIM-Repository und
+sein unveränderlicher Commit bleiben dabei als direkte VCS-Quelle erhalten.
 
 Externe Trainer-Entry-Points werden inzwischen zunächst ausschließlich über
 Distributionsmetadaten inventarisiert. Ein Kurs kann ihren Import nicht mehr

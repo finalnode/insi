@@ -68,6 +68,61 @@ def test_build_bootstrap_uses_one_pinned_pip_version():
         assert '"upgrade", "pip"' not in source
 
 
+def test_desktop_builds_use_platform_dependency_locks():
+    from tools.dependency_locks import dependency_lock
+
+    expected = {
+        ("Windows", "AMD64"): "windows-x86_64-python311.txt",
+        ("Linux", "x86_64"): "linux-x86_64-python311.txt",
+        ("Darwin", "x86_64"): "macos-x86_64-python311.txt",
+        ("Darwin", "arm64"): "macos-arm64-python311.txt",
+    }
+    for (system, machine), name in expected.items():
+        lock = dependency_lock(PROJECT, system=system, machine=machine)
+        assert lock.name == name
+        requirements = [
+            Requirement(line)
+            for line in lock.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.startswith("#")
+        ]
+        assert len(requirements) >= 60
+        assert all(item.url or len(list(item.specifier)) == 1 for item in requirements)
+        assert not {item.name.casefold() for item in requirements} & {
+            "insi", "pip", "setuptools", "wheel"
+        }
+
+    for relative in ("tools/build_desktop_app.py", "tools/build_macos_app.py"):
+        source = (PROJECT / relative).read_text(encoding="utf-8")
+        assert "dependency_lock(" in source
+        assert '"--constraint", str(constraints)' in source
+
+
+def test_dependency_lock_generation_is_sorted_and_preserves_vcs_commit():
+    from tools.generate_dependency_lock import lock_lines
+
+    manifest = {
+        "format": 1,
+        "packages": [
+            {"name": "z-demo", "version": "2.0"},
+            {"name": "pip", "version": "99"},
+            {
+                "name": "A-demo",
+                "version": "1.0",
+                "source": {
+                    "vcs": "git",
+                    "url": "https://example.invalid/a.git",
+                    "commit": "abc123",
+                },
+            },
+        ],
+    }
+
+    assert lock_lines(manifest) == (
+        "A-demo @ git+https://example.invalid/a.git@abc123",
+        "z-demo==2.0",
+    )
+
+
 def test_pykim_version_is_pinned_across_install_and_build_paths():
     with (PROJECT / "pyproject.toml").open("rb") as source:
         dependencies = tomllib.load(source)["project"]["dependencies"]

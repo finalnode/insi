@@ -72,6 +72,9 @@
 - GitHub-Actions auf die Node-24-basierten Generationen von Checkout,
   Python-Setup sowie Artefakt-Upload und -Download aktualisiert und die
   bisherige Node-20-Abkündigungswarnung beseitigt;
+- aus den vier geprüften Desktop-Buildmanifesten plattformspezifische
+  Python-3.11-Dependency-Locks abgeleitet und deren Verwendung in den Windows-,
+  Linux- und macOS-Buildumgebungen erzwungen;
 - externe Trainer-Plugins vor dem Import inventarisiert und an eine sichtbare,
   paket- und versionsbezogene Zustimmung gebunden;
 - Stand 27. August 2026: 481 normale Prüfungen bestanden, eine

@@ -57,6 +57,8 @@ kommen keine weiteren Produktfunktionen hinzu.
   901 auf 863 Zeilen.
 - Das Offline-Wheelhouse ist vom App-Paketbaum getrennt. Der lokale
   macOS-ARM-DMG-Prototyp sank von rund 113 MB auf rund 82 MiB.
+- Die Desktop-Builds verwenden aus ihren vier Zielmanifesten abgeleitete
+  Dependency-Locks für Windows, Linux, macOS Intel und macOS ARM.
 - Der selbst gepflegte Python-Produktivcode liegt nach den Freigabekorrekturen
   bei 18.806 Zeilen, gegenüber 18.746 Zeilen zu Beginn der Konsolidierung
   (+60, rund +0,3 %). Der sicherheitskritische Dateivertrag und

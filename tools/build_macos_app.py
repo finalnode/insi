@@ -11,6 +11,8 @@ import os
 import tempfile
 from pathlib import Path
 
+from dependency_locks import dependency_lock
+
 
 def apply_adhoc_signature(application: Path) -> None:
     """Entferne Finder-Metadaten und stelle eine prüfbare Ad-hoc-Signatur her."""
@@ -89,6 +91,7 @@ def main(arguments: list[str] | None = None) -> int:
     project = Path(__file__).resolve().parents[1]
     bootstrap_requirements = project / "requirements" / "build-bootstrap.txt"
     pykim_requirements = project / "requirements" / "pykim-0.6.0.txt"
+    constraints = dependency_lock(project, system="Darwin")
     if os.environ.get("INSI_MACOS_BUILD_ENV") != "1":
         environment = project / "build" / "macos-venv"
         python = environment / "bin" / "python"
@@ -104,12 +107,17 @@ def main(arguments: list[str] | None = None) -> int:
         subprocess.run(
             [
                 str(python), "-m", "pip", "install",
+                "--constraint", str(constraints),
                 "--requirement", str(pykim_requirements),
             ],
             check=True,
         )
         subprocess.run(
-            [str(python), "-m", "pip", "install", "-e", f"{project}[build]"],
+            [
+                str(python), "-m", "pip", "install",
+                "--constraint", str(constraints),
+                "-e", f"{project}[build]",
+            ],
             check=True,
         )
         child_environment = os.environ.copy()
