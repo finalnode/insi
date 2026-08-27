@@ -22,6 +22,8 @@
   Manifesten und `--no-index` ausschließlich aus dem jeweils paketierten
   Wheelhouse aufgebaut; die Linux-Größe von 127,6 MiB ist als sichere
   Abweichung vom weichen 100-MiB-Ziel für 0.8 dokumentiert;
+- die vier browsergestützten NiceGUI-Gesamtworkflows als eigenen
+  Python-3.11-Job in die Pull-Request-CI aufgenommen;
 - den Windows-AppContainer-Nachweis nach dem grünen `v0.7.1`-Release für den
   zusammengeführten 0.8-Stand und echte Schulgeräte als Freigabepunkt
   beibehalten;
@@ -70,8 +72,8 @@
 - externe Trainer-Plugins vor dem Import inventarisiert und an eine sichtbare,
   paket- und versionsbezogene Zustimmung gebunden;
 - Stand 27. August 2026: 480 normale Prüfungen bestanden, eine
-  plattformbedingt übersprungen sowie vier separat ausgeführte E2E-Prüfungen
-  bestanden;
+  plattformbedingt übersprungen sowie vier im eigenen CI-Job ausgeführte
+  E2E-Prüfungen bestanden;
   selbst gepflegter Python-Produktivcode 18.806 gegenüber 18.746 Zeilen zu
   Beginn der 0.8-Konsolidierung.
 

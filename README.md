@@ -50,7 +50,8 @@ fertig implementiert.
 > Datenmigration, sichtbare Projektstände, lokale Datenkontrolle, schnellere
 > Startpfade und ein fachlich besser testbarer Kern umgesetzt. Der
 > aktuelle Nachweis umfasst 480 bestandene, eine plattformbedingt
-> übersprungene und zusätzlich vier bestandene E2E-Prüfungen. Fortschritt und
+> übersprungene und zusätzlich vier im eigenen CI-Job bestandene
+> E2E-Prüfungen. Fortschritt und
 > verbleibende Freigabeblocker stehen im
 > [Entwurf der 0.8-Release-Notes](docs/release-notes-0.8.md). Der geschlossene
 > Funktionsumfang und die noch offenen Nachweise stehen kompakt im

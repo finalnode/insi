@@ -35,8 +35,8 @@ and tools behind a simplified learning interface. Its educational principle is:
 > **0.8.0.dev0 development state:** `develop/v0.8` now includes versioned data
 > migration, visible project snapshots, local data control, faster startup
 > paths and a more focused test structure. The current check reports 480
-> passed tests, one platform-related skip and four additional passing E2E
-> tests. See the
+> passed tests, one platform-related skip and four additional E2E tests passing
+> in their dedicated CI job. See the
 > [draft 0.8 release notes](docs/release-notes-0.8.md) for progress and release
 > blockers. The [0.8 scope-cut protocol](docs/v0.8-abschlussprotokoll.md)
 > separates completed scope from outstanding release evidence.

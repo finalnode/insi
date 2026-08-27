@@ -8,8 +8,10 @@ auf echten Schulgeräten oder im Unterricht stattfinden müssen.
 Auf `develop/v0.8` umfasst der normale Testlauf für `0.8.0.dev0` am
 27. August 2026 insgesamt 480 bestandene Prüfungen und eine auf macOS erwartbar
 übersprungene Linux-Bubblewrap-Prüfung. Alle vier bewusst separat markierten
-NiceGUI-E2E-Prüfungen bestehen ebenfalls. Die Zahl ist ein fortzuschreibender
-Entwicklungsstand, kein Ersatz für die unten aufgeführte Plattformmatrix.
+NiceGUI-E2E-Prüfungen bestehen ebenfalls als eigener Job im
+[PR-CI-Lauf auf Commit `cec44ed`](https://github.com/finalnode/insi/actions/runs/33101953430).
+Die Zahl ist ein fortzuschreibender Entwicklungsstand, kein Ersatz für die
+unten aufgeführte Plattformmatrix.
 
 Der [Desktop-Workflow auf Commit `d038417`](https://github.com/finalnode/insi/actions/runs/33101143844)
 bestand unter Windows, Linux und beiden macOS-Architekturen. Windows bestand
@@ -90,7 +92,8 @@ der gehosteten CI beim Konfigurieren des isolierten Loopback-Interfaces. Die
 Prüfung wird deshalb nicht übersprungen oder abgeschwächt, sondern auf dem
 Runner ausgeführt, der den echten Netzwerk-Namespace bereitstellen kann.
 
-Der UI-Gesamtworkflow benötigt NiceGUI und lokale Prozess-Semaphoren:
+Der UI-Gesamtworkflow benötigt NiceGUI und Prozess-Semaphoren und läuft in der
+CI als eigener Python-3.11-Job:
 
 ```bash
 python -m pip install -e '.[test]'
