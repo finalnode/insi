@@ -28,6 +28,12 @@ class WorkspaceLayout:
     student_name: str
 
 
+def _configure_course_path_button(button, course: str) -> None:
+    """Setze dynamische Pfadtexte ohne Auswertung als Python-Literal."""
+    button.props("flat dense color=white")
+    button.props["title"] = f"Kursordner öffnen: {course}"
+
+
 def render_workspace_header(ui, course_selection) -> WorkspaceLayout:
     """Erzeuge Kopfzeile und Hauptnavigation und liefere deren Bindungen zurück."""
     ui.link("Zum Hauptinhalt springen", "#pykim-main").classes(
@@ -238,13 +244,12 @@ def render_workspace_footer(ui) -> None:
                 "text-grey-2 text-xs tracking-wide"
             )
             if configured is not None:
-                ui.button(
+                course_path_button = ui.button(
                     display_path,
                     icon="folder_open",
                     on_click=open_course_directory,
-                ).props(
-                    f'flat dense color=white title="Kursordner öffnen: {configured}"'
                 ).classes("insi-footer-course-path")
+                _configure_course_path_button(course_path_button, str(configured))
             with ui.row().classes("items-center gap-2 no-wrap"):
                 ui.label(f"Version {__version__}").classes("text-grey-4 text-xs")
                 ui.button(
