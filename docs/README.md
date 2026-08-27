@@ -6,7 +6,7 @@ website or user account.
 
 The living [draft release notes for 0.8](release-notes-0.8.md) describe the
 current `0.8.0.dev0` state of `develop/v0.8`. Stable downloads remain at
-version 0.7.0 until that work has passed its release checks.
+version 0.7.1 until that work has passed its release checks.
 The [0.8 scope-cut protocol](v0.8-abschlussprotokoll.md) records the completed
 scope, current evidence and remaining release gates.
 

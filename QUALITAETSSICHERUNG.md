@@ -6,16 +6,16 @@ auf echten Schulgeräten oder im Unterricht stattfinden müssen.
 ## Aktueller Nachweis für 0.8
 
 Auf `develop/v0.8` umfasst der normale Testlauf für `0.8.0.dev0` am
-23. August 2026 insgesamt 475 bestandene Prüfungen und eine auf macOS erwartbar
+27. August 2026 insgesamt 476 bestandene Prüfungen und eine auf macOS erwartbar
 übersprungene Linux-Bubblewrap-Prüfung. Alle vier bewusst separat markierten
 NiceGUI-E2E-Prüfungen bestehen ebenfalls. Die Zahl ist ein fortzuschreibender
 Entwicklungsstand, kein Ersatz für die unten aufgeführte Plattformmatrix.
 
-Der letzte Desktop-Workflow auf `main` bestand unter Linux und beiden
-macOS-Architekturen, scheiterte aber in zwei Versuchen am Windows-AppContainer-
-Selbsttest. Der direkt gestartete PyInstaller-Runner funktionierte; erst im
-Container konnte er sein eigenes eingebettetes PKG-Archiv nicht erneut lesen.
-Dieser Befund ist ein verbindlicher Windows-Abnahmepunkt für 0.8.
+Das vollständige `v0.7.1`-Release bestand die Desktop-Jobs unter Windows, Linux
+und beiden macOS-Architekturen. Unter Windows bestanden insbesondere der
+AppContainer-Selbsttest und der echte Fensterstart. Wegen der zusätzlichen
+0.8-Änderungen bleibt derselbe Nachweis auf dem zusammengeführten
+Entwicklungsstand sowie auf einem echten Windows-Schulgerät verbindlich.
 
 ## Automatisch geprüft
 

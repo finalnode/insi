@@ -1,4 +1,10 @@
-# in:si 0.7.0 – Release Notes
+# in:si 0.7.1 – Release Notes
+
+## Hotfix 0.7.1
+
+Unter Windows starten Kurse nun auch aus Benutzerordnern wie
+`C:\Users\...`, ohne dass der Pfad im Footer irrtümlich als Python-Literal
+ausgewertet wird und einen HTTP-500-Fehler auslöst.
 
 in:si 0.7 legt die technische Grundlage für kontrollierte Programmläufe,
 fachmodulneutrale Trainer und einen lokalen visuellen Kurseditor. Die Version
@@ -46,7 +52,13 @@ in [SECURITY.md](../SECURITY.md) und die weitere Planung in
 
 ---
 
-# in:si 0.7.0 – Release notes
+# in:si 0.7.1 – Release notes
+
+## Hotfix 0.7.1
+
+On Windows, courses now open correctly from user directories such as
+`C:\Users\...`; the footer no longer interprets the path as a Python literal
+and therefore no longer triggers the corresponding HTTP 500 error.
 
 in:si 0.7 establishes the technical foundation for controlled program
 execution, subject-neutral trainers and a local visual course editor. This is

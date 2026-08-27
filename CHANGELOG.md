@@ -2,17 +2,19 @@
 
 ## 0.8.0 – in Entwicklung
 
+- den veröffentlichten `v0.7.1`-Stand in `develop/v0.8` übernommen und die
+  stabile Downloadversion sowie die Plattformnachweise fortgeschrieben;
 - Paket- und Laufzeitversion des Entwicklungszweigs auf `0.8.0.dev0`
-  vereinheitlicht; stabile Downloadlinks bleiben bis zur Freigabe bei 0.7.0;
+  vereinheitlicht; stabile Downloadlinks bleiben bis zur Freigabe bei 0.7.1;
 - die ausgeschriebene Bedeutung **informatica simplicissima** und ihre
   didaktische Leitidee in der deutschen und englischen README wieder direkt in
   der Einleitung sichtbar gemacht;
 - den Funktionsumfang für 0.8 geschlossen und in einem Abschlussprotokoll mit
   umgesetzten Bereichen, Messwerten, Wartungsschuld und sechs verbleibenden
   Freigabeschritten festgehalten;
-- den reproduzierten Windows-AppContainer-Fehler des letzten `main`-Builds als
-  0.8-Releaseblocker übernommen; die vorhandene lauffähige 0.7.0 bleibt davon
-  unberührt;
+- den Windows-AppContainer-Nachweis nach dem grünen `v0.7.1`-Release für den
+  zusammengeführten 0.8-Stand und echte Schulgeräte als Freigabepunkt
+  beibehalten;
 - versionierte, idempotente 0.7→0.8-Migrationen für Einstellungen, Kursmarker
   und Lernstände samt unverändertem Originalbackup und simulierten
   Abbruch-/Datenträgerfehlern ergänzt;
@@ -57,11 +59,17 @@
   festgelegt und plattformspezifische Buildmanifeste ergänzt;
 - externe Trainer-Plugins vor dem Import inventarisiert und an eine sichtbare,
   paket- und versionsbezogene Zustimmung gebunden;
-- Stand 23. August 2026: 475 normale Prüfungen bestanden, eine
+- Stand 27. August 2026: 476 normale Prüfungen bestanden, eine
   plattformbedingt übersprungen sowie vier separat ausgeführte E2E-Prüfungen
   bestanden;
   selbst gepflegter Python-Produktivcode 18.793 gegenüber 18.746 Zeilen zu
   Beginn der 0.8-Konsolidierung.
+
+## 0.7.1 – 2026-08-27
+
+- einen Windows-Startfehler behoben, bei dem Kursordner unter
+  `C:\Users\...` durch die Auswertung des Footer-Tooltips als Python-Literal
+  einen HTTP-500-Fehler auslösten.
 
 ## 0.7.0 – 2026-08-22
 

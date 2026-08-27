@@ -7,7 +7,7 @@
 **Language:** [Deutsch](README.md) · English
 
 **This development branch builds in:si 0.8.0.dev0.** It is not a published
-release yet. **in:si 0.7.0** remains the current stable release of the local
+release yet. **in:si 0.7.1** remains the current stable release of the local
 desktop learning environment for modular computer science courses. The app combines course
 installation, learning texts, interactive assignments, automated feedback,
 progress, projects and authoring tools in one application that remains largely
@@ -25,17 +25,14 @@ and tools behind a simplified learning interface. Its educational principle is:
 > Desktop builds are not production-signed. The macOS build is ad-hoc signed
 > but not notarized.
 
-> **Known `main` build finding:** The latest 0.7 desktop workflow built Linux
-> and both macOS architectures successfully. On Windows only the AppContainer
-> self-test failed because the PyInstaller runner could not reopen its embedded
-> PKG archive inside the container; a rerun reproduced the failure. A working
-> 0.7.0 release remains available. The finding will be fixed and verified as a
-> mandatory Windows sandbox release gate for 0.8 instead of prompting another
-> 0.7 release.
+> **Current build evidence:** Release `v0.7.1` built successfully for Windows,
+> Linux and both macOS architectures. The Windows AppContainer self-test and
+> real Windows window launch passed in the release workflow. The same evidence
+> remains mandatory for the 0.8 development state and on real school devices.
 
 > **0.8.0.dev0 development state:** `develop/v0.8` now includes versioned data
 > migration, visible project snapshots, local data control, faster startup
-> paths and a more focused test structure. The current check reports 475
+> paths and a more focused test structure. The current check reports 476
 > passed tests, one platform-related skip and four additional passing E2E
 > tests. See the
 > [draft 0.8 release notes](docs/release-notes-0.8.md) for progress and release
@@ -114,15 +111,15 @@ The visible `venv` directory name also avoids inherited Finder hidden flags on
 macOS with Python 3.14, which can otherwise disable the `.pth` file of an
 editable installation.
 
-The stable desktop packages for `0.7.0` are built automatically from the
-corresponding version tag and published in the official GitHub release:
+The desktop packages for `0.7.1` are built automatically from the corresponding
+version tag and published in the official GitHub release:
 
 | Operating system | Architecture | Download |
 |---|---|---|
-| Windows | x86_64 | **[Download ZIP](https://github.com/finalnode/insi/releases/download/v0.7.0/insi-0.7.0-windows-x86_64.zip)** |
-| Linux | x86_64 | **[Download TAR.GZ](https://github.com/finalnode/insi/releases/download/v0.7.0/insi-0.7.0-linux-x86_64.tar.gz)** |
-| macOS | Apple Silicon (`arm64`) | **[Download DMG](https://github.com/finalnode/insi/releases/download/v0.7.0/insi-0.7.0-macos-arm64.dmg)** |
-| macOS | Intel (`x86_64`) | **[Download DMG](https://github.com/finalnode/insi/releases/download/v0.7.0/insi-0.7.0-macos-x86_64.dmg)** |
+| Windows | x86_64 | **[Download ZIP](https://github.com/finalnode/insi/releases/download/v0.7.1/insi-0.7.1-windows-x86_64.zip)** |
+| Linux | x86_64 | **[Download TAR.GZ](https://github.com/finalnode/insi/releases/download/v0.7.1/insi-0.7.1-linux-x86_64.tar.gz)** |
+| macOS | Apple Silicon (`arm64`) | **[Download DMG](https://github.com/finalnode/insi/releases/download/v0.7.1/insi-0.7.1-macos-arm64.dmg)** |
+| macOS | Intel (`x86_64`) | **[Download DMG](https://github.com/finalnode/insi/releases/download/v0.7.1/insi-0.7.1-macos-x86_64.dmg)** |
 
 All releases remain available on the
 [GitHub Releases page](https://github.com/finalnode/insi/releases).

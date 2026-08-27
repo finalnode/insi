@@ -1,11 +1,11 @@
 # in:si 0.8 – Release-Notes (Entwurf)
 
-Stand: 23. August 2026 · Version: `0.8.0.dev0` · Zweig: `develop/v0.8` · noch
+Stand: 27. August 2026 · Version: `0.8.0.dev0` · Zweig: `develop/v0.8` · noch
 nicht veröffentlicht
 
 Diese Datei begleitet die Entwicklung von 0.8. Sie wird nach jedem
 abgeschlossenen, getesteten Arbeitsschritt aktualisiert. Die stabilen Downloads
-bleiben bis zur Freigabe bei 0.7.0.
+bleiben bis zur Freigabe bei 0.7.1.
 
 Der Funktionsumfang ist seit dem 23. August 2026 geschlossen. Das
 [Abschlussprotokoll](v0.8-abschlussprotokoll.md) trennt umgesetzte Funktionen,
@@ -64,7 +64,7 @@ kommen keine weiteren Produktfunktionen hinzu.
 
 ## Aktueller Teststand
 
-- 475 normale Prüfungen bestanden;
+- 476 normale Prüfungen bestanden;
 - eine Linux-Bubblewrap-Prüfung auf macOS übersprungen;
 - vier NiceGUI-E2E-Prüfungen separat ausgeführt und bestanden;
 - vollständige Offline-Build-, Sandbox-, native GUI- und Schulgeräte-Matrix vor
@@ -76,10 +76,10 @@ kommen keine weiteren Produktfunktionen hinzu.
   Migration und Wiederherstellung testen;
 - reproduzierbare Paket-Locks, Offline-Runtime-Aufbau und Paketgrößen für
   Windows, Linux, macOS Intel und macOS ARM nachweisen;
-- Sandbox als letzten großen Plattformblock prüfen und nur bei einem konkreten
-  Befund vor der Freigabe ändern; der reproduzierte Windows-AppContainer-Fehler
-  beim erneuten Lesen des eingebetteten PyInstaller-PKG-Archivs ist ein solcher
-  verbindlicher Befund;
+- Sandbox als letzten großen Plattformblock auf dem zusammengeführten 0.8-Stand
+  prüfen; das grüne `v0.7.1`-Release belegt AppContainer-Selbsttest und echten
+  Windows-Fensterstart, ersetzt aber nicht den erneuten 0.8-Nachweis und den
+  Test auf einem echten Schulgerät;
 - Toolbar, Kernabläufe und Performance auf echten Zielgeräten manuell abnehmen;
 - den Branch über Pull Request beziehungsweise Merge durch die CI führen;
 - nach bestandener Freigabematrix die Entwicklungsversion `0.8.0.dev0` auf
@@ -92,12 +92,12 @@ Auswirkungen und Workarounds in den [bekannten Problemen](../KNOWN_ISSUES.md).
 
 # in:si 0.8 – Draft release notes
 
-Status: 23 August 2026 · version: `0.8.0.dev0` · branch: `develop/v0.8` · not
+Status: 27 August 2026 · version: `0.8.0.dev0` · branch: `develop/v0.8` · not
 released
 
 Version 0.8 focuses on safe 0.7-to-0.8 data migration, visible project-state
 restoration, faster course startup, smaller packages and clearer architectural
-boundaries. The current development check reports 475 passed tests, one
+boundaries. The current development check reports 476 passed tests, one
 platform-related skip and four separately executed, passing E2E tests. Full
 offline-build, sandbox, native-GUI and real-device verification remains required
-before release. Stable downloads therefore continue to point to 0.7.0.
+before release. Stable downloads therefore continue to point to 0.7.1.

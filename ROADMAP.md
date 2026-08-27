@@ -29,7 +29,7 @@ Probleme als lebende Vorab-Dokumentation. Nach jedem abgeschlossenen und
 getesteten Schritt werden mindestens Teststand, umgesetzte Änderung und
 verbleibende Einschränkungen in den jeweils betroffenen Markdown-Dateien
 aktualisiert. Die stabilen Downloadlinks zeigen bis zur Freigabe weiterhin auf
-0.7.0; Paket und Laufzeitanzeige des Zweigs tragen `0.8.0.dev0`.
+0.7.1; Paket und Laufzeitanzeige des Zweigs tragen `0.8.0.dev0`.
 
 ## 0.7 – sichere technische Grundlage
 
@@ -95,10 +95,12 @@ bewusst verbleibende Wartungsschuld und sechs noch offene Freigabeschritte sind
 im [0.8-Abschlussprotokoll](docs/v0.8-abschlussprotokoll.md) zusammengefasst.
 Weitere Änderungen müssen unmittelbar aus diesen Freigabeprüfungen entstehen
 oder eine kleine, nachweisbare Korrektur ohne neuen Produktumfang sein.
-Der in zwei `main`-CI-Versuchen reproduzierte Windows-AppContainer-Fehler beim
-erneuten Lesen des eingebetteten PyInstaller-PKG-Archivs wird deshalb in 0.8
-übernommen. Die vorhandene 0.7.0-Veröffentlichung bleibt nutzbar; ein neues
-0.7-Release wird allein für diesen CI-Befund nicht eröffnet.
+Der in zwei früheren `main`-CI-Versuchen reproduzierte Windows-AppContainer-
+Fehler beim erneuten Lesen des eingebetteten PyInstaller-PKG-Archivs wurde im
+vollständigen `v0.7.1`-Release-Workflow nicht erneut beobachtet. Windows-
+AppContainer-Selbsttest und echter Fensterstart bestanden dort. Für 0.8 bleibt
+der erneute Nachweis auf dem zusammengeführten Entwicklungsstand und auf einem
+echten Windows-Schulgerät verbindlich.
 
 ### Arbeitsbaseline vom 22. August 2026
 
