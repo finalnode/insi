@@ -91,7 +91,7 @@ wiederhergestellt werden kann.
 
 Der Funktionsumfang für 0.8 ist geschlossen. Neue Produktfunktionen werden vor
 der Freigabe nicht mehr aufgenommen. Die umgesetzten Bereiche, Messwerte,
-bewusst verbleibende Wartungsschuld und sechs noch offene Freigabeschritte sind
+bewusst verbleibende Wartungsschuld und der Status von sechs Freigabeschritten sind
 im [0.8-Abschlussprotokoll](docs/v0.8-abschlussprotokoll.md) zusammengefasst.
 Weitere Änderungen müssen unmittelbar aus diesen Freigabeprüfungen entstehen
 oder eine kleine, nachweisbare Korrektur ohne neuen Produktumfang sein.

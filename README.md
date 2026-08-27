@@ -39,16 +39,17 @@ fertig implementiert.
 > ändern. Der macOS-Build ist nur lokal ad-hoc, nicht mit einer Developer-ID
 > signiert und nicht notarisiert; die übrigen Desktop-Builds sind unsigniert.
 
-> **Aktueller Buildnachweis:** `develop/v0.8` wurde auf Commit `87da018` für
+> **Aktueller Buildnachweis:** `develop/v0.8` wurde auf Commit `d038417` für
 > Windows, Linux sowie beide macOS-Architekturen erfolgreich gebaut. Windows-
 > AppContainer und echter Fensterstart, Linux-Bubblewrap/Wayland sowie beide
-> macOS-Seatbelt-Prüfungen bestanden. Die Abnahme auf echten Schulgeräten bleibt
-> verbindlich.
+> macOS-Seatbelt-Prüfungen bestanden. Zusätzlich wurde auf jeder Plattform eine
+> frische Kurs-Runtime ausschließlich aus dem paketierten Offline-Wheelhouse
+> aufgebaut. Die Abnahme auf echten Schulgeräten bleibt verbindlich.
 
 > **Entwicklungsstand 0.8.0.dev0:** Auf `develop/v0.8` sind die versionierte
 > Datenmigration, sichtbare Projektstände, lokale Datenkontrolle, schnellere
 > Startpfade und ein fachlich besser testbarer Kern umgesetzt. Der
-> aktuelle Nachweis umfasst 477 bestandene, eine plattformbedingt
+> aktuelle Nachweis umfasst 480 bestandene, eine plattformbedingt
 > übersprungene und zusätzlich vier bestandene E2E-Prüfungen. Fortschritt und
 > verbleibende Freigabeblocker stehen im
 > [Entwurf der 0.8-Release-Notes](docs/release-notes-0.8.md). Der geschlossene

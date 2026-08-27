@@ -14,12 +14,12 @@ entfernt oder im [Changelog](CHANGELOG.md) als erledigt dokumentiert.
 | Die überarbeitete TOAST-UI-Toolbar ist bei den vorgesehenen schmalen Browser- und nativen Fensterbreiten noch nicht vollständig manuell abgenommen. | Die Toolbar bleibt nun innerhalb des Editorrahmens und kann horizontal scrollen; bei unbekannten WebView-Größen sind optische Abweichungen weiterhin möglich. Bearbeitung und Speicherung funktionieren. | Bei Bedarf innerhalb der Toolbar horizontal scrollen. | Browser- und native Breiten in der manuellen 0.8-Matrix abschließend prüfen. |
 | Die manuelle Schulgeräte-Matrix ist noch offen. | Automatisierte Builds prüfen viele technische Eigenschaften, ersetzen aber keinen vollständigen Test auf realen Windows-, macOS- und Linux-Geräten. | Entwicklungstests und CI-Builds verwenden; Alpha-Status beachten. | Dokumentierte Smoke-Tests vor der Freigabe von 0.8. |
 | Vier browsergestützte NiceGUI-E2E-Prüfungen sind vom normalen Testlauf und der aktuellen CI getrennt. | Der normale Lauf bleibt schnell und reproduzierbar, deckt den vollständigen Browserweg aber nicht ab. Lokal bestehen am 27. August 2026 alle vier Prüfungen; in eingeschränkten Umgebungen können Prozess-Semaphoren fehlen. | E2E-Prüfungen mit `pytest -m e2e` in einer geeigneten lokalen Umgebung ausführen. | Den grünen lokalen Stand vor der 0.8-Freigabe im CI-/Releaseablauf bestätigen. |
-| Der tatsächliche Neuaufbau einer Kurs-Runtime ausschließlich aus den paketierten Wheelhouses ist in der Plattformmatrix noch offen. | Alle vier Buildartefakte enthalten plattformspezifische Wheelhouse- und Paketmanifeste mit Prüfsummen; ihre Offline-Installation wurde im Releaseweg aber noch nicht als eigener Schritt ausgeführt. Das Linux-Paket liegt mit 127,6 MiB über dem weichen 100-MiB-Ziel. | Die geprüften Artefakte nur als Releasekandidaten verwenden; für den stabilen Einsatz bleibt `v0.7.1` maßgeblich. | Offline-Neuaufbau auf allen vier Zielplattformen ausführen und die Linux-Abweichung dokumentiert akzeptieren oder verkleinern. |
 
 ## Plattform- und Sicherheitsgrenzen
 
 | Einschränkung | Bedeutung und sicherer Umgang | Geplante Einordnung |
 |---|---|---|
+| Das Linux-x86_64-Paket liegt mit 127,6 MiB über dem weichen 100-MiB-Ziel. | Der Mehrumfang stammt aus der vollständigen GTK/WebKit-Laufzeit und dem geprüften Offline-Wheelhouse; Funktion und Offline-Neuaufbau sind auf Commit `d038417` nachgewiesen. Für 0.8 ist dies eine akzeptierte Größenabweichung, kein Sicherheits- oder Funktionsfehler. | Nach 0.8 weiter verkleinern, sofern dies ohne schwächere Offline- oder Plattformzusage möglich ist. |
 | Die Desktop-Pakete sind noch nicht produktionssigniert; der macOS-Build ist nur ad-hoc signiert und nicht notarisiert. | Betriebssysteme können Warnungen anzeigen oder den Start blockieren. Pakete nur aus den offiziellen GitHub Releases beziehungsweise den zugehörigen dokumentierten Builds beziehen. | Produktionsverteilung spätestens für 1.0. |
 | Ein unter einem synchronisierten macOS-`Documents`-Ordner erzeugter loser `.app`-Ordner kann nach dem Signieren erneut Finder-/File-Provider-Metadaten erhalten. | `codesign --verify` kann für den losen lokalen Build fehlschlagen, obwohl der Buildinhalt korrekt ist. | Für die Verteilung `build_macos_dmg.py` verwenden; es bereinigt und signiert den tatsächlichen Payload im privaten Tempordner. Der erzeugte 0.7-DMG-Payload wurde lokal erfolgreich verifiziert. | Dauerhafte Buildumgebungen außerhalb synchronisierter Ordner verwenden; der CI- und Releaseweg bleibt der DMG. |
 | Der macOS-Runner verwendet derzeit `/usr/bin/sandbox-exec` und eine von Apple nicht als stabile öffentliche API zugesagte Profilsprache. | Nach einem macOS-Update kann der Selbsttest scheitern. in:si startet Fremdcode dann nicht ungeschützt, sondern sperrt den integrierten Start. | Signierter und notarisierter Sandbox-Helper für 1.0. |
@@ -49,7 +49,7 @@ den heutigen Einsatz:
 ## Kürzlich behoben
 
 Der Windows-AppContainer erhält neben dem Runtimeordner eine explizite
-Lesefreigabe auf die gestartete PyInstaller-EXE. Auf Commit `87da018` bestanden
+Lesefreigabe auf die gestartete PyInstaller-EXE. Auf Commit `d038417` bestanden
 dadurch AppContainer- und Job-Object-Selbsttest sowie der echte Fensterstart in
 der Windows-Buildmatrix gemeinsam.
 

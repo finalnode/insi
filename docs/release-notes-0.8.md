@@ -64,24 +64,21 @@ kommen keine weiteren Produktfunktionen hinzu.
 
 ## Aktueller Teststand
 
-- 477 normale Prüfungen bestanden;
+- 480 normale Prüfungen bestanden;
 - eine Linux-Bubblewrap-Prüfung auf macOS übersprungen;
 - vier NiceGUI-E2E-Prüfungen separat ausgeführt und bestanden;
 - CI auf Python 3.11 bis 3.13 sowie Desktop-, Sandbox- und native GUI-Matrix auf
-  Commit `87da018` bestanden; Offline-Neuaufbau und Schulgeräte-Matrix bleiben
-  vor der Freigabe erforderlich.
+  Commit `d038417` bestanden;
+- eine frische Kurs-Runtime auf Windows, Linux und beiden macOS-Architekturen
+  ausschließlich aus dem paketierten Wheelhouse offline aufgebaut und geprüft.
 
 ## Noch offen vor der Freigabe
 
 - weitere reale 0.7-Datenbestände und physisch entfernte Datenträger gegen die
   Migration und Wiederherstellung testen;
-- den tatsächlichen Offline-Neuaufbau aus den vier paketierten Wheelhouses
-  nachweisen und die Linux-Paketgröße von 127,6 MiB dokumentiert akzeptieren
-  oder weiter verkleinern;
 - die automatisiert grüne Sandboxmatrix auf echten Zielgeräten, insbesondere
   einem Windows-Schulgerät, bestätigen;
 - Toolbar, Kernabläufe und Performance auf echten Zielgeräten manuell abnehmen;
-- den Branch über Pull Request beziehungsweise Merge durch die CI führen;
 - nach bestandener Freigabematrix die Entwicklungsversion `0.8.0.dev0` auf
   `0.8.0` setzen und den Release-Tag gegen denselben Stand prüfen.
 
@@ -97,7 +94,8 @@ released
 
 Version 0.8 focuses on safe 0.7-to-0.8 data migration, visible project-state
 restoration, faster course startup, smaller packages and clearer architectural
-boundaries. The current development check reports 477 passed tests, one
+boundaries. The current development check reports 480 passed tests, one
 platform-related skip and four separately executed, passing E2E tests. Full
-offline-build, sandbox, native-GUI and real-device verification remains required
-before release. Stable downloads therefore continue to point to 0.7.1.
+offline runtime rebuilds passed on all four packaged targets. Real-device
+verification remains required before release. Stable downloads therefore
+continue to point to 0.7.1.

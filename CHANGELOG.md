@@ -16,8 +16,12 @@
   didaktische Leitidee in der deutschen und englischen README wieder direkt in
   der Einleitung sichtbar gemacht;
 - den Funktionsumfang für 0.8 geschlossen und in einem Abschlussprotokoll mit
-  umgesetzten Bereichen, Messwerten, Wartungsschuld und sechs verbleibenden
+  umgesetzten Bereichen, Messwerten, Wartungsschuld und sechs nachverfolgten
   Freigabeschritten festgehalten;
+- in allen vier Desktop-Builds eine frische Kurs-Runtime mit geprüften
+  Manifesten und `--no-index` ausschließlich aus dem jeweils paketierten
+  Wheelhouse aufgebaut; die Linux-Größe von 127,6 MiB ist als sichere
+  Abweichung vom weichen 100-MiB-Ziel für 0.8 dokumentiert;
 - den Windows-AppContainer-Nachweis nach dem grünen `v0.7.1`-Release für den
   zusammengeführten 0.8-Stand und echte Schulgeräte als Freigabepunkt
   beibehalten;
@@ -65,7 +69,7 @@
   festgelegt und plattformspezifische Buildmanifeste ergänzt;
 - externe Trainer-Plugins vor dem Import inventarisiert und an eine sichtbare,
   paket- und versionsbezogene Zustimmung gebunden;
-- Stand 27. August 2026: 477 normale Prüfungen bestanden, eine
+- Stand 27. August 2026: 480 normale Prüfungen bestanden, eine
   plattformbedingt übersprungen sowie vier separat ausgeführte E2E-Prüfungen
   bestanden;
   selbst gepflegter Python-Produktivcode 18.806 gegenüber 18.746 Zeilen zu
