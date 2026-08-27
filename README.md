@@ -6,7 +6,7 @@
 
 **Sprache:** Deutsch · [English](README.en.md)
 
-**in:si 0.7.0** ist eine lokale Desktop-Lernumgebung für modulare
+**in:si 0.7.1** ist eine lokale Desktop-Lernumgebung für modulare
 Informatikkurse. Sie bringt Kursinstallation, Lerntexte, interaktive Aufgaben,
 automatische Tests, Lernstand, Projekte und Autorenwerkzeuge in eine gemeinsame
 Anwendung, die nach der Einrichtung weitgehend offline funktioniert.
@@ -267,22 +267,22 @@ Noch offene Arbeiten stehen ausschließlich in der [Roadmap](#roadmap).
 
 ### Desktop-App
 
-Die Pakete für `0.7.0` werden automatisiert aus dem zugehörigen Versionstag
+Die Pakete für `0.7.1` werden automatisiert aus dem zugehörigen Versionstag
 gebaut und im offiziellen GitHub Release veröffentlicht:
 
 | Betriebssystem | Architektur | Download |
 |---|---|---|
-| Windows | x86_64 | **[ZIP direkt herunterladen](https://github.com/finalnode/insi/releases/download/v0.7.0/insi-0.7.0-windows-x86_64.zip)** |
-| Linux | x86_64 | **[TAR.GZ direkt herunterladen](https://github.com/finalnode/insi/releases/download/v0.7.0/insi-0.7.0-linux-x86_64.tar.gz)** |
-| macOS | Apple Silicon (`arm64`) | **[DMG direkt herunterladen](https://github.com/finalnode/insi/releases/download/v0.7.0/insi-0.7.0-macos-arm64.dmg)** |
-| macOS | Intel (`x86_64`) | **[DMG direkt herunterladen](https://github.com/finalnode/insi/releases/download/v0.7.0/insi-0.7.0-macos-x86_64.dmg)** |
+| Windows | x86_64 | **[ZIP direkt herunterladen](https://github.com/finalnode/insi/releases/download/v0.7.1/insi-0.7.1-windows-x86_64.zip)** |
+| Linux | x86_64 | **[TAR.GZ direkt herunterladen](https://github.com/finalnode/insi/releases/download/v0.7.1/insi-0.7.1-linux-x86_64.tar.gz)** |
+| macOS | Apple Silicon (`arm64`) | **[DMG direkt herunterladen](https://github.com/finalnode/insi/releases/download/v0.7.1/insi-0.7.1-macos-arm64.dmg)** |
+| macOS | Intel (`x86_64`) | **[DMG direkt herunterladen](https://github.com/finalnode/insi/releases/download/v0.7.1/insi-0.7.1-macos-x86_64.dmg)** |
 
 Jede Änderung auf `main` wird durch
 [GitHub Actions](https://github.com/finalnode/insi/actions/workflows/build-desktop.yml)
 auf allen vier Zielsystemen getestet und gebaut. Dauerhaft veröffentlichte,
 direkt herunterladbare Pakete stehen unter
 [GitHub Releases](https://github.com/finalnode/insi/releases); sie entstehen aus
-einem Versionstag wie `v0.7.0`.
+einem Versionstag wie `v0.7.1`.
 
 ### PyKIM-Beispielkurs
 
@@ -607,7 +607,7 @@ fail-closed gesperrt.
 
 Ergebnisse liegen unter `dist/releases/`. Unter Windows sind im nativen Modus
 zwei `insi.exe`-Prozesse normal: lokaler Server und WebView laufen getrennt. Ein
-Versionstag wie `v0.7.0` veröffentlicht erfolgreiche CI-Builds als GitHub
+Versionstag wie `v0.7.1` veröffentlicht erfolgreiche CI-Builds als GitHub
 Release.
 
 ## Roadmap

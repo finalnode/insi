@@ -6,7 +6,7 @@
 
 **Language:** [Deutsch](README.md) · English
 
-**in:si 0.7.0** is a local desktop learning environment for
+**in:si 0.7.1** is a local desktop learning environment for
 modular computer science courses. It combines course installation, learning
 texts, interactive assignments, automated feedback, progress, projects and
 authoring tools in one application that remains largely offline after setup.
@@ -85,15 +85,15 @@ On Windows activate the environment with:
 .venv\Scripts\activate
 ```
 
-The desktop packages for `0.7.0` are built automatically from the corresponding
+The desktop packages for `0.7.1` are built automatically from the corresponding
 version tag and published in the official GitHub release:
 
 | Operating system | Architecture | Download |
 |---|---|---|
-| Windows | x86_64 | **[Download ZIP](https://github.com/finalnode/insi/releases/download/v0.7.0/insi-0.7.0-windows-x86_64.zip)** |
-| Linux | x86_64 | **[Download TAR.GZ](https://github.com/finalnode/insi/releases/download/v0.7.0/insi-0.7.0-linux-x86_64.tar.gz)** |
-| macOS | Apple Silicon (`arm64`) | **[Download DMG](https://github.com/finalnode/insi/releases/download/v0.7.0/insi-0.7.0-macos-arm64.dmg)** |
-| macOS | Intel (`x86_64`) | **[Download DMG](https://github.com/finalnode/insi/releases/download/v0.7.0/insi-0.7.0-macos-x86_64.dmg)** |
+| Windows | x86_64 | **[Download ZIP](https://github.com/finalnode/insi/releases/download/v0.7.1/insi-0.7.1-windows-x86_64.zip)** |
+| Linux | x86_64 | **[Download TAR.GZ](https://github.com/finalnode/insi/releases/download/v0.7.1/insi-0.7.1-linux-x86_64.tar.gz)** |
+| macOS | Apple Silicon (`arm64`) | **[Download DMG](https://github.com/finalnode/insi/releases/download/v0.7.1/insi-0.7.1-macos-arm64.dmg)** |
+| macOS | Intel (`x86_64`) | **[Download DMG](https://github.com/finalnode/insi/releases/download/v0.7.1/insi-0.7.1-macos-x86_64.dmg)** |
 
 All releases remain available on the
 [GitHub Releases page](https://github.com/finalnode/insi/releases).

@@ -1,6 +1,12 @@
 # Änderungen
 
-## 0.7.0 – unveröffentlicht
+## 0.7.1 – 2026-08-27
+
+- einen Windows-Startfehler behoben, bei dem Kursordner unter
+  `C:\Users\...` durch die Auswertung des Footer-Tooltips als Python-Literal
+  einen HTTP-500-Fehler auslösten.
+
+## 0.7.0 – 2026-08-22
 
 - in:si von MIT auf `AGPL-3.0-or-later` umgestellt; bereits veröffentlichte
   MIT-Versionen, PyKIM, externe Kurse und Drittanbieterbestandteile behalten
