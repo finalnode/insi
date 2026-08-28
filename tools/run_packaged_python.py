@@ -18,17 +18,19 @@ def run(runner: Path, arguments: list[str]) -> int:
         tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stdout,
         tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stderr,
     ):
-        completed = subprocess.run(
-            [str(runner), "--pykim-python", *arguments],
-            stdout=stdout,
-            stderr=stderr,
-            check=False,
-            timeout=180,
-        )
-        stdout.seek(0)
-        stderr.seek(0)
-        print(stdout.read(), end="")
-        print(stderr.read(), end="", file=sys.stderr)
+        try:
+            completed = subprocess.run(
+                [str(runner), "--pykim-python", *arguments],
+                stdout=stdout,
+                stderr=stderr,
+                check=False,
+                timeout=180,
+            )
+        finally:
+            stdout.seek(0)
+            stderr.seek(0)
+            print(stdout.read(), end="")
+            print(stderr.read(), end="", file=sys.stderr)
     return completed.returncode
 
 
