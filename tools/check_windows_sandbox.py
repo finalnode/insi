@@ -6,7 +6,6 @@ import json
 import os
 import platform
 import subprocess
-import tempfile
 from pathlib import Path
 
 from insi import sandbox
@@ -56,7 +55,7 @@ def _run_isolation_probe(root: Path) -> None:
         env=execution_environment(policy),
         capture_output=True,
         text=True,
-        timeout=20,
+        timeout=45,
     )
     result = json.loads(completed.stdout)
     assert completed.returncode == 0, completed.stderr
@@ -186,8 +185,7 @@ def main() -> int:
     if not status.available:
         raise RuntimeError(status.detail)
     sandbox._adapter_override = adapter
-    with tempfile.TemporaryDirectory(prefix="insi-windows-sandbox-ci-") as temporary:
-        root = Path(temporary)
+    with sandbox._temporary_windows_probe() as root:
         _progress("isolation-start")
         _run_isolation_probe(root)
         _progress("isolation-done:process-limit-start")

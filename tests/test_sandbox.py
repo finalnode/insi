@@ -473,6 +473,36 @@ def test_sandboxed_process_imports_native_broker_violation_reason(tmp_path):
     assert not violation_file.exists()
 
 
+def test_windows_process_termination_falls_back_after_invalid_console_handle(
+    monkeypatch,
+):
+    events = []
+
+    class NativeProcess:
+        pid = 123
+
+        @staticmethod
+        def poll():
+            return None
+
+        @staticmethod
+        def send_signal(_signal):
+            raise SystemError("invalid Windows console handle")
+
+        @staticmethod
+        def terminate():
+            events.append("terminate")
+
+    process = object.__new__(SandboxedProcess)
+    process._process = NativeProcess()
+    monkeypatch.setattr(sandbox.os, "name", "nt")
+    monkeypatch.setattr(sandbox.signal, "CTRL_BREAK_EVENT", 1, raising=False)
+
+    process.terminate_tree()
+
+    assert events == ["terminate"]
+
+
 def test_windows_broker_declares_fail_closed_kernel_controls():
     source = (
         Path(__file__).parents[1] / "src/insi/windows_sandbox_helper.py"

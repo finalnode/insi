@@ -1342,7 +1342,7 @@ class SandboxedProcess:
             try:
                 self._process.send_signal(signal.CTRL_BREAK_EVENT)
                 return
-            except (OSError, ValueError):
+            except (OSError, SystemError, ValueError):
                 pass
         self._process.kill() if force else self._process.terminate()
 
