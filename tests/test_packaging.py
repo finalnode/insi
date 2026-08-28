@@ -138,8 +138,6 @@ def test_packaged_python_checker_waits_and_returns_child_status(monkeypatch, tmp
     calls = []
 
     class Completed:
-        stdout = "ok\n"
-        stderr = ""
         returncode = 7
 
     monkeypatch.setattr(
@@ -152,7 +150,7 @@ def test_packaged_python_checker_waits_and_returns_child_status(monkeypatch, tmp
     assert calls == [
         (
             [str(runner), "--pykim-python", "-c", "print('ok')"],
-            {"capture_output": True, "text": True, "check": False},
+            {"check": False, "timeout": 180},
         )
     ]
 

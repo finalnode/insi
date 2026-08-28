@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import subprocess
-import sys
 from pathlib import Path
 
 
@@ -12,14 +11,9 @@ def run(runner: Path, arguments: list[str]) -> int:
     """Warte auf den GUI-Starter und reiche Ausgabe sowie Exitcode weiter."""
     completed = subprocess.run(
         [str(runner), "--pykim-python", *arguments],
-        capture_output=True,
-        text=True,
         check=False,
+        timeout=180,
     )
-    if completed.stdout:
-        print(completed.stdout, end="")
-    if completed.stderr:
-        print(completed.stderr, end="", file=sys.stderr)
     return completed.returncode
 
 
