@@ -46,7 +46,7 @@ def test_desktop_workflow_covers_all_release_targets():
         "tools/build_macos_dmg.py --rebuild-app",
         "tools/check_release_version.py",
         "gh release upload",
-        'dist/windows/insi/insi-python.exe',
+        'dist/windows/insi/insi.exe',
         'dist/macos/insi.app/Contents/MacOS/insi-python',
         "bubblewrap",
     ):
@@ -113,10 +113,48 @@ def test_desktop_brand_uses_safe_technical_names_and_visible_display_name():
     )
 
     assert 'name="insi"' in desktop
-    assert 'name="insi-python"' in desktop
+    assert 'if system != "Windows"' in desktop
+    assert "*executables" in desktop
     assert 'name="insi.app"' in macos
     assert '"CFBundleDisplayName": "in:si"' in macos
     assert 'bundle_identifier="de.simplicissima.insi"' in macos
+
+
+def test_windows_build_uses_one_executable_for_app_and_internal_python():
+    workflow = (PROJECT / ".github/workflows/build-desktop.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "tools/run_packaged_python.py dist/windows/insi/insi.exe" in workflow
+    assert "run_packaged_python.py dist/windows/insi/insi-python.exe" not in workflow
+    assert "Einzelnen Windows-Starter prüfen" in workflow
+
+
+def test_packaged_python_checker_waits_and_returns_child_status(monkeypatch, tmp_path):
+    from tools import run_packaged_python
+
+    runner = tmp_path / "insi.exe"
+    runner.touch()
+    calls = []
+
+    class Completed:
+        stdout = "ok\n"
+        stderr = ""
+        returncode = 7
+
+    monkeypatch.setattr(
+        run_packaged_python.subprocess,
+        "run",
+        lambda command, **options: calls.append((command, options)) or Completed(),
+    )
+
+    assert run_packaged_python.run(runner, ["-c", "print('ok')"]) == 7
+    assert calls == [
+        (
+            [str(runner), "--pykim-python", "-c", "print('ok')"],
+            {"capture_output": True, "text": True, "check": False},
+        )
+    ]
 
 
 def test_macos_build_removes_extended_attributes_and_verifies_adhoc_signature():

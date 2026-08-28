@@ -113,23 +113,24 @@ executable = EXE(
     console=False,
 )
 
-python_runner = EXE(
-    pyz,
-    analysis.scripts,
-    [],
-    exclude_binaries=True,
-    name="insi-python",
-    icon=icon if system == "Windows" else None,
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=False,
-    console=True,
-)
+executables = [executable]
+if system != "Windows":
+    python_runner = EXE(
+        pyz,
+        analysis.scripts,
+        [],
+        exclude_binaries=True,
+        name="insi-python",
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=False,
+        console=True,
+    )
+    executables.append(python_runner)
 
 collection = COLLECT(
-    executable,
-    python_runner,
+    *executables,
     analysis.binaries,
     analysis.zipfiles,
     analysis.datas,

@@ -50,10 +50,20 @@ jobs:
       - run: python tools/build_desktop_app.py
       - name: Eingebettetes Python prüfen
         shell: pwsh
-        run: '& "dist/windows/insi/insi-python.exe" --pykim-python -c "import clr, pykim; clr.AddReference(''System.Windows.Forms''); print(pykim.__version__)"'
+        run: >-
+          python tools/run_packaged_python.py dist/windows/insi/insi.exe -- -c
+          "import clr, pykim; clr.AddReference('System.Windows.Forms'); print(pykim.__version__)"
       - name: Windows-AppContainer und Job Object prüfen
         shell: pwsh
-        run: '& "dist/windows/insi/insi-python.exe" --pykim-python tools/check_windows_sandbox.py'
+        run: >-
+          python tools/run_packaged_python.py dist/windows/insi/insi.exe --
+          tools/check_windows_sandbox.py
+      - name: Einzelnen Windows-Starter prüfen
+        shell: pwsh
+        run: |
+          if (Test-Path "dist/windows/insi/insi-python.exe") {
+            throw 'Der interne zweite Windows-Starter wurde weiterhin gebaut.'
+          }
       - name: Kompatible pythonnet-Runtime prüfen
         shell: pwsh
         run: |

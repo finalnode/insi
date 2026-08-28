@@ -1,4 +1,19 @@
-# in:si 0.7.1 – Release Notes
+# in:si 0.7.2 – Release Notes (Testkandidat)
+
+## Testkandidat 0.7.2
+
+Unter Windows enthält der portable App-Ordner nur noch eine `insi.exe`. Dieselbe
+Datei startet ohne internen Schalter die Desktop-App und führt mit dem internen
+Runner-Schalter kontrollierte Schüler-, Sandbox- und Prüfläufe aus. Eine
+verwechselbare `insi-python.exe` liegt nicht mehr daneben.
+
+Der AppContainer erhält eine explizite Lesefreigabe für diese EXE. Kurzzeitige
+Fremdsperren beim anschließenden Entfernen des Probeordners werden begrenzt
+wiederholt und nicht mehr mit einer fehlgeschlagenen Isolation verwechselt. Die
+eigentliche Datei- und Netzwerkprüfung bleibt unverändert fail-closed.
+
+Vor einer Veröffentlichung sind die vollständige Desktopmatrix und der reale
+Start auf den betroffenen iServ-Schulrechnern erforderlich.
 
 ## Hotfix 0.7.1
 
@@ -52,7 +67,17 @@ in [SECURITY.md](../SECURITY.md) und die weitere Planung in
 
 ---
 
-# in:si 0.7.1 – Release notes
+# in:si 0.7.2 – Draft release notes
+
+## 0.7.2 release candidate
+
+The portable Windows folder now contains a single `insi.exe` which serves as
+both the desktop entry point and, with an internal switch, the controlled
+Python and sandbox runner. Explicit AppContainer access to this executable and
+bounded retries for transient probe-directory cleanup address the two observed
+school-device failure paths without weakening the isolation test. Release still
+requires the complete desktop matrix and verification on the affected iServ
+devices.
 
 ## Hotfix 0.7.1
 

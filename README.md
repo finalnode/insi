@@ -6,10 +6,14 @@
 
 **Sprache:** Deutsch · [English](README.en.md)
 
-**in:si 0.7.1** ist eine lokale Desktop-Lernumgebung für modulare
+**in:si 0.7.2 (Testkandidat)** ist eine lokale Desktop-Lernumgebung für modulare
 Informatikkurse. Sie bringt Kursinstallation, Lerntexte, interaktive Aufgaben,
 automatische Tests, Lernstand, Projekte und Autorenwerkzeuge in eine gemeinsame
 Anwendung, die nach der Einrichtung weitgehend offline funktioniert.
+
+> Der 0.7.2-Zweig erprobt unter Windows eine einzige portable `insi.exe` für
+> App und internen Sandbox-Runner. Bis zur erfolgreichen Build- und
+> Schulgeräteabnahme bleibt 0.7.1 die veröffentlichte stabile Downloadversion.
 
 in:si soll den Raum zwischen einer losen Materialsammlung und einem großen
 Learning-Management-System füllen: Ein Kurs darf aus echten Markdown-, Python-

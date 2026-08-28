@@ -200,9 +200,12 @@ def test_windows_adapter_wraps_student_command_in_validated_broker_payload(
     tmp_path, monkeypatch
 ):
     readable = tmp_path / "course" / "task.py"
+    runtime = tmp_path / "runtime" / "insi.exe"
     writable = tmp_path / "project"
     readable.parent.mkdir()
     readable.write_text("print('ok')", encoding="utf-8")
+    runtime.parent.mkdir()
+    runtime.write_bytes(b"runner")
     writable.mkdir()
     adapter = WindowsAppContainerAdapter()
     monkeypatch.setattr(
@@ -228,7 +231,7 @@ def test_windows_adapter_wraps_student_command_in_validated_broker_payload(
     )
 
     launch = adapter.prepare(
-        ["course-python.exe", str(readable)],
+        [str(runtime), str(readable)],
         cwd=writable,
         environment={"PATH": "C:\\Windows\\System32"},
         policy=policy,
@@ -241,7 +244,8 @@ def test_windows_adapter_wraps_student_command_in_validated_broker_payload(
         "--payload",
     )
     payload = decode_payload(launch.command[4])
-    assert payload["command"] == ["course-python.exe", str(readable)]
+    assert payload["command"] == [str(runtime), str(readable)]
+    assert str(runtime.resolve()) in payload["readable_roots"]
     assert str(readable.resolve()) in payload["readable_roots"]
     assert payload["writable_roots"] == [str(writable.resolve())]
     assert payload["limits"]["max_processes"] == 3
@@ -251,6 +255,25 @@ def test_windows_adapter_wraps_student_command_in_validated_broker_payload(
     assert launch.violation_file is not None
     assert payload["violation_file"] == str(launch.violation_file)
     launch.violation_file.unlink()
+
+
+def test_windows_probe_cleanup_retries_transient_file_lock(tmp_path, monkeypatch):
+    path = tmp_path / "probe"
+    path.mkdir()
+    calls = []
+    real_rmtree = shutil.rmtree
+
+    def transient_rmtree(target):
+        calls.append(Path(target))
+        if len(calls) == 1:
+            raise PermissionError(32, "Datei wird von einem anderen Prozess verwendet")
+        real_rmtree(target)
+
+    monkeypatch.setattr(sandbox.shutil, "rmtree", transient_rmtree)
+
+    assert sandbox._remove_tree_with_retries(path, attempts=2, delay_seconds=0)
+    assert calls == [path, path]
+    assert not path.exists()
 
 
 def test_windows_adapter_refuses_network_capability(tmp_path, monkeypatch):

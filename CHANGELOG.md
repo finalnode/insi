@@ -1,5 +1,17 @@
 # Änderungen
 
+## 0.7.2 – Testkandidat
+
+- unter Windows App und internen Python-/Sandbox-Runner in einer einzigen
+  `insi.exe` zusammengeführt; der portable Ordner enthält dadurch keine
+  verwechselbare `insi-python.exe` mehr;
+- dem Windows-AppContainer die gestartete PyInstaller-EXE ausdrücklich lesbar
+  freigegeben, damit sie ihr eingebettetes Archiv zuverlässig erneut öffnen
+  kann;
+- das Entfernen des ausschließlich für den Windows-Sandbox-Selbsttest
+  verwendeten temporären Ordners gegen kurzzeitige Dateisperren gehärtet, ohne
+  die eigentliche Isolationsprüfung abzuschwächen.
+
 ## 0.7.1 – 2026-08-27
 
 - einen Windows-Startfehler behoben, bei dem Kursordner unter

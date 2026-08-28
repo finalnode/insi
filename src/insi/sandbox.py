@@ -13,6 +13,8 @@ import tempfile
 import threading
 import time
 import uuid
+import warnings
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any, Mapping, Protocol, Sequence
@@ -82,6 +84,47 @@ def _existing_roots(paths: Sequence[str | Path]) -> tuple[Path, ...]:
         if path.exists() and path not in result:
             result.append(path)
     return tuple(result)
+
+
+def _remove_tree_with_retries(
+    path: Path,
+    *,
+    attempts: int = 6,
+    delay_seconds: float = 0.1,
+) -> bool:
+    """Entferne einen unter Windows kurzzeitig belegten temporären Baum."""
+    for attempt in range(attempts):
+        try:
+            shutil.rmtree(path)
+            return True
+        except FileNotFoundError:
+            return True
+        except OSError:
+            if attempt + 1 < attempts:
+                time.sleep(delay_seconds)
+    return False
+
+
+@contextmanager
+def _temporary_windows_probe():
+    """Räume den AppContainer-Probeordner trotz kurzer Fremdsperren auf."""
+    path = Path(tempfile.mkdtemp(prefix="insi-win-sandbox-probe-"))
+    try:
+        yield path
+    finally:
+        if not _remove_tree_with_retries(path):
+            warnings.warn(
+                f"Temporärer Windows-Sandbox-Probeordner bleibt vorläufig bestehen: {path}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            threading.Thread(
+                target=_remove_tree_with_retries,
+                args=(path,),
+                kwargs={"attempts": 20, "delay_seconds": 0.5},
+                name="insi-windows-probe-cleanup",
+                daemon=True,
+            ).start()
 
 
 class BubblewrapAdapter:
@@ -408,11 +451,18 @@ class WindowsAppContainerAdapter:
     ) -> tuple[Path, ...]:
         roots = list(BubblewrapAdapter._runtime_roots(command, environment))
         if command:
-            executable = Path(command[0]).expanduser()
+            executable = Path(
+                shutil.which(str(command[0])) or command[0]
+            ).expanduser()
             try:
                 executable = executable.resolve()
             except (OSError, RuntimeError):
                 pass
+            # Der PyInstaller-Starter öffnet sein eingebettetes Archiv nach dem
+            # Prozessstart erneut. Dafür braucht auch die einzelne EXE selbst
+            # eine explizite Lesefreigabe und nicht nur ihr Elternverzeichnis.
+            if executable.is_file():
+                roots.append(executable)
             for candidate in (executable.parent.parent, executable.parent):
                 configuration = candidate / "pyvenv.cfg"
                 if not configuration.is_file():
@@ -494,8 +544,7 @@ class WindowsAppContainerAdapter:
             self._status = SandboxStatus(False, self.name, system, detail)
             return self._status
         try:
-            with tempfile.TemporaryDirectory(prefix="insi-win-sandbox-probe-") as temporary:
-                root = Path(temporary)
+            with _temporary_windows_probe() as root:
                 writable = root / "writable"
                 private = root / "private"
                 writable.mkdir()

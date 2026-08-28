@@ -1,6 +1,6 @@
 # Bekannte Probleme und Einschränkungen
 
-Stand: 21. August 2026, Entwicklungsstand 0.7.0
+Stand: 28. August 2026, Testkandidat 0.7.2
 
 Diese Liste nennt bekannte, reproduzierbare Probleme und bewusst noch nicht
 erfüllte Produktzusagen. Sie ist keine vollständige Sammlung zukünftiger
@@ -11,6 +11,7 @@ entfernt oder im [Changelog](CHANGELOG.md) als erledigt dokumentiert.
 
 | Problem | Auswirkung | Derzeitiger Umgang | Ziel |
 |---|---|---|---|
+| Der Windows-Start und der AppContainer-Probelauf des 0.7.2-Kandidaten sind auf den betroffenen iServ-Schulrechnern noch nicht erneut geprüft. | 0.7.1 zeigte beim versehentlichen Start des internen Runners einen Multiprocessing-Fehler; außerdem konnte eine kurzzeitige Dateisperre das Aufräumen des Probeordners als Sandboxfehler melden. | Ausschließlich `insi.exe` starten; für den Test den vollständigen portablen Ordner verwenden und Laufwerkstyp sowie Pfad protokollieren. | Ein-EXE-Build, lokaler/UNC-/USB-Start und AppContainer auf demselben Schulgerät abnehmen. |
 | Die überarbeitete TOAST-UI-Toolbar ist bei den vorgesehenen schmalen Browser- und nativen Fensterbreiten noch nicht vollständig manuell abgenommen. | Die Toolbar bleibt nun innerhalb des Editorrahmens und kann horizontal scrollen; bei unbekannten WebView-Größen sind optische Abweichungen weiterhin möglich. Bearbeitung und Speicherung funktionieren. | Bei Bedarf innerhalb der Toolbar horizontal scrollen. | Browser- und native Breiten in der manuellen 0.7-Matrix abschließend prüfen. |
 | Die manuelle Schulgeräte-Matrix ist noch offen. | Automatisierte Builds prüfen viele technische Eigenschaften, ersetzen aber keinen vollständigen Test auf realen Windows-, macOS- und Linux-Geräten. | Entwicklungstests und CI-Builds verwenden; Alpha-Status beachten. | Dokumentierte Smoke-Tests vor der Freigabe von 0.7. |
 
