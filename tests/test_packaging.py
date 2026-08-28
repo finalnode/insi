@@ -130,7 +130,9 @@ def test_windows_build_uses_one_executable_for_app_and_internal_python():
     assert "Einzelnen Windows-Starter prüfen" in workflow
 
 
-def test_packaged_python_checker_waits_and_returns_child_status(monkeypatch, tmp_path):
+def test_packaged_python_checker_waits_and_returns_child_status(
+    monkeypatch, tmp_path, capsys
+):
     from tools import run_packaged_python
 
     runner = tmp_path / "insi.exe"
@@ -140,19 +142,21 @@ def test_packaged_python_checker_waits_and_returns_child_status(monkeypatch, tmp
     class Completed:
         returncode = 7
 
-    monkeypatch.setattr(
-        run_packaged_python.subprocess,
-        "run",
-        lambda command, **options: calls.append((command, options)) or Completed(),
-    )
+    def run(command, **options):
+        options["stdout"].write("ok\n")
+        options["stderr"].write("warn\n")
+        calls.append((command, options))
+        return Completed()
+
+    monkeypatch.setattr(run_packaged_python.subprocess, "run", run)
 
     assert run_packaged_python.run(runner, ["-c", "print('ok')"]) == 7
-    assert calls == [
-        (
-            [str(runner), "--pykim-python", "-c", "print('ok')"],
-            {"check": False, "timeout": 180},
-        )
-    ]
+    command, options = calls[0]
+    assert command == [str(runner), "--pykim-python", "-c", "print('ok')"]
+    assert options["check"] is False
+    assert options["timeout"] == 180
+    assert options["stdout"] is not options["stderr"]
+    assert capsys.readouterr() == ("ok\n", "warn\n")
 
 
 def test_macos_build_removes_extended_attributes_and_verifies_adhoc_signature():

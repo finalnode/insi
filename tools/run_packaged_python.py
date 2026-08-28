@@ -4,16 +4,31 @@ from __future__ import annotations
 
 import argparse
 import subprocess
+import sys
+import tempfile
 from pathlib import Path
 
 
 def run(runner: Path, arguments: list[str]) -> int:
     """Warte auf den GUI-Starter und reiche Ausgabe sowie Exitcode weiter."""
-    completed = subprocess.run(
-        [str(runner), "--pykim-python", *arguments],
-        check=False,
-        timeout=180,
-    )
+    # Eine Windows-GUI-EXE braucht explizite Standardhandles. Pipes sind hier
+    # ungeeignet: Von der Sandbox gestartete Kindprozesse können sie erben und
+    # subprocess dadurch auch nach Ende des eigentlichen Runners blockieren.
+    with (
+        tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stdout,
+        tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stderr,
+    ):
+        completed = subprocess.run(
+            [str(runner), "--pykim-python", *arguments],
+            stdout=stdout,
+            stderr=stderr,
+            check=False,
+            timeout=180,
+        )
+        stdout.seek(0)
+        stderr.seek(0)
+        print(stdout.read(), end="")
+        print(stderr.read(), end="", file=sys.stderr)
     return completed.returncode
 
 
