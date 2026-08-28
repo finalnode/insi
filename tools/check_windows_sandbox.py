@@ -16,7 +16,7 @@ from insi.sandbox import WindowsAppContainerAdapter, sandbox_run
 
 
 def _progress(message: str) -> None:
-    print(f"Windows-Sandbox-Prüfung: {message}", flush=True)
+    print(f"windows-sandbox-progress:{message}", flush=True)
 
 
 def _run_isolation_probe(root: Path) -> None:
@@ -180,23 +180,23 @@ def main() -> int:
     if platform.system() != "Windows":
         raise SystemExit("Dieser Test muss unter Windows laufen.")
     adapter = WindowsAppContainerAdapter()
-    _progress("Verfügbarkeitsprobe startet")
+    _progress("status-start")
     status = adapter.status()
-    _progress("Verfügbarkeitsprobe beendet")
+    _progress("status-done")
     if not status.available:
         raise RuntimeError(status.detail)
     sandbox._adapter_override = adapter
     with tempfile.TemporaryDirectory(prefix="insi-windows-sandbox-ci-") as temporary:
         root = Path(temporary)
-        _progress("Isolation startet")
+        _progress("isolation-start")
         _run_isolation_probe(root)
-        _progress("Isolation beendet; Prozesslimit startet")
+        _progress("isolation-done:process-limit-start")
         _run_process_limit_probe(root)
-        _progress("Prozesslimit beendet; Schreiblimit startet")
+        _progress("process-limit-done:write-limit-start")
         _run_write_limit_probe(root)
-        _progress("Schreiblimit beendet; GUI startet")
+        _progress("write-limit-done:gui-start")
         _run_gui_probe(root)
-        _progress("GUI beendet")
+        _progress("gui-done")
     print("Windows-AppContainer-Isolation und Job-Object-Grenzen sind funktionsfähig.")
     return 0
 

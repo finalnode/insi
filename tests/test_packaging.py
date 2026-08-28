@@ -143,8 +143,8 @@ def test_packaged_python_checker_waits_and_returns_child_status(
         returncode = 7
 
     def run(command, **options):
-        options["stdout"].write("ok\n")
-        options["stderr"].write("warn\n")
+        options["stdout"].write(b"ok\n")
+        options["stderr"].write(b"warn\n")
         calls.append((command, options))
         return Completed()
 

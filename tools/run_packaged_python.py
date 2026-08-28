@@ -15,8 +15,8 @@ def run(runner: Path, arguments: list[str]) -> int:
     # ungeeignet: Von der Sandbox gestartete Kindprozesse können sie erben und
     # subprocess dadurch auch nach Ende des eigentlichen Runners blockieren.
     with (
-        tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stdout,
-        tempfile.TemporaryFile(mode="w+", encoding="utf-8") as stderr,
+        tempfile.TemporaryFile(mode="w+b") as stdout,
+        tempfile.TemporaryFile(mode="w+b") as stderr,
     ):
         try:
             completed = subprocess.run(
@@ -29,8 +29,12 @@ def run(runner: Path, arguments: list[str]) -> int:
         finally:
             stdout.seek(0)
             stderr.seek(0)
-            print(stdout.read(), end="")
-            print(stderr.read(), end="", file=sys.stderr)
+            print(stdout.read().decode("utf-8", errors="replace"), end="")
+            print(
+                stderr.read().decode("utf-8", errors="replace"),
+                end="",
+                file=sys.stderr,
+            )
     return completed.returncode
 
 
