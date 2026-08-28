@@ -143,7 +143,7 @@ def test_packaged_python_checker_waits_and_returns_child_status(
         returncode = 7
 
     def run(command, **options):
-        options["stdout"].write(b"ok\n")
+        options["stdout"].write(b"ok\ninvalid:\xfc\n")
         options["stderr"].write(b"warn\n")
         calls.append((command, options))
         return Completed()
@@ -156,7 +156,7 @@ def test_packaged_python_checker_waits_and_returns_child_status(
     assert options["check"] is False
     assert options["timeout"] == 180
     assert options["stdout"] is not options["stderr"]
-    assert capsys.readouterr() == ("ok\n", "warn\n")
+    assert capsys.readouterr() == ("ok\ninvalid:\\xfc\n", "warn\n")
 
 
 def test_macos_build_removes_extended_attributes_and_verifies_adhoc_signature():

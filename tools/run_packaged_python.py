@@ -29,9 +29,9 @@ def run(runner: Path, arguments: list[str]) -> int:
         finally:
             stdout.seek(0)
             stderr.seek(0)
-            print(stdout.read().decode("utf-8", errors="replace"), end="")
+            print(stdout.read().decode("utf-8", errors="backslashreplace"), end="")
             print(
-                stderr.read().decode("utf-8", errors="replace"),
+                stderr.read().decode("utf-8", errors="backslashreplace"),
                 end="",
                 file=sys.stderr,
             )
