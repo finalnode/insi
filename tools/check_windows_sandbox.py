@@ -55,7 +55,7 @@ def _run_isolation_probe(root: Path) -> None:
         env=execution_environment(policy),
         capture_output=True,
         text=True,
-        timeout=45,
+        timeout=20,
     )
     result = json.loads(completed.stdout)
     assert completed.returncode == 0, completed.stderr
@@ -162,7 +162,7 @@ def _run_gui_probe(root: Path) -> None:
         env=execution_environment(policy),
         capture_output=True,
         text=True,
-        timeout=20,
+        timeout=45,
     )
     if completed.returncode != 0:
         hosted_runner_without_opengl = (

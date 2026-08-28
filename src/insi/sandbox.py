@@ -86,6 +86,16 @@ def _existing_roots(paths: Sequence[str | Path]) -> tuple[Path, ...]:
     return tuple(result)
 
 
+def _independent_frozen_environment(
+    environment: Mapping[str, str],
+) -> dict[str, str]:
+    """Starte dieselbe PyInstaller-EXE als eigenständige neue Instanz."""
+    child = dict(environment)
+    if getattr(sys, "frozen", False) and sys.platform == "win32":
+        child["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    return child
+
+
 def _remove_tree_with_retries(
     path: Path,
     *,
@@ -504,7 +514,7 @@ class WindowsAppContainerAdapter:
         writable = _existing_roots(policy.writable_roots)
         if len(writable) != len(policy.writable_roots):
             raise ValueError("Alle freigegebenen Schreibbereiche müssen vorhanden sein.")
-        child_environment = dict(environment)
+        child_environment = _independent_frozen_environment(environment)
         child_environment["INSI_SANDBOX"] = "windows-appcontainer"
         payload: dict[str, Any] = {
             "version": PAYLOAD_VERSION,
@@ -564,11 +574,11 @@ class WindowsAppContainerAdapter:
                     "print(json.dumps(result))\n"
                 )
                 command = [*python_command(), "-c", probe_code]
-                probe_environment = {
+                probe_environment = _independent_frozen_environment({
                     name: os.environ[name]
                     for name in ("PATH", "PATHEXT", "SYSTEMROOT", "WINDIR")
                     if name in os.environ
-                }
+                })
                 probe_environment["PYTHONUNBUFFERED"] = "1"
                 probe_policy = ExecutionPolicy(
                     CodeOrigin.STUDENT,
@@ -590,7 +600,7 @@ class WindowsAppContainerAdapter:
                 probe = subprocess.run(
                     self._broker_command(payload),
                     cwd=writable,
-                    env=os.environ.copy(),
+                    env=_independent_frozen_environment(os.environ),
                     capture_output=True,
                     text=True,
                     timeout=45,
@@ -654,7 +664,7 @@ class WindowsAppContainerAdapter:
         except Exception:
             violation_file.unlink(missing_ok=True)
             raise
-        broker_environment = dict(environment)
+        broker_environment = _independent_frozen_environment(environment)
         broker_environment["INSI_SANDBOX"] = "windows-appcontainer-broker"
         return PreparedLaunch(
             self._broker_command(payload),

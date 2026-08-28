@@ -503,6 +503,18 @@ def test_windows_process_termination_falls_back_after_invalid_console_handle(
     assert events == ["terminate"]
 
 
+def test_frozen_windows_children_reset_the_pyinstaller_environment(monkeypatch):
+    monkeypatch.setattr(sandbox.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sandbox.sys, "platform", "win32")
+
+    environment = sandbox._independent_frozen_environment({"PATH": "runtime"})
+
+    assert environment == {
+        "PATH": "runtime",
+        "PYINSTALLER_RESET_ENVIRONMENT": "1",
+    }
+
+
 def test_windows_broker_declares_fail_closed_kernel_controls():
     source = (
         Path(__file__).parents[1] / "src/insi/windows_sandbox_helper.py"
