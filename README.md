@@ -12,8 +12,9 @@ automatische Tests, Lernstand, Projekte und Autorenwerkzeuge in eine gemeinsame
 Anwendung, die nach der Einrichtung weitgehend offline funktioniert.
 
 > Der 0.7.2-Zweig erprobt unter Windows eine einzige portable `insi.exe` für
-> App und internen Sandbox-Runner. Bis zur erfolgreichen Build- und
-> Schulgeräteabnahme bleibt 0.7.1 die veröffentlichte stabile Downloadversion.
+> App und internen Sandbox-Runner. Die automatisierte Desktopmatrix ist grün;
+> bis zur erfolgreichen Schulgeräteabnahme bleibt 0.7.1 die veröffentlichte
+> stabile Downloadversion.
 
 in:si soll den Raum zwischen einer losen Materialsammlung und einem großen
 Learning-Management-System füllen: Ein Kurs darf aus echten Markdown-, Python-
@@ -162,7 +163,8 @@ in:si ist noch eine Alpha-Version. Die wichtigsten aktuell offenen Punkte sind:
   Überlaufverhalten wurden überarbeitet, und der zuvor beobachtete Freeze beim
   WYSIWYG-Wechsel ist behoben;
 - manuelle Tests auf echten Windows-, macOS- und Linux-Schulgeräten sind für
-  den Abschluss von 0.7 noch offen;
+  den Abschluss von 0.7 noch offen; für den 0.7.2-Windows-Kandidaten gibt es
+  eine [konkrete iServ-/UNC-/USB-Abnahme](docs/windows-test-0.7.2.md);
 - die Desktop-Pakete sind nicht produktionssigniert; unter Linux benötigt die
   integrierte Sandbox Bubblewrap und für grafische Starts Wayland.
 

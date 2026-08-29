@@ -12,8 +12,9 @@ Fremdsperren beim anschließenden Entfernen des Probeordners werden begrenzt
 wiederholt und nicht mehr mit einer fehlgeschlagenen Isolation verwechselt. Die
 eigentliche Datei- und Netzwerkprüfung bleibt unverändert fail-closed.
 
-Vor einer Veröffentlichung sind die vollständige Desktopmatrix und der reale
-Start auf den betroffenen iServ-Schulrechnern erforderlich.
+Die vollständige automatisierte Desktopmatrix ist erfolgreich. Vor einer
+Veröffentlichung bleibt der [reale lokale, iServ-/UNC- und USB-Test](windows-test-0.7.2.md)
+auf den betroffenen Schulrechnern erforderlich.
 
 ## Hotfix 0.7.1
 
@@ -76,8 +77,8 @@ both the desktop entry point and, with an internal switch, the controlled
 Python and sandbox runner. Explicit AppContainer access to this executable and
 bounded retries for transient probe-directory cleanup address the two observed
 school-device failure paths without weakening the isolation test. Release still
-requires the complete desktop matrix and verification on the affected iServ
-devices.
+has passed the complete automated desktop matrix and still requires
+verification on the affected iServ devices, from UNC storage and from USB.
 
 ## Hotfix 0.7.1
 
