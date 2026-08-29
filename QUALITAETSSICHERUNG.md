@@ -121,6 +121,62 @@ Vor einem breiten Rollout wird jede Zeile auf einem echten Gerät geprüft:
 Zu protokollieren sind Python-Version, Installationsart, IDE-Pfad,
 Pyxel-Version, Laufwerkstyp und die genaue Fehlermeldung.
 
+### Gemeinsamer 0.8-Smoke-Test pro Gerät
+
+Für jede Zeile der Plattformmatrix wird dasselbe unveränderte Desktop-Artefakt
+vollständig entpackt beziehungsweise als App-Bundle verwendet. Build-Commit,
+Artefakt-Prüfsumme, Betriebssystem und vollständiger Kursordner werden zusammen
+mit dem Ergebnis notiert.
+
+1. in:si offline starten, einen vorhandenen Kurs auswählen und anschließend zu
+   einem zweiten Kurs und zurück wechseln.
+2. Eine Skriptseite und eine Aufgabe öffnen. Gestufte Hinweise anzeigen, Code
+   ausführen, Ausgabe prüfen und den Lauf vollständig stoppen.
+3. Einen Projektlauf starten. Sprite- und Musikeditor getrennt öffnen und
+   kontrollieren, dass jeweils das erwartete Fenster sichtbar wird.
+4. Einen benannten Projektstand mit Kommentar speichern, eine Datei ändern und
+   den älteren Stand wiederherstellen. Die Sicherheitskopie des neueren Stands
+   muss danach weiterhin auswählbar sein.
+5. Im Kursstudio bei schmalem und breitem Fenster Markdown und WYSIWYG
+   wechseln. Toolbar und Annotationsmenü müssen erreichbar bleiben; Hinweise
+   einer Aufgabe speichern und erneut öffnen.
+6. Die Übersicht lokaler Daten öffnen, einen Gesamtexport in einen leeren
+   Zielordner schreiben und dessen Inhalt kontrollieren. Die Löschfunktion nur
+   mit ausdrücklich angelegten Testdaten prüfen; Export und externe Kopien
+   dürfen nicht mit entfernt werden.
+7. in:si schließen und prüfen, dass weder App noch gestarteter Lernprozess
+   zurückbleiben. Nach dem Neustart müssen Kursauswahl, Projektstand und
+   Lernfortschritt weiterhin vorhanden sein.
+
+### 0.7→0.8-Migration und entfernbarer Datenträger
+
+Dieser Test verwendet ausschließlich eine zusätzliche Kopie realer
+0.7-Beispieldaten. Originale Lernstände und der einzige vorhandene Datenträger
+dürfen nicht als Testobjekt dienen.
+
+1. Eine unveränderte 0.7-Kurskopie samt Lernstand auf einen Testdatenträger
+   legen und außerhalb dieses Datenträgers eine zweite Schutzkopie behalten.
+2. Die Kurskopie erstmals mit 0.8 öffnen. Inhalte, Lernfortschritt und Projekte
+   prüfen; anschließend Originalbackup und Versionsmarker der Migration
+   kontrollieren.
+3. Den Kurs erneut öffnen. Es darf weder ein zweites Originalbackup entstehen
+   noch ein bereits migrierter Wert verändert werden.
+4. Einen Projektstand anlegen, eine Datei extern verändern und einen älteren
+   Stand wiederherstellen. Die externe Änderung muss sichtbar behandelt und
+   darf nicht still überschrieben werden.
+5. Die Abbruchprobe nur auf einem entbehrlichen Testdatenträger mit vollständig
+   gesicherten Testdaten durchführen: Datenträger während einer Migration oder
+   eines Exports entfernen, wieder verbinden und denselben Vorgang erneut
+   starten. Die Quelldaten müssen entweder unverändert oder vollständig
+   aktualisiert sein; eine halbe Aktivierung gilt als Fehler.
+6. Dateisystem (zum Beispiel NTFS oder exFAT), Anschlussart, Zeitpunkt der
+   Unterbrechung, sichtbare Meldung und Zustand nach dem Wiederanstecken
+   protokollieren.
+
+| Gerät / Datenträger | 0.7-Daten erhalten | Migration wiederholbar | Abbruch sicher | Wiederherstellung | Export / Löschen | Status |
+|---|---:|---:|---:|---:|---:|---|
+|  | ☐ | ☐ | ☐ | ☐ | ☐ | offen |
+
 ### macOS-Bundle
 
 1. `insi.app` startet als **in:si** per Doppelklick ohne systemweit installiertes Python.
