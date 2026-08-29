@@ -5,6 +5,7 @@ from .branding import APP_DISPLAY_NAME
 from insi.course import get_course_directory, set_runtime_preference
 from insi.course_setup import course_setup_info, sync_installed_course_content
 from insi.library import PACKAGED_CONTENT_ROOT
+from insi.local_data_view import render_local_data_management
 from insi.system import open_in_preferred_ide, open_path, system_status
 from insi.runtime import course_runtime_preflight
 from insi.updates import check_updates, format_content_version, install_content_update
@@ -38,6 +39,8 @@ def render_tools_panel(
     if course is None:
         ui.label("Richte zuerst im Setup einen Kursordner ein.").classes("text-orange")
     else:
+        tool_status = system_status()
+
         def start_local(action, success: str) -> None:
             try:
                 action()
@@ -61,7 +64,7 @@ def render_tools_panel(
                 ),
                 icon="terminal",
             )
-            if system_status().thonny:
+            if tool_status.thonny:
                 ui.button(
                     "In Thonny öffnen",
                     on_click=lambda: start_local(
@@ -69,7 +72,7 @@ def render_tools_panel(
                     ),
                     icon="school",
                 )
-            if system_status().vscode:
+            if tool_status.vscode:
                 ui.button(
                     "In VS Code öffnen",
                     on_click=lambda: start_local(
@@ -125,13 +128,15 @@ def render_tools_panel(
         ui.markdown(
             "Ressourcendateien gehören immer zu einem Projekt. Lege unter "
             "**Meine Projekte** ein Pyxel-Spiel an und öffne dort den "
-            "Sprite- und Musikeditor."
+            "Spriteeditor oder Musikeditor."
         )
         ui.button(
             "Zu meinen Projekten",
             on_click=lambda: tabs.set_value(projects_tab),
             icon="folder_special",
         )
+
+    render_local_data_management(context)
 
     ui.separator()
     ui.label("Updates").classes("text-xl font-bold").props("id=pykim-updates")
@@ -231,7 +236,6 @@ def render_tools_panel(
                 update_badge.text = "Aktuell"
                 update_badge.props("color=positive")
             course_sync_button.enable()
-            refresh_update_dialog()
 
     def open_app_download() -> None:
         status = update_state["status"]
@@ -240,7 +244,6 @@ def render_tools_panel(
         target = status.app.download_url or status.app.release_url
         if target:
             ui.navigate.to(target, new_tab=True)
-            update_dialog.close()
 
     async def activate_content_update() -> None:
         status = update_state["status"]
@@ -254,12 +257,6 @@ def render_tools_panel(
                 f"Inhalte {status.content.available} wurden aktiviert."
             )
             content_button.disable()
-            dialog_content_button.disable()
-            dialog_content_button.set_visibility(False)
-            dialog_content_label.text = (
-                f"Inhalte {format_content_version(status.content.available)} "
-                "wurden aktiviert."
-            )
             ui.notify(
                 f"Neue Lerninhalte aktiviert. Bitte {APP_DISPLAY_NAME} neu starten.",
                 type="positive",
@@ -287,154 +284,12 @@ def render_tools_panel(
     app_button.disable()
     content_button.disable()
 
-    async def update_dialog_content() -> None:
-        if header_setup is not None:
-            await refresh_course_content()
-        else:
-            await activate_content_update()
-
-    with ui.dialog() as update_dialog, ui.card().classes(
-        "w-[38rem] max-w-[95vw] gap-4"
-    ):
-        with ui.row().classes("w-full items-center gap-2"):
-            ui.icon("system_update", size="md").classes("text-primary")
-            ui.label(f"{APP_DISPLAY_NAME} aktualisieren").classes("text-xl font-bold")
-            ui.space()
-            ui.button(icon="close", on_click=update_dialog.close).props(
-                "flat round dense aria-label='Dialog schließen'"
-            )
-        ui.label(
-            f"Nach deiner Bestätigung fragt {APP_DISPLAY_NAME} bei GitHub an, "
-            "ob eine neue App-Version oder neue Lerninhalte bereitstehen. Du "
-            "entscheidest, was installiert wird."
-        ).classes("text-grey-7")
-        with ui.card().classes("w-full shadow-none border"):
-            ui.label("Desktop-App").classes("font-bold")
-            dialog_app_label = ui.label("App-Version wurde noch nicht geprüft.")
-            dialog_app_button = ui.button(
-                "App herunterladen",
-                on_click=open_app_download,
-                icon="download",
-            )
-        with ui.card().classes("w-full shadow-none border"):
-            dialog_content_title = ui.label("Lerninhalte").classes("font-bold")
-            dialog_content_label = ui.label("Inhaltsversion wurde noch nicht geprüft.")
-            dialog_content_button = ui.button(
-                "Lerninhalte aktualisieren",
-                on_click=update_dialog_content,
-                icon="library_books",
-            )
-        dialog_update_hint = ui.label().classes("text-grey-7")
-        with ui.row().classes("w-full justify-end"):
-            ui.button("Später", on_click=update_dialog.close).props("flat")
-    dialog_app_button.disable()
-    dialog_content_button.disable()
-    dialog_app_button.set_visibility(False)
-    dialog_content_button.set_visibility(False)
-
-    def refresh_update_dialog() -> None:
-        status = update_state["status"]
-        if status is None:
-            dialog_app_label.text = "App-Version wird geprüft …"
-            dialog_content_label.text = "Inhaltsversion wird geprüft …"
-            dialog_update_hint.text = "Die Updateprüfung läuft."
-            dialog_app_button.disable()
-            dialog_content_button.disable()
-            dialog_app_button.set_visibility(False)
-            dialog_content_button.set_visibility(False)
-            return
-
-        app_newer = status.app is not None and status.app.newer
-        content_newer = (
-            header_setup is None
-            and status.content is not None
-            and status.content.newer
-        )
-        if status.app is None:
-            dialog_app_label.text = "App-Prüfung ist momentan nicht verfügbar."
-            dialog_app_button.disable()
-            dialog_app_button.set_visibility(False)
-        elif app_newer:
-            dialog_app_label.text = (
-                f"Version {status.app.available} ist verfügbar; installiert "
-                f"ist {status.app.installed}."
-            )
-            dialog_app_button.enable()
-            dialog_app_button.set_visibility(True)
-        else:
-            dialog_app_label.text = (
-                f"Version {status.app.installed} ist bereits aktuell."
-            )
-            dialog_app_button.disable()
-            dialog_app_button.set_visibility(False)
-
-        if header_setup is not None:
-            dialog_content_title.text = "Kursinhalte"
-            dialog_content_button.text = "Kurs jetzt abgleichen"
-            dialog_content_button.set_visibility(True)
-            dialog_content_button.enable()
-            sync_result = course_sync_state["result"]
-            sync_error = str(course_sync_state["error"])
-            if sync_error:
-                dialog_content_label.text = (
-                    f"Der letzte Abgleich ist fehlgeschlagen: {sync_error}"
-                )
-            elif sync_result is not None and sync_result.checked_online:
-                dialog_content_label.text = (
-                    f"{header_setup.course}: {sync_result.message}"
-                )
-            else:
-                dialog_content_label.text = (
-                    f"{header_setup.course} kann jetzt mit dem Kursrepository "
-                    "abgeglichen werden."
-                )
-        elif status.content is None:
-            dialog_content_title.text = "Lerninhalte"
-            dialog_content_button.text = "Lerninhalte aktualisieren"
-            dialog_content_label.text = (
-                "Die Inhaltsprüfung ist momentan nicht verfügbar."
-            )
-            dialog_content_button.disable()
-            dialog_content_button.set_visibility(False)
-        elif content_newer and status.content.compatible:
-            dialog_content_label.text = (
-                f"Inhalte {format_content_version(status.content.available)} "
-                "sind verfügbar; aktiv ist "
-                f"{format_content_version(status.content.installed)}."
-            )
-            dialog_content_button.enable()
-            dialog_content_button.set_visibility(True)
-        elif not status.content.compatible:
-            dialog_content_label.text = (
-                "Die neuen Lerninhalte benötigen zuerst das App-Update."
-            )
-            dialog_content_button.disable()
-            dialog_content_button.set_visibility(False)
-        else:
-            dialog_content_label.text = (
-                "Die Lerninhalte "
-                f"{format_content_version(status.content.installed)} sind aktuell."
-            )
-            dialog_content_button.disable()
-            dialog_content_button.set_visibility(False)
-
-        if header_setup is not None:
-            dialog_update_hint.text = (
-                "App und ausgewählter Kurs werden unabhängig aktualisiert."
-            )
-        elif app_newer or content_newer:
-            dialog_update_hint.text = (
-                "Wähle die gewünschte Aktualisierung oder verschiebe sie mit „Später“."
-            )
-        else:
-            dialog_update_hint.text = "Es ist keine Aktualisierung erforderlich."
-
     async def refresh_updates() -> None:
         refresh_button.disable()
         update_badge.text = "Updates werden geprüft …"
         try:
             status = await nicegui_run.io_bound(
-                check_updates, PACKAGED_CONTENT_ROOT
+                check_updates, PACKAGED_CONTENT_ROOT, include_content=header_setup is None
             )
             update_state["status"] = status
             if status.app is None:
@@ -494,18 +349,10 @@ def render_tools_panel(
             else:
                 update_badge.text = "Aktuell"
                 update_badge.props("color=positive")
-            refresh_update_dialog()
         finally:
             refresh_button.enable()
 
-    async def open_update_dialog() -> None:
-        refresh_update_dialog()
-        update_dialog.open()
-        if update_state["status"] is None:
-            await refresh_updates()
-
     refresh_button.on("click", refresh_updates)
-    update_badge.on("click", open_update_dialog)
 
     author_course = get_course_directory()
     if author_course is not None and course_setup_info(author_course) is not None:

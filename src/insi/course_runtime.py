@@ -95,10 +95,10 @@ def parse_runtime_requirements(value: str | tuple[str, ...] | list[str]) -> tupl
     return tuple(result)
 
 
-def default_runtime_requirements() -> tuple[str, ...]:
-    """Fixiere die beiden von jedem PyKIM-Kurs benötigten Fachpakete."""
+def suggested_runtime_requirements() -> tuple[str, ...]:
+    """Schlage der PyKIM-Kurswerkstatt editierbare Paketstände vor."""
     requirements = []
-    for distribution in ("PyKIM", "pyxel"):
+    for distribution in ("PyKIM", "Pyxel", "PyYAML"):
         try:
             installed = version(distribution)
         except PackageNotFoundError as error:
@@ -108,27 +108,6 @@ def default_runtime_requirements() -> tuple[str, ...]:
             ) from error
         requirements.append(f"{distribution}=={installed}")
     return tuple(requirements)
-
-
-def combined_runtime_requirements(additional: str | tuple[str, ...] = ()) -> tuple[str, ...]:
-    defaults = default_runtime_requirements()
-    extra = parse_runtime_requirements(additional)
-    default_versions = {
-        canonicalize_name(item.split("==", 1)[0]): item for item in defaults
-    }
-    for item in extra:
-        name = canonicalize_name(item.split("==", 1)[0])
-        if name in default_versions:
-            if item != default_versions[name]:
-                raise ValueError(
-                    f"{item} widerspricht der von in:si bereitgestellten Version "
-                    f"{default_versions[name]}."
-                )
-            raise ValueError(
-                f"{item} wird bereits von in:si bereitgestellt und muss nicht "
-                "als Zusatzpaket eingetragen werden."
-            )
-    return parse_runtime_requirements([*defaults, *extra])
 
 
 def runtime_manifest_bytes(manifest: RuntimeManifest) -> bytes:
@@ -234,7 +213,7 @@ def download_offline_wheels(
     """Lade die vollständige Wheel-Kette für explizit gewählte Ziele."""
     requirements = parse_runtime_requirements(requirements)
     if not requirements:
-        raise ValueError("Gib mindestens ein zusätzliches Paket für den Offline-Export an.")
+        raise ValueError("Gib mindestens ein Kurspaket für den Offline-Export an.")
     if not targets or len(targets) != len(set(targets)):
         raise ValueError("Wähle mindestens eine eindeutige Zielplattform aus.")
     unknown = set(targets) - set(RUNTIME_TARGETS)
@@ -242,13 +221,6 @@ def download_offline_wheels(
         raise ValueError("Unbekannte Zielplattform: " + ", ".join(sorted(unknown)))
     root = Path(destination).expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
-    provided = default_runtime_requirements()
-    provided_names = {
-        canonicalize_name(requirement.split("==", 1)[0])
-        for requirement in provided
-    }
-    constraints = root / "provided-by-insi.txt"
-    constraints.write_text("\n".join(provided) + "\n", encoding="utf-8")
     result: dict[str, Path] = {}
     for target_name in targets:
         target = RUNTIME_TARGETS[target_name]
@@ -261,7 +233,6 @@ def download_offline_wheels(
             "--python-version", target.python_version.replace(".", ""),
             "--implementation", target.implementation,
             "--abi", target.abi,
-            "--constraint", str(constraints),
             *requirements,
         ]
         completed = subprocess.run(command, capture_output=True, text=True)
@@ -273,12 +244,9 @@ def download_offline_wheels(
             raise RuntimeError(f"Für {target.label} wurden nicht ausschließlich Wheels aufgelöst.")
         for wheel in wheels:
             try:
-                name, _, _, _ = parse_wheel_filename(wheel.name)
+                parse_wheel_filename(wheel.name)
             except ValueError as error:
                 raise RuntimeError(f"Ungültiger Wheel-Dateiname: {wheel.name}") from error
-            if canonicalize_name(name) in provided_names:
-                wheel.unlink()
-                continue
             relative = f"wheelhouse/{target.id}/{wheel.name}"
             result[relative] = wheel
     if len(result) > MAX_OFFLINE_WHEELS:
@@ -289,6 +257,7 @@ def download_offline_wheels(
 
 
 def manifest_with_wheels(
+    python_version: str,
     requirements: tuple[str, ...],
     targets: tuple[str, ...],
     wheels: dict[str, Path],
@@ -297,7 +266,7 @@ def manifest_with_wheels(
         (name, hashlib.sha256(path.read_bytes()).hexdigest())
         for name, path in sorted(wheels.items())
     )
-    return RuntimeManifest(RUNTIME_PYTHON, requirements, targets, hashes)
+    return RuntimeManifest(python_version, requirements, targets, hashes)
 
 
 __all__ = [
@@ -308,13 +277,12 @@ __all__ = [
     "RUNTIME_TARGETS",
     "RuntimeManifest",
     "RuntimeTarget",
-    "combined_runtime_requirements",
     "current_runtime_target",
-    "default_runtime_requirements",
     "download_offline_wheels",
     "manifest_with_wheels",
     "parse_runtime_manifest",
     "parse_runtime_requirements",
     "runtime_manifest_bytes",
+    "suggested_runtime_requirements",
     "write_runtime_manifest",
 ]

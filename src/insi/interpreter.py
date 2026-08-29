@@ -24,11 +24,12 @@ def command_for(executable: str) -> list[str]:
         legacy_runner = executable_path.with_name(
             f"PyKIM Python{executable_path.suffix}"
         )
-        selected = runner if runner.is_file() else legacy_runner
-        command = [
-            str(selected if selected.is_file() else Path(sys.executable))
-        ]
-        command.append("--pykim-python")
+        if runner.is_file():
+            command = [str(runner), "--insi-python"]
+        elif legacy_runner.is_file():
+            command = [str(legacy_runner), "--pykim-python"]
+        else:
+            command = [str(Path(sys.executable)), "--insi-python"]
     return command
 
 

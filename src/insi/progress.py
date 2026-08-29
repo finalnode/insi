@@ -200,8 +200,13 @@ def save_task_answer(
     _save(data, course)
 
 
-def revealed_hint_count(task: str, *, course: Path | None = None) -> int:
-    data = load_progress(course)
+def revealed_hint_count(
+    task: str,
+    *,
+    course: Path | None = None,
+    progress: dict[str, object] | None = None,
+) -> int:
+    data = load_progress(course) if progress is None else progress
     hints = data.get("hints", {})
     value = hints.get(task, 0) if isinstance(hints, dict) else 0
     return max(0, value) if isinstance(value, int) and not isinstance(value, bool) else 0

@@ -1,23 +1,24 @@
 # Bekannte Probleme und Einschränkungen
 
-Stand: 21. August 2026, Entwicklungsstand 0.7.0
+Stand: 27. August 2026, Entwicklungsstand `0.8.0.dev0` auf `develop/v0.8`
 
 Diese Liste nennt bekannte, reproduzierbare Probleme und bewusst noch nicht
 erfüllte Produktzusagen. Sie ist keine vollständige Sammlung zukünftiger
 Funktionen; dafür gibt es die [Roadmap](ROADMAP.md). Ein behobener Eintrag wird
 entfernt oder im [Changelog](CHANGELOG.md) als erledigt dokumentiert.
 
-## Offen für den Abschluss von 0.7
+## Offen für den Abschluss von 0.8
 
 | Problem | Auswirkung | Derzeitiger Umgang | Ziel |
 |---|---|---|---|
-| Die überarbeitete TOAST-UI-Toolbar ist bei den vorgesehenen schmalen Browser- und nativen Fensterbreiten noch nicht vollständig manuell abgenommen. | Die Toolbar bleibt nun innerhalb des Editorrahmens und kann horizontal scrollen; bei unbekannten WebView-Größen sind optische Abweichungen weiterhin möglich. Bearbeitung und Speicherung funktionieren. | Bei Bedarf innerhalb der Toolbar horizontal scrollen. | Browser- und native Breiten in der manuellen 0.7-Matrix abschließend prüfen. |
-| Die manuelle Schulgeräte-Matrix ist noch offen. | Automatisierte Builds prüfen viele technische Eigenschaften, ersetzen aber keinen vollständigen Test auf realen Windows-, macOS- und Linux-Geräten. | Entwicklungstests und CI-Builds verwenden; Alpha-Status beachten. | Dokumentierte Smoke-Tests vor der Freigabe von 0.7. |
+| Die überarbeitete TOAST-UI-Toolbar ist bei den vorgesehenen schmalen Browser- und nativen Fensterbreiten noch nicht vollständig manuell abgenommen. | Die Toolbar bleibt nun innerhalb des Editorrahmens und kann horizontal scrollen; bei unbekannten WebView-Größen sind optische Abweichungen weiterhin möglich. Bearbeitung und Speicherung funktionieren. | Bei Bedarf innerhalb der Toolbar horizontal scrollen. | Browser- und native Breiten in der manuellen 0.8-Matrix abschließend prüfen. |
+| Die manuelle Schulgeräte-Matrix ist noch offen. | Automatisierte Builds prüfen viele technische Eigenschaften, ersetzen aber keinen vollständigen Test auf realen Windows-, macOS- und Linux-Geräten. | Entwicklungstests und CI-Builds verwenden; Alpha-Status beachten. | Dokumentierte Smoke-Tests vor der Freigabe von 0.8. |
 
 ## Plattform- und Sicherheitsgrenzen
 
 | Einschränkung | Bedeutung und sicherer Umgang | Geplante Einordnung |
 |---|---|---|
+| Das Linux-x86_64-Paket liegt mit 127,6 MiB über dem weichen 100-MiB-Ziel. | Der Mehrumfang stammt aus der vollständigen GTK/WebKit-Laufzeit und dem geprüften Offline-Wheelhouse; Funktion und Offline-Neuaufbau sind auf Commit `c3e2923` nachgewiesen. Für 0.8 ist dies eine akzeptierte Größenabweichung, kein Sicherheits- oder Funktionsfehler. | Nach 0.8 weiter verkleinern, sofern dies ohne schwächere Offline- oder Plattformzusage möglich ist. |
 | Die Desktop-Pakete sind noch nicht produktionssigniert; der macOS-Build ist nur ad-hoc signiert und nicht notarisiert. | Betriebssysteme können Warnungen anzeigen oder den Start blockieren. Pakete nur aus den offiziellen GitHub Releases beziehungsweise den zugehörigen dokumentierten Builds beziehen. | Produktionsverteilung spätestens für 1.0. |
 | Ein unter einem synchronisierten macOS-`Documents`-Ordner erzeugter loser `.app`-Ordner kann nach dem Signieren erneut Finder-/File-Provider-Metadaten erhalten. | `codesign --verify` kann für den losen lokalen Build fehlschlagen, obwohl der Buildinhalt korrekt ist. | Für die Verteilung `build_macos_dmg.py` verwenden; es bereinigt und signiert den tatsächlichen Payload im privaten Tempordner. Der erzeugte 0.7-DMG-Payload wurde lokal erfolgreich verifiziert. | Dauerhafte Buildumgebungen außerhalb synchronisierter Ordner verwenden; der CI- und Releaseweg bleibt der DMG. |
 | Der macOS-Runner verwendet derzeit `/usr/bin/sandbox-exec` und eine von Apple nicht als stabile öffentliche API zugesagte Profilsprache. | Nach einem macOS-Update kann der Selbsttest scheitern. in:si startet Fremdcode dann nicht ungeschützt, sondern sperrt den integrierten Start. | Signierter und notarisierter Sandbox-Helper für 1.0. |
@@ -27,10 +28,13 @@ entfernt oder im [Changelog](CHANGELOG.md) als erledigt dokumentiert.
 
 ## Noch fehlende Produktfähigkeiten
 
-Diese Punkte sind keine Defekte von 0.7, begrenzen aber den heutigen Einsatz:
+Diese Punkte sind keine Defekte des aktuellen Entwicklungsstands, begrenzen aber
+den heutigen Einsatz:
 
-- automatische versionsübergreifende Daten- und Runtime-Migrationen sowie eine
-  sichtbare Wiederherstellung vorhandener Projektstände fehlen bis 0.8;
+- die 0.7→0.8-Datenmigration und sichtbare Wiederherstellung von
+  Projektständen sind umgesetzt, benötigen vor dem Release aber weitere reale
+  0.7-Datenbestände, Hardwareproben mit entfernbaren Datenträgern sowie die
+  vollständige reale Plattformmatrix;
 - getrennte lokale Profile für mehrere Personen auf demselben Gerät fehlen bis
   0.9;
 - PyKIM ist derzeit das einzige vollständig angebundene Fachmodul; weitere
@@ -41,6 +45,16 @@ Diese Punkte sind keine Defekte von 0.7, begrenzen aber den heutigen Einsatz:
   bewusst nicht vorgesehen.
 
 ## Kürzlich behoben
+
+Der Windows-AppContainer erhält neben dem Runtimeordner eine explizite
+Lesefreigabe auf die gestartete PyInstaller-EXE. Auf Commit `c3e2923` bestanden
+dadurch AppContainer- und Job-Object-Selbsttest sowie der echte Fensterstart in
+der Windows-Buildmatrix gemeinsam.
+
+Persönliche App-Daten und alle erreichbaren registrierten Kursordner lassen
+sich nun gemeinsam exportieren. Eine getrennte, exakt zu bestätigende Aktion
+verschiebt registrierte Kurse und den vollständigen lokalen App-Datenordner in
+den Systempapierkorb; externe Kopien und Exporte bleiben unberührt.
 
 Der Wechsel des TOAST UI Editors in den WYSIWYG-Modus konnte Browser und
 NiceGUI-Fenster einfrieren. Ursache war ein globaler DOM-Beobachter, der

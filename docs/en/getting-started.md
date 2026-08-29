@@ -25,9 +25,10 @@ inside the course workspace.
 ## Build projects
 
 **My projects** stores longer programs, documentation and optional Pyxel
-resources as ordinary files. in:si creates a limited local snapshot before an
-integrated project start. A user-facing restoration workflow is planned for
-0.8.
+resources as ordinary files. Before execution, in:si creates a limited local
+snapshot when the project has changed. Learners can also save named states with
+a short comment. The timeline validates and restores older states after first
+saving the current working state.
 
 ## Integrated execution and external IDEs
 

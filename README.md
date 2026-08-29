@@ -6,10 +6,22 @@
 
 **Sprache:** Deutsch · [English](README.en.md)
 
-**in:si 0.7.1** ist eine lokale Desktop-Lernumgebung für modulare
-Informatikkurse. Sie bringt Kursinstallation, Lerntexte, interaktive Aufgaben,
+**Dieser Entwicklungszweig baut in:si 0.8.0.dev0.** Er ist noch kein
+veröffentlichtes Release. **in:si 0.7.1** bleibt die aktuelle stabile
+Veröffentlichung der lokalen Desktop-Lernumgebung für modulare Informatikkurse.
+Der aktuelle Arbeitsstand liegt auf
+[`develop/v0.8`](https://github.com/finalnode/insi/tree/develop/v0.8); `main`
+bleibt bis zur geprüften Freigabe auf dem 0.7-Stand.
+
+Die Anwendung bringt Kursinstallation, Lerntexte, interaktive Aufgaben,
 automatische Tests, Lernstand, Projekte und Autorenwerkzeuge in eine gemeinsame
 Anwendung, die nach der Einrichtung weitgehend offline funktioniert.
+
+Der Name **in:si** steht für **informatica simplicissima**: Informatik soll so
+zugänglich wie möglich vermittelt werden, ohne echte Sprachen, Dateien und
+Werkzeuge hinter einer vereinfachten Lernoberfläche zu verstecken. Die
+didaktische Leitidee lautet: **So viel vereinfachen wie nötig, so wenig
+abstrahieren wie möglich.**
 
 in:si soll den Raum zwischen einer losen Materialsammlung und einem großen
 Learning-Management-System füllen: Ein Kurs darf aus echten Markdown-, Python-
@@ -27,9 +39,23 @@ fertig implementiert.
 > ändern. Der macOS-Build ist nur lokal ad-hoc, nicht mit einer Developer-ID
 > signiert und nicht notarisiert; die übrigen Desktop-Builds sind unsigniert.
 
-> **Entwicklung:** Die kommende Version 0.8 entsteht auf dem Branch
-> [`develop/v0.8`](https://github.com/finalnode/insi/tree/develop/v0.8).
-> Dieser Entwicklungsstand ist noch nicht veröffentlicht und kann sich ändern.
+> **Aktueller Buildnachweis:** `develop/v0.8` wurde auf Commit `c3e2923` für
+> Windows, Linux sowie beide macOS-Architekturen erfolgreich gebaut. Windows-
+> AppContainer und echter Fensterstart, Linux-Bubblewrap/Wayland sowie beide
+> macOS-Seatbelt-Prüfungen bestanden. Zusätzlich wurde auf jeder Plattform eine
+> frische Kurs-Runtime ausschließlich aus dem paketierten Offline-Wheelhouse
+> aufgebaut. Die Abnahme auf echten Schulgeräten bleibt verbindlich.
+
+> **Entwicklungsstand 0.8.0.dev0:** Auf `develop/v0.8` sind die versionierte
+> Datenmigration, sichtbare Projektstände, lokale Datenkontrolle, schnellere
+> Startpfade und ein fachlich besser testbarer Kern umgesetzt. Der
+> aktuelle Nachweis umfasst 483 bestandene, eine plattformbedingt
+> übersprungene und zusätzlich vier im eigenen CI-Job bestandene
+> E2E-Prüfungen. Fortschritt und
+> verbleibende Freigabeblocker stehen im
+> [Entwurf der 0.8-Release-Notes](docs/release-notes-0.8.md). Der geschlossene
+> Funktionsumfang und die noch offenen Nachweise stehen kompakt im
+> [0.8-Abschlussprotokoll](docs/v0.8-abschlussprotokoll.md).
 
 Die kompakte, offline auslieferbare Dokumentation beginnt unter
 [docs/de](docs/de/erste-schritte.md). Sie enthält getrennte Einstiege für
@@ -158,7 +184,7 @@ in:si ist noch eine Alpha-Version. Die wichtigsten aktuell offenen Punkte sind:
   Überlaufverhalten wurden überarbeitet, und der zuvor beobachtete Freeze beim
   WYSIWYG-Wechsel ist behoben;
 - manuelle Tests auf echten Windows-, macOS- und Linux-Schulgeräten sind für
-  den Abschluss von 0.7 noch offen;
+  den Abschluss von 0.8 noch offen;
 - die Desktop-Pakete sind nicht produktionssigniert; unter Linux benötigt die
   integrierte Sandbox Bubblewrap und für grafische Starts Wayland.
 
@@ -181,9 +207,13 @@ Noch offene Arbeiten stehen ausschließlich in der [Roadmap](#roadmap).
 - automatische Trainer mit verständlichem Feedback ausführen;
 - Lernstand, Antworten und Versuche lokal speichern;
 - eigene Python-/Pyxel-Projekte anlegen und im Dateimanager öffnen;
+- automatische und benannte Projektstände mit Kommentar sichern, prüfen und
+  ohne Verlust des aktuellen Arbeitsstands wiederherstellen;
 - Projektdokumentationen visuell oder direkt als portables Markdown bearbeiten;
 - Dateien gezielt global, für einen Kurs oder für ein Projekt in den
   in:si-Workspace kopieren;
+- persönliche App-Daten und registrierte Kursordner gemeinsam als portables
+  ZIP exportieren;
 - persönliche Erweiterungen innerhalb des jeweiligen Kurses wiederverwenden;
 - Thonny und VS Code mit dem ausgewählten Kursinterpreter starten;
 - Pyxel-Ressourcen und offizielle Beispiele verwenden.
@@ -199,7 +229,9 @@ Noch offene Arbeiten stehen ausschließlich in der [Roadmap](#roadmap).
 - veröffentlichte Kursinhalte getrennt vom Student Workspace aktualisieren;
 - Dateien und Ordner mit führendem Unterstrich aus Kursen ausblenden;
 - Kursordner in den Systempapierkorb verschieben, ohne andere Verzeichnisse zu
-  löschen.
+  löschen;
+- nach exakter Bestätigung alle registrierten Kurse und lokalen App-Daten in
+  den Systempapierkorb verschieben.
 
 ### Laufzeit und Offlinepakete
 
@@ -345,24 +377,28 @@ funktioniert auch offline.
 
 ### Runtime-Vertrag und ZIP-Größe
 
-Jeder neu exportierte Kurs enthält `runtime.toml` mit Python 3.11, den genauen
-PyKIM-/Pyxel-Versionen und optionalen Zusatzpaketen. Alte Archive ohne Manifest
-bleiben importierbar.
+Jeder neu exportierte Kurs enthält `runtime.toml` mit der vom Kursersteller
+gewählten Python-Version und der vollständigen Liste exakt gepinnter
+Kurspakete. Ein Kurs kann beispielsweise PyKIM, eine andere Trainingsengine
+oder gar kein Fachpaket verlangen. Alte Archive ohne Manifest bleiben über
+einen ausdrücklich begrenzten 0.7-Kompatibilitätsfallback importierbar.
 
-Der Standardexport enthält **keine Paket-Wheels** und bleibt klein. Zusatzpakete
-werden als `paket==version` eingetragen. Nur wenn die standardmäßig deaktivierte
-Option **Zusätzliche Pakete … einbetten** aktiviert und mindestens ein Ziel
-gewählt wird, lädt in:si die vollständige Wheel-Abhängigkeitskette für:
+Der Standardexport enthält **keine Paket-Wheels** und bleibt klein. Kurspakete
+werden als `paket==version` eingetragen. Nur wenn der Offline-Paketexport
+aktiviert und mindestens ein Ziel gewählt wird, lädt in:si die vollständige
+Wheel-Abhängigkeitskette für:
 
 - Windows x86_64;
 - Linux x86_64;
 - macOS Apple Silicon;
 - macOS Intel.
 
-Jede zusätzliche Plattform kann das ZIP deutlich vergrößern. PyKIM und Pyxel
-stellt die jeweilige in:si-Installation bereit und dupliziert sie deshalb nicht
-im Kurs. Manifest und Wheels werden versioniert im Kurs abgelegt und mit
-SHA-256-Prüfsummen abgesichert.
+Jede zusätzliche Plattform kann das ZIP deutlich vergrößern. Python-Version
+und vollständige, exakt gepinnte Kurspaketliste werden vom Kursersteller im
+Runtime-Vertrag festgelegt; in:si ergänzt oder ersetzt darin keine
+Fachmodulversionen. Beim Offline-Export wird die vollständige Wheel-Kette dieses
+Kursvertrags eingebettet. Manifest und Wheels werden versioniert im Kurs
+abgelegt und mit SHA-256-Prüfsummen abgesichert.
 
 Vor jedem Kursstart und nach Inhaltsupdates prüft der Preflight:
 
@@ -506,22 +542,26 @@ sind noch Teil der Roadmap.
 
 ### Entwicklungsinstallation
 
-Voraussetzungen: Python 3.10 oder neuer und Git.
+Voraussetzungen: Python 3.11 oder neuer und Git.
 
 ```bash
-git clone https://github.com/finalnode/PyKIM.git
 git clone https://github.com/finalnode/insi.git
 
 cd insi
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ../PyKIM
+python -m venv venv
+source venv/bin/activate
+python -m pip install --requirement requirements/pykim-0.6.0.txt
 python -m pip install -e '.[test]'
 python -m pytest
 insi
 ```
 
-Unter Windows wird die Umgebung mit `.venv\Scripts\activate` aktiviert.
+Unter Windows wird die Umgebung mit `venv\Scripts\activate` aktiviert. Der
+sichtbare Ordnername `venv` vermeidet auf macOS mit Python 3.14, dass
+Finder-vererbte Hidden-Flags die `.pth`-Datei einer editierbaren Installation
+deaktivieren.
+Die Versionsdatei bindet PyKIM 0.6.0 sowie die zugehörige Standard-Runtime an
+den gleichen geprüften Stand, den CI und Desktop-Builds verwenden.
 
 ### Architekturgrenzen
 
@@ -614,7 +654,7 @@ Release.
 
 Die Meilensteine und Freigabekriterien von 0.7 bis 1.3 stehen in der
 [Roadmap bis in:si 1.3](ROADMAP.md). Sie trennt die noch offenen Arbeiten an
-Datenschutz und Dokumentation für 0.7 von Zuverlässigkeit in 0.8,
+Zuverlässigkeit, Wartbarkeit und Performance in 0.8 vom
 Schuleinsatz in 0.9, dem stabilen Produktvertrag für 1.0 und den darauf
 aufbauenden Kurs-, Projekt- und Zusammenarbeitsfunktionen.
 

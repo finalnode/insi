@@ -6,6 +6,8 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+from insi.training.backends import fingerprint_profile
+
 from .crypto import decrypt_payload
 from .fingerprints import code_fingerprints
 
@@ -18,7 +20,31 @@ def decrypt_submission(
     for exercise in payload.get("exercises", []):
         if not isinstance(exercise, dict):
             continue
-        recomputed = code_fingerprints(str(exercise.get("source", ""))).as_dict()
+        recorded = exercise.get("fingerprints", {})
+        algorithm = recorded.get("algorithm") if isinstance(recorded, dict) else None
+        engine = exercise.get("engine")
+        if not isinstance(engine, str) or not engine:
+            # Abgaben aus dem bisherigen Format waren ausschließlich PyKIM-basiert.
+            engine = "pykim" if algorithm == "pykim-ast-v1" else ""
+        try:
+            profile = fingerprint_profile(engine) if engine else None
+        except ValueError:
+            if algorithm != "insi-python-ast-v1":
+                exercise["fingerprints_verified"] = False
+                exercise["teacher_fingerprints"] = {}
+                continue
+            profile = None
+        recomputed = code_fingerprints(
+            str(exercise.get("source", "")),
+            protected_names=(
+                profile.protected_names if profile is not None else frozenset()
+            ),
+            algorithm=(
+                str(algorithm)
+                if algorithm
+                else profile.algorithm if profile is not None else "insi-python-ast-v1"
+            ),
+        ).as_dict()
         exercise["fingerprints_verified"] = recomputed == exercise.get("fingerprints")
         exercise["teacher_fingerprints"] = recomputed
     return payload

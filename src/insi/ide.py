@@ -1,4 +1,4 @@
-"""IDE-Adapter für eine gemeinsame PyKIM-Laufzeit."""
+"""IDE-Adapter für die gemeinsame, vom Kurs festgelegte Laufzeit."""
 
 from __future__ import annotations
 

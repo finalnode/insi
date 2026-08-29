@@ -9,11 +9,9 @@ from .activities import Activity, load_activities
 from .backends import (
     evaluate as backend_evaluate,
     load_backend_exercises,
-    register_backend,
     starter_files as backend_starter_files,
 )
 from .contracts import CheckReportLike, ExerciseLike, StarterFile, Submission
-from .pykim_backend import backend as pykim_backend
 
 
 TRAINER_PROVIDER_ENV = "PYKIM_TRAINER_PROVIDER"
@@ -113,9 +111,6 @@ def validate_training_directory(
     directory = Path(trainers)
     load_backend_exercises(directory)
     load_activities(directory, assignments)
-
-
-register_backend(pykim_backend)
 
 
 __all__ = [

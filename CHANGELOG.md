@@ -1,5 +1,88 @@
 # Änderungen
 
+## 0.8.0 – in Entwicklung
+
+- den veröffentlichten `v0.7.1`-Stand in `develop/v0.8` übernommen und die
+  stabile Downloadversion sowie die Plattformnachweise fortgeschrieben;
+- die Mindestversion für Quellinstallationen und erkannte Laufzeiten auf
+  Python 3.11 angehoben, weil das festgelegte Pyxel 2.9.9 für Python 3.10
+  nicht veröffentlicht wird;
+- Windows-AppContainer erhalten für den gestarteten PyInstaller-Runner neben
+  dem Runtimeordner eine explizite Datei-Lesefreigabe, damit das eingebettete
+  PKG-Archiv unabhängig von geerbten ACLs erneut geöffnet werden kann;
+- Paket- und Laufzeitversion des Entwicklungszweigs auf `0.8.0.dev0`
+  vereinheitlicht; stabile Downloadlinks bleiben bis zur Freigabe bei 0.7.1;
+- die ausgeschriebene Bedeutung **informatica simplicissima** und ihre
+  didaktische Leitidee in der deutschen und englischen README wieder direkt in
+  der Einleitung sichtbar gemacht;
+- den Funktionsumfang für 0.8 geschlossen und in einem Abschlussprotokoll mit
+  umgesetzten Bereichen, Messwerten, Wartungsschuld und sechs nachverfolgten
+  Freigabeschritten festgehalten;
+- in allen vier Desktop-Builds eine frische Kurs-Runtime mit geprüften
+  Manifesten und `--no-index` ausschließlich aus dem jeweils paketierten
+  Wheelhouse aufgebaut; die Linux-Größe von 127,6 MiB ist als sichere
+  Abweichung vom weichen 100-MiB-Ziel für 0.8 dokumentiert;
+- die vier browsergestützten NiceGUI-Gesamtworkflows als eigenen
+  Python-3.11-Job in die Pull-Request-CI aufgenommen;
+- den Windows-AppContainer-Nachweis nach dem grünen `v0.7.1`-Release für den
+  zusammengeführten 0.8-Stand und echte Schulgeräte als Freigabepunkt
+  beibehalten;
+- versionierte, idempotente 0.7→0.8-Migrationen für Einstellungen, Kursmarker
+  und Lernstände samt unverändertem Originalbackup und simulierten
+  Abbruch-/Datenträgerfehlern ergänzt;
+- automatische und benannte Projektstände mit Kommentaren, Prüfsummen,
+  Aufbewahrungsregeln und sicherer Wiederherstellung in einer sichtbaren
+  Zeitleiste umgesetzt;
+- einen portablen Gesamtexport für persönliche App-Daten und alle erreichbaren
+  registrierten Kursordner sowie eine separat bestätigte Papierkorbaktion für
+  sämtliche lokalen in:si-Daten im Werkzeugbereich ergänzt;
+- Pyxel-Sprite- und Musikeditor als getrennte Projektaktionen angebunden und
+  fehlgeschlagene Editorstarts sichtbar gemacht;
+- Runtime-, Kursauswahl-, Setup-, Aufgaben- und Workspace-Startpfade
+  konsolidiert; unnötige Prozessstarts, Dateizugriffe, Animationen und eine
+  künstliche Mindestwartezeit entfernt;
+- zunächst nur die sichtbare Kursansicht aufgebaut und die übrigen Ansichten
+  bei ihrer ersten Auswahl nachgeladen;
+- doppelte Updateoberfläche entfernt und App-, Kurs- und Inhaltsabgleich im
+  gemeinsamen Werkzeugbereich zusammengeführt;
+- unabhängige App- und allgemeine Inhaltsprüfung parallelisiert, die für
+  Repositorykurse überflüssige allgemeine Inhaltsabfrage übersprungen und den
+  nie gelesenen Update-Statuscache entfernt; beide Inhaltswege aktivieren einen
+  geprüften Stand nun über denselben atomaren Markerpfad;
+- die vier parallelen Installationsfolgen für neue beziehungsweise vorhandene
+  Repository- und ZIP-Kurse auf je eine gemeinsame Transaktion und einen
+  gemeinsamen Workspace-Aktivierungspfad zurückgeführt; Regressionstests
+  sichern den Erhalt vorhandener Schülerdateien;
+- ZIP-Formatprüfung und Erstellung von der atomaren Speicherung installierter
+  Kursinhalte, Runtime-Stände und Quellenmarker getrennt; gemeinsame
+  JSON-Aktivierung vereinheitlicht und Exportdateien sowie Offline-Wheels nur
+  noch einmal vom Datenträger gelesen;
+- fehlgeschlagene Paketprüfungen im Runtime-Preflight werden nicht mehr
+  unmittelbar wiederholt; ein bereits verworfener bevorzugter Interpreter
+  wird bei der anschließenden Suche nicht erneut per Subprocess geprüft;
+- große Sammeltests schrittweise in fachlich getrennte, schneller ausführbare
+  Testmodule zerlegt und Architekturbudgets gegen erneutes Wachstum ergänzt;
+  `test_guide.py` sank dabei bislang von 2.862 auf 1.460 Zeilen; 33 Runtime-,
+  IDE- und Pyxel-Verträge sowie 16 Inhalts-, Update- und Zertifikatsverträge
+  liegen in eigenen, gezielt ausführbaren Modulen;
+- Offline-Wheelhouse vom App-Paketbaum getrennt und den lokalen
+  macOS-ARM-DMG-Prototyp von rund 113 MB auf rund 82 MiB verkleinert;
+- Packaging-Artefakte auf den Namen in:si umgestellt, direkte Abhängigkeiten
+  festgelegt und plattformspezifische Buildmanifeste ergänzt;
+- GitHub-Actions auf die Node-24-basierten Generationen von Checkout,
+  Python-Setup sowie Artefakt-Upload und -Download aktualisiert und die
+  bisherige Node-20-Abkündigungswarnung beseitigt;
+- aus den vier geprüften Desktop-Buildmanifesten plattformspezifische
+  Python-3.11-Dependency-Locks abgeleitet und deren Verwendung in den Windows-,
+  Linux- und macOS-Buildumgebungen erzwungen;
+- externe Trainer-Plugins vor dem Import inventarisiert und an eine sichtbare,
+  paket- und versionsbezogene Zustimmung gebunden;
+- Stand 27. August 2026: 483 normale Prüfungen bestanden, eine
+  plattformbedingt übersprungen sowie vier im eigenen CI-Job ausgeführte
+  E2E-Prüfungen bestanden;
+  selbst gepflegter Python-Produktivcode 18.806 gegenüber 18.746 Zeilen zu
+  Beginn der 0.8-Konsolidierung.
+
 ## 0.7.1 – 2026-08-27
 
 - einen Windows-Startfehler behoben, bei dem Kursordner unter

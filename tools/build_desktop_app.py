@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from dependency_locks import dependency_lock
+
 
 def environment_python(environment: Path) -> Path:
     if platform.system() == "Windows":
@@ -28,26 +30,40 @@ def main(arguments: list[str] | None = None) -> int:
         raise SystemExit("Dieser Build ist nur für Windows und Linux vorgesehen.")
 
     project = Path(__file__).resolve().parents[1]
+    bootstrap_requirements = project / "requirements" / "build-bootstrap.txt"
+    pykim_requirements = project / "requirements" / "pykim-0.6.0.txt"
+    constraints = dependency_lock(project, system=system)
     platform_name = system.lower()
-    if os.environ.get("PYKIM_DESKTOP_BUILD_ENV") != "1":
+    if os.environ.get("INSI_DESKTOP_BUILD_ENV") != "1":
         environment = project / "build" / f"{platform_name}-venv"
         python = environment_python(environment)
         if not python.is_file():
             subprocess.run([sys.executable, "-m", "venv", str(environment)], check=True)
-        subprocess.run([str(python), "-m", "pip", "install", "--upgrade", "pip"], check=True)
         subprocess.run(
             [
-                str(python), "-m", "pip", "install",
-                "git+https://github.com/finalnode/PyKIM.git@main",
+                str(python), "-m", "pip", "install", "--upgrade",
+                "--requirement", str(bootstrap_requirements),
             ],
             check=True,
         )
         subprocess.run(
-            [str(python), "-m", "pip", "install", "-e", f"{project}[build]"],
+            [
+                str(python), "-m", "pip", "install",
+                "--constraint", str(constraints),
+                "--requirement", str(pykim_requirements),
+            ],
+            check=True,
+        )
+        subprocess.run(
+            [
+                str(python), "-m", "pip", "install",
+                "--constraint", str(constraints),
+                "-e", f"{project}[build]",
+            ],
             check=True,
         )
         child_environment = os.environ.copy()
-        child_environment["PYKIM_DESKTOP_BUILD_ENV"] = "1"
+        child_environment["INSI_DESKTOP_BUILD_ENV"] = "1"
         return subprocess.run(
             [str(python), str(Path(__file__).resolve()), *sys.argv[1:]],
             cwd=project,
@@ -61,11 +77,14 @@ def main(arguments: list[str] | None = None) -> int:
             check=True,
         )
 
+    build_manifest = project / "dist" / "desktop-build-manifest.json"
     subprocess.run(
         [
             sys.executable,
             str(project / "tools" / "audit_runtime_licenses.py"),
             "--strict",
+            "--manifest",
+            str(build_manifest),
         ],
         cwd=project,
         check=True,
@@ -90,7 +109,7 @@ def main(arguments: list[str] | None = None) -> int:
     ]
     if not options.skip_clean:
         command.append("--clean")
-    command.append(str(project / "packaging" / "desktop" / "PyKIM.spec"))
+    command.append(str(project / "packaging" / "desktop" / "insi.spec"))
     subprocess.run(command, cwd=project, check=True)
 
     application = destination / "insi"

@@ -1,6 +1,7 @@
 """Zusammenstellen und Verschlüsseln eines portablen Lernstandexports."""
 
 import json
+from importlib.metadata import version
 import os
 import platform
 import re
@@ -8,11 +9,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-import pykim
 import insi
 from insi.course import exercise_file, get_student_name
 from insi.progress import load_progress
-from insi.training.registry import exercise_names
+from insi.training.backends import fingerprint_profile
+from insi.training.registry import exercise_engine, exercise_names
 
 from .crypto import CertificateInfo, certificate_info, encrypt_payload
 from .fingerprints import code_fingerprints
@@ -85,14 +86,21 @@ def build_submission_payload(
     latest = _latest_attempts(progress)
     exercises = []
     for name in exercise_names():
+        engine = exercise_engine(name)
+        profile = fingerprint_profile(engine)
         path = exercise_file(name, root)
         source = path.read_text(encoding="utf-8") if path and path.exists() else ""
         attempt = latest.get(name)
         exercises.append(
             {
                 "exercise": name,
+                "engine": engine,
                 "source": source,
-                "fingerprints": code_fingerprints(source).as_dict(),
+                "fingerprints": code_fingerprints(
+                    source,
+                    protected_names=profile.protected_names,
+                    algorithm=profile.algorithm,
+                ).as_dict(),
                 "result": None if attempt is None else {
                     "timestamp": attempt.get("timestamp"),
                     "passed": attempt.get("passed", 0),
@@ -116,7 +124,7 @@ def build_submission_payload(
         },
         "environment": {
             "insi": insi.__version__,
-            "pykim": pykim.__version__,
+            "pykim": version("PyKIM"),
             "python": platform.python_version(),
             "platform": platform.system(),
         },

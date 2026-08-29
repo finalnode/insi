@@ -3,7 +3,10 @@
 
 def create_navigation(ui):
     """Erzeuge Tabs in stabiler Reihenfolge und liefere Container und Seiten zurück."""
-    with ui.tabs().classes("pykim-main-navigation w-full") as tabs:
+    with ui.tabs().classes(
+        "pykim-main-navigation w-full min-h-12 bg-white text-grey-8 "
+        "border-b border-gray-300"
+    ) as tabs:
         setup = ui.tab("Setup", icon="settings")
         tools = ui.tab("Werkzeuge", icon="construction")
         overview = ui.tab("Übersicht", icon="dashboard")

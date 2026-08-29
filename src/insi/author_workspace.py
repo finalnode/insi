@@ -8,8 +8,7 @@ from pathlib import Path
 import yaml
 
 from insi.training.registry import get_exercise
-from pykim.trainer.definitions import exercise_from_data
-from insi.training.pykim_backend import normalize_pykim_document
+from insi.training.backends import get_authoring_backend
 
 from .library import task_document
 from .markedown import validate_markedown
@@ -92,6 +91,26 @@ def compose_task_markdown(parts: TaskMarkdownParts) -> str:
     )
 
 
+def compose_task_fields(
+    title: str,
+    body: str,
+    difficulty: str,
+    *,
+    hints: str = "",
+    tags: str = "",
+    sources: str = "",
+) -> str:
+    """Erzeuge Aufgaben-Markdown direkt aus den Texteingaben der Kurswerkstatt."""
+    return compose_task_markdown(TaskMarkdownParts(
+        title,
+        body,
+        difficulty,
+        tuple(filter(None, map(str.strip, hints.splitlines()))),
+        tuple(filter(None, map(str.strip, tags.split(",")))),
+        tuple(filter(None, map(str.strip, sources.splitlines()))),
+    ))
+
+
 def assignment_markdown(
     title: str,
     summary: str,
@@ -133,12 +152,9 @@ def validate_author_draft(draft: AuthorDraft) -> tuple[str, ...]:
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", draft.name):
         issues.append("Die Kennung muss ein kebab-case-Name sein.")
     try:
-        payload = yaml.safe_load(draft.trainer_source)
-        payload = normalize_pykim_document(payload, source_name="Trainer-YAML")
-        definitions = payload.get("exercises")
-        if not isinstance(definitions, list) or len(definitions) != 1:
-            raise ValueError("Ein Entwurf benötigt genau eine PyKIM-Aufgabe.")
-        exercise = exercise_from_data(definitions[0])
+        exercise = get_authoring_backend("pykim").parse_source(
+            draft.trainer_source
+        )
         if exercise.name != draft.name:
             issues.append("Die YAML-Kennung stimmt nicht mit dem Entwurfsnamen überein.")
     except (AttributeError, TypeError, ValueError, yaml.YAMLError) as error:
@@ -211,6 +227,6 @@ def save_author_draft(
 
 __all__ = [
     "AuthorDraft", "TaskMarkdownParts", "assignment_markdown",
-    "compose_task_markdown", "load_published_draft", "save_author_draft",
+    "compose_task_fields", "compose_task_markdown", "load_published_draft", "save_author_draft",
     "split_task_markdown", "validate_author_draft",
 ]

@@ -7,7 +7,6 @@ import platform
 from . import __version__
 from .branding import APP_DISPLAY_NAME
 from .context import AppContext
-from .course_selection_view import course_name_confirmation_matches
 from .desktop import (
     apply_macos_app_icon,
     app_icon_path,
@@ -82,7 +81,6 @@ __all__ = [
     "app_icon_path",
     "browser_favicon",
     "configure_native_app_icon",
-    "course_name_confirmation_matches",
     "main",
     "parse_arguments",
     "prepare_windows_browser_fallback",

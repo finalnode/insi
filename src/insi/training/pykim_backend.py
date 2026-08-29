@@ -6,11 +6,24 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import yaml
+import pykim
 
-from pykim.trainer.definitions import load_exercises
+from pykim.trainer.authoring import (
+    RULE_LABELS,
+    RULE_TEMPLATES,
+    audit_exercise,
+    generate_exercise_source,
+)
+from pykim.trainer.definitions import exercise_from_data, load_exercises
 
 from .backends import TRAINER_FORMAT
-from .contracts import CheckReportLike, ExerciseLike, StarterFile, Submission
+from .contracts import (
+    CheckReportLike,
+    ExerciseLike,
+    FingerprintProfile,
+    StarterFile,
+    Submission,
+)
 
 
 def normalize_pykim_document(data: object, *, source_name: str = "Trainer") -> dict:
@@ -37,6 +50,40 @@ def explicit_pykim_source(source: str) -> str:
 
 class PyKIMTrainerBackend:
     engine = "pykim"
+    fingerprint_profile = FingerprintProfile(
+        "pykim-ast-v1",
+        frozenset(name for name in dir(pykim) if not name.startswith("_")),
+    )
+    rule_labels = RULE_LABELS
+    rule_kinds = tuple(RULE_TEMPLATES)
+
+    @staticmethod
+    def parse_source(source: str) -> ExerciseLike:
+        payload = normalize_pykim_document(
+            yaml.safe_load(source), source_name="Trainerdefinition"
+        )
+        definitions = payload.get("exercises")
+        if not isinstance(definitions, list) or len(definitions) != 1:
+            raise ValueError("Eine Trainerdefinition benötigt genau eine Aufgabe.")
+        return exercise_from_data(definitions[0])
+
+    @staticmethod
+    def generate_source(
+        name: str,
+        title: str,
+        rules: tuple[str, ...],
+        *,
+        optimal_lines: int | None = None,
+    ) -> str:
+        return explicit_pykim_source(
+            generate_exercise_source(
+                name, title, rules, optimal_lines=optimal_lines
+            )
+        )
+
+    @staticmethod
+    def audit(exercise: ExerciseLike) -> object:
+        return audit_exercise(exercise)
 
     @staticmethod
     def _documents(directory: Path) -> tuple[Path, ...]:

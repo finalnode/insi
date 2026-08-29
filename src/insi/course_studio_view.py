@@ -6,18 +6,12 @@ from pathlib import Path
 
 import yaml
 
-from pykim.trainer.authoring import RULE_LABELS, RULE_TEMPLATES, generate_exercise_source
-from pykim.trainer.definitions import exercise_from_data
-from insi.training.pykim_backend import (
-    explicit_pykim_source,
-    normalize_pykim_document,
-)
+from insi.training.backends import get_authoring_backend
 
 from .author_workspace import (
     AuthorDraft,
-    TaskMarkdownParts,
     assignment_markdown,
-    compose_task_markdown,
+    compose_task_fields,
     split_task_markdown,
     validate_author_draft,
 )
@@ -31,6 +25,12 @@ from .course_builder_view import (
     load_course_document,
     save_course_assignment,
     save_course_markdown,
+)
+from .course_runtime import (
+    RUNTIME_FILENAME,
+    RUNTIME_PYTHON,
+    parse_runtime_manifest,
+    suggested_runtime_requirements,
 )
 from .library import (
     render_script_markdown,
@@ -55,21 +55,20 @@ def _title(markdown: str, fallback: str) -> str:
     )
 
 
-def _trainer_exercise(source: str):
-    payload = normalize_pykim_document(
-        yaml.safe_load(source), source_name="Trainervorschau"
+def _show_validation(label, issues: tuple[str, ...], success: str) -> None:
+    label.set_text(success if not issues else "✗ " + " · ".join(issues))
+    label.classes(
+        remove="text-grey-7 text-positive text-negative",
+        add="text-positive" if not issues else "text-negative",
     )
-    definitions = payload.get("exercises")
-    if not isinstance(definitions, list) or len(definitions) != 1:
-        raise ValueError("Die Vorschau benötigt genau eine Trainingsdefinition.")
-    return exercise_from_data(definitions[0])
 
 
 def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) -> None:
+    authoring = get_authoring_backend("pykim")
+
     @ui.page("/course-builder")
     def course_studio() -> None:
         configure_theme(ui)
-        state = {"selection": None}
 
         with ui.column().classes("w-full max-w-7xl mx-auto gap-3 p-5"):
             with ui.row().classes("w-full items-center gap-2"):
@@ -94,7 +93,7 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
             ui.label("Kursprojekt").classes("text-lg font-bold")
             source = ui.input(
                 "Kursordner", placeholder=str(Path.home() / "Mein-PyKIM-Kurs")
-            ).props("dense").classes("w-full")
+            ).props("dense").classes("w-full").mark("course-source")
 
             async def choose_source() -> None:
                 if not desktop or nicegui_app.native.main_window is None:
@@ -106,8 +105,10 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                     directory=str(Path.home()),
                 )
                 if selected:
-                    source.set_value(str(Path(selected[0]).resolve()))
-                    ensure_course_source(source.value)
+                    selected_path = Path(selected[0]).resolve()
+                    source.set_value(str(selected_path))
+                    ensure_course_source(selected_path)
+                    load_runtime_contract(selected_path)
                     refresh_navigation()
                     show_welcome()
 
@@ -122,6 +123,7 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                     ui.notify(f"Kursordner nicht verwendbar: {error}", type="negative")
                     return
                 source.set_value(str(selected))
+                load_runtime_contract(selected)
                 refresh_navigation()
                 show_welcome()
 
@@ -226,6 +228,29 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                 branch = ui.input("Branch", value="main").props("dense").classes(
                     "w-full"
                 )
+                runtime_python = ui.input(
+                    "Python-Version des Kurses", value=RUNTIME_PYTHON
+                ).props("dense").classes("w-full")
+                runtime_requirements = ui.textarea(
+                    "Kurspakete mit exakter Version – eines pro Zeile",
+                    value="\n".join(suggested_runtime_requirements()),
+                ).props("outlined autogrow").classes("w-full")
+                ui.label(
+                    "Diese Angaben gehören zum Kursvertrag. in:si prüft und "
+                    "installiert sie, legt die Versionen aber nicht fest."
+                ).classes("text-xs text-grey-7")
+
+            def load_runtime_contract(root: Path) -> None:
+                manifest_path = root / RUNTIME_FILENAME
+                if not manifest_path.is_file():
+                    return
+                try:
+                    manifest = parse_runtime_manifest(manifest_path)
+                except (OSError, ValueError) as error:
+                    ui.notify(f"Runtime-Vertrag ungültig: {error}", type="negative")
+                    return
+                runtime_python.set_value(manifest.python)
+                runtime_requirements.set_value("\n".join(manifest.requirements))
 
             ui.separator()
             with ui.row().classes("w-full items-center"):
@@ -239,9 +264,18 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
             with ui.row().classes("w-full items-center mt-2"):
                 ui.label("Aufgaben").classes("font-bold text-primary")
                 ui.space()
-                ui.button(icon="add", on_click=lambda: show_free_task()).props(
-                    "flat round dense"
-                )
+                with ui.button(icon="add").props("flat round dense").tooltip(
+                    "Neue Aufgabe"
+                ).mark("new-task-menu"):
+                    with ui.menu():
+                        ui.menu_item(
+                            "Freie Aufgabe mit Hinweisen",
+                            on_click=lambda: show_free_task(),
+                        ).mark("new-free-task")
+                        ui.menu_item(
+                            "Geprüfte PyKIM-Aufgabe mit Hinweisen",
+                            on_click=lambda: show_task(),
+                        ).mark("new-checked-task")
             task_navigation = ui.column().classes("w-full gap-0")
 
         def require_source() -> Path | None:
@@ -285,7 +319,47 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                         ).props("flat dense no-caps align=left").classes(
                             "pykim-script-menu-button w-full"
                         )
+
+        def save_content(operation, success_message) -> None:
+            try:
+                result = operation()
+            except (OSError, ValueError) as error:
+                ui.notify(str(error), type="negative")
+                return
+            refresh_navigation()
+            ui.notify(success_message(result), type="positive")
+
+        def task_metadata_fields(parts, *, checked: bool = False):
+            with ui.row().classes("w-full gap-3 items-start flex-wrap"):
+                difficulty = ui.select(
+                    {
+                        "einfach": "Einfach",
+                        "mittel": "Mittel",
+                        "fortgeschritten": "Fortgeschritten",
+                    },
+                    value=parts.difficulty,
+                    label="Schwierigkeit",
+                ).classes("w-48")
+                tags = ui.input(
+                    "Tags (kommagetrennt)", value=", ".join(parts.tags)
+                ).classes("grow min-w-64")
+            hints = ui.textarea(
+                "Gestufte Hinweise (Hints) – einer pro Zeile",
+                value="\n".join(parts.hints),
+            ).props("outlined autogrow").classes("w-full")
+            ui.label(
+                "Hinweise werden schrittweise angeboten; regelbezogene Tipps "
+                "stehen zusätzlich in der Trainer-YAML."
+                if checked else
+                "Die Hinweise werden Lernenden schrittweise angeboten."
+            ).classes("text-xs text-grey-7")
+            sources = ui.textarea(
+                "Quellen – eine pro Zeile: Name | URL",
+                value="\n".join(parts.sources),
+            ).props("outlined autogrow").classes("w-full")
+            return difficulty, tags, hints, sources
             with task_navigation:
+                trainer_names = set(course_documents(source.value, "trainer"))
                 for paradigm in ("imperativ", "oop"):
                     names = course_documents(source.value, "Aufgaben", paradigm=paradigm)
                     if names:
@@ -293,9 +367,7 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                             "text-xs text-grey-6 mt-1 px-2"
                         )
                     for name in names:
-                        has_trainer = name in set(
-                            course_documents(source.value, "trainer")
-                        )
+                        has_trainer = name in trainer_names
                         ui.button(
                             document_label("Aufgaben", paradigm, name),
                             icon="task_alt" if has_trainer else "description",
@@ -309,7 +381,6 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                         )
 
         def show_welcome() -> None:
-            state["selection"] = None
             editor.clear()
             with editor:
                 ui.label("Kursinhalt bearbeiten").classes("text-2xl font-bold")
@@ -336,7 +407,6 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
         def show_script(paradigm: str = "imperativ", name: str = "") -> None:
             if require_source() is None:
                 return
-            state["selection"] = ("script", paradigm, name)
             content = (
                 load_course_document(source.value, "Skripte", name, paradigm=paradigm)
                 if name
@@ -376,16 +446,10 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
 
                 def validate() -> tuple:
                     issues = validate_markedown(markdown.value or "", kind="script")
-                    validation.set_text(
-                        "✓ M@rkdown ist gültig."
-                        if not issues
-                        else "✗ " + " · ".join(
-                            f"Zeile {issue.line}: {issue.message}" for issue in issues
-                        )
-                    )
-                    validation.classes(
-                        remove="text-grey-7 text-positive text-negative",
-                        add="text-positive" if not issues else "text-negative",
+                    _show_validation(
+                        validation,
+                        tuple(f"Zeile {issue.line}: {issue.message}" for issue in issues),
+                        "✓ M@rkdown ist gültig.",
                     )
                     return issues
 
@@ -397,18 +461,16 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                     if validate():
                         ui.notify("Behebe zuerst die M@rkdown-Fehler.", type="warning")
                         return
-                    try:
-                        target = save_course_markdown(
+                    save_content(
+                        lambda: save_course_markdown(
                             source.value,
                             "Skripte",
                             chapter_name.value or "",
                             markdown.value or "",
                             paradigm=chapter_paradigm.value or "imperativ",
-                        )
-                        refresh_navigation()
-                        ui.notify(f"Gespeichert: {target.name}", type="positive")
-                    except (OSError, ValueError) as error:
-                        ui.notify(str(error), type="negative")
+                        ),
+                        lambda target: f"Gespeichert: {target.name}",
+                    )
 
                 preview_expansion.on_value_change(
                     lambda event: update_preview() if event.value else None
@@ -452,12 +514,12 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                     )
                     return
                 try:
-                    exercise = _trainer_exercise(trainer)
+                    exercise = authoring.parse_source(trainer)
                     ui.label("Automatische Tests").classes("text-lg font-bold mt-4")
                     for index, rule in enumerate(exercise.rules, start=1):
                         with ui.card().classes("w-full shadow-none border"):
                             ui.label(
-                                f"Test {index}: {RULE_LABELS.get(rule.kind, rule.kind)}"
+                                f"Test {index}: {authoring.rule_labels.get(rule.kind, rule.kind)}"
                             ).classes("font-bold")
                             ui.label(f"✓ {rule.success}").classes("text-positive")
                             ui.label(f"✗ {rule.failure}").classes("text-negative")
@@ -502,27 +564,7 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                 with ui.expansion(
                     "Aufgabenangaben und gestufte Hilfen", icon="tune", value=True
                 ).classes("w-full"):
-                    with ui.row().classes("w-full gap-3 items-start flex-wrap"):
-                        difficulty = ui.select(
-                            {
-                                "einfach": "Einfach",
-                                "mittel": "Mittel",
-                                "fortgeschritten": "Fortgeschritten",
-                            },
-                            value=parts.difficulty,
-                            label="Schwierigkeit",
-                        ).classes("w-48")
-                        tags = ui.input(
-                            "Tags (kommagetrennt)", value=", ".join(parts.tags)
-                        ).classes("grow min-w-64")
-                    hints = ui.textarea(
-                        "Gestufte Hinweise – einer pro Zeile",
-                        value="\n".join(parts.hints),
-                    ).props("outlined autogrow").classes("w-full")
-                    sources = ui.textarea(
-                        "Quellen – eine pro Zeile: Name | URL",
-                        value="\n".join(parts.sources),
-                    ).props("outlined autogrow").classes("w-full")
+                    difficulty, tags, hints, sources = task_metadata_fields(parts)
                 markdown = MarkdownEditor(
                     value=parts.body,
                     height="32rem",
@@ -536,54 +578,37 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                 validation = ui.label("M@rkdown noch nicht geprüft.").classes("text-grey-7")
 
                 def current_markdown() -> str:
-                    return compose_task_markdown(TaskMarkdownParts(
+                    return compose_task_fields(
                         task_title.value or "Aufgabe",
                         markdown.value or "",
                         difficulty.value or "mittel",
-                        tuple(
-                            line.strip() for line in (hints.value or "").splitlines()
-                            if line.strip()
-                        ),
-                        tuple(
-                            tag.strip() for tag in (tags.value or "").split(",")
-                            if tag.strip()
-                        ),
-                        tuple(
-                            line.strip() for line in (sources.value or "").splitlines()
-                            if line.strip()
-                        ),
-                    ))
+                        hints=hints.value or "",
+                        tags=tags.value or "",
+                        sources=sources.value or "",
+                    )
 
                 def validate() -> tuple:
                     issues = validate_markedown(current_markdown(), kind="task")
-                    validation.set_text(
-                        "✓ M@rkdown ist gültig."
-                        if not issues
-                        else "✗ " + " · ".join(
-                            f"Zeile {issue.line}: {issue.message}" for issue in issues
-                        )
-                    )
-                    validation.classes(
-                        remove="text-grey-7 text-positive text-negative",
-                        add="text-positive" if not issues else "text-negative",
+                    _show_validation(
+                        validation,
+                        tuple(f"Zeile {issue.line}: {issue.message}" for issue in issues),
+                        "✓ M@rkdown ist gültig.",
                     )
                     return issues
 
                 def save() -> None:
                     if validate():
                         return
-                    try:
-                        target = save_course_markdown(
+                    save_content(
+                        lambda: save_course_markdown(
                             source.value,
                             "Aufgaben",
                             task_name.value or "",
                             current_markdown(),
                             paradigm=task_paradigm.value or "imperativ",
-                        )
-                        refresh_navigation()
-                        ui.notify(f"Freie Aufgabe gespeichert: {target.name}", type="positive")
-                    except (OSError, ValueError) as error:
-                        ui.notify(str(error), type="negative")
+                        ),
+                        lambda target: f"Freie Aufgabe gespeichert: {target.name}",
+                    )
 
                 preview_expansion.on_value_change(
                     lambda event: render_task_preview(
@@ -598,7 +623,6 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
         def show_task(paradigm: str = "imperativ", name: str = "") -> None:
             if require_source() is None:
                 return
-            state["selection"] = ("task", paradigm, name)
             markdown_content = (
                 load_course_document(source.value, "Aufgaben", name, paradigm=paradigm)
                 if name
@@ -629,12 +653,12 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
             initial_optimal = None
             if trainer_content.strip():
                 try:
-                    existing_exercise = _trainer_exercise(trainer_content)
+                    existing_exercise = authoring.parse_source(trainer_content)
                     initial_rules = [
                         rule.kind for rule in existing_exercise.rules
-                        if rule.kind in RULE_TEMPLATES
+                        if rule.kind in authoring.rule_kinds
                     ]
-                    payload = normalize_pykim_document(yaml.safe_load(trainer_content))
+                    payload = yaml.safe_load(trainer_content)
                     optimization = payload["exercises"][0].get("optimization", {})
                     initial_optimal = optimization.get("optimal_lines")
                 except (AttributeError, KeyError, TypeError, ValueError, yaml.YAMLError):
@@ -663,28 +687,15 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                     ).props(
                         "outlined autogrow"
                     ).classes("w-full")
-                    hints = ui.textarea(
-                        "Hinweise – einer pro Zeile",
-                        value="\n".join(parts.hints),
-                        placeholder="Prüfe zuerst deine Startposition.\nWelche Schleife passt?",
-                    ).props("outlined autogrow").classes("w-full")
-                    tags = ui.input(
-                        "Tags (kommagetrennt)",
-                        value=", ".join(parts.tags),
-                        placeholder="schleifen, pixel, einstieg",
-                    ).classes("w-full")
-                    sources = ui.textarea(
-                        "Quellen – eine pro Zeile: Name | URL",
-                        value="\n".join(parts.sources),
-                    ).props("outlined autogrow").classes("w-full")
+                    difficulty, tags, hints, sources = task_metadata_fields(
+                        parts, checked=True
+                    )
                     with ui.row().classes("w-full gap-3 items-start flex-wrap"):
-                        difficulty = ui.select(
-                            {"einfach": "Einfach", "mittel": "Mittel", "fortgeschritten": "Fortgeschritten"},
-                            value=parts.difficulty,
-                            label="Schwierigkeit",
-                        ).classes("w-full sm:w-48")
                         rules = ui.select(
-                            {key: RULE_LABELS[key] for key in RULE_TEMPLATES},
+                            {
+                                key: authoring.rule_labels[key]
+                                for key in authoring.rule_kinds
+                            },
                             value=initial_rules,
                             multiple=True,
                             label="Prüfbausteine",
@@ -698,12 +709,12 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                     def generate() -> None:
                         try:
                             trainer_editor.set_value(
-                                explicit_pykim_source(generate_exercise_source(
+                                authoring.generate_source(
                                     task_name.value or "",
                                     task_title.value or "",
                                     tuple(rules.value or ()),
                                     optimal_lines=int(optimal.value) if optimal.value else None,
-                                ))
+                                )
                             )
                             generated = split_task_markdown(assignment_markdown(
                                     task_title.value or "",
@@ -753,23 +764,14 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                 validation = ui.label("Noch nicht geprüft.").classes("text-grey-7")
 
                 def current_markdown() -> str:
-                    return compose_task_markdown(TaskMarkdownParts(
+                    return compose_task_fields(
                         task_title.value or "Aufgabe",
                         markdown_editor.value or "",
                         difficulty.value or "mittel",
-                        tuple(
-                            line.strip() for line in (hints.value or "").splitlines()
-                            if line.strip()
-                        ),
-                        tuple(
-                            tag.strip() for tag in (tags.value or "").split(",")
-                            if tag.strip()
-                        ),
-                        tuple(
-                            line.strip() for line in (sources.value or "").splitlines()
-                            if line.strip()
-                        ),
-                    ))
+                        hints=hints.value or "",
+                        tags=tags.value or "",
+                        sources=sources.value or "",
+                    )
 
                 def draft() -> AuthorDraft:
                     return AuthorDraft(
@@ -780,30 +782,26 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
 
                 def validate() -> tuple[str, ...]:
                     issues = validate_author_draft(draft())
-                    validation.set_text(
-                        "✓ Aufgabe und Trainer sind vollständig."
-                        if not issues
-                        else "✗ " + " · ".join(issues)
-                    )
-                    validation.classes(
-                        remove="text-grey-7 text-positive text-negative",
-                        add="text-positive" if not issues else "text-negative",
+                    _show_validation(
+                        validation,
+                        issues,
+                        "✓ Aufgabe und Trainer sind vollständig.",
                     )
                     return issues
 
                 def save() -> None:
                     if validate():
                         return
-                    try:
-                        markdown, trainer = save_course_assignment(
+                    save_content(
+                        lambda: save_course_assignment(
                             source.value,
                             draft(),
                             paradigm=task_paradigm.value or "imperativ",
-                        )
-                        refresh_navigation()
-                        ui.notify(f"{markdown.name} und {trainer.name} gespeichert.", type="positive")
-                    except (OSError, ValueError) as error:
-                        ui.notify(str(error), type="negative")
+                        ),
+                        lambda saved: (
+                            f"{saved[0].name} und {saved[1].name} gespeichert."
+                        ),
+                    )
 
                 preview_expansion.on_value_change(
                     lambda event: render_task_preview(
@@ -832,6 +830,8 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                     course=course_name.value,
                     repository=repository.value or "",
                     branch=branch.value,
+                    runtime_python=runtime_python.value,
+                    runtime_requirements=runtime_requirements.value or "",
                 )
                 ui.notify(f"Offline-ZIP erstellt: {archive}", type="positive", timeout=7000)
                 refresh_navigation()

@@ -4,12 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import io
-import json
-import os
-import re
-import shutil
 import stat
-import tempfile
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
@@ -24,18 +19,13 @@ from .course_runtime import (
     MAX_OFFLINE_PACKAGE_SIZE,
     MAX_OFFLINE_WHEELS,
     RUNTIME_FILENAME,
-    RUNTIME_PYTHON,
     RuntimeManifest,
-    current_runtime_target,
-    default_runtime_requirements,
     parse_runtime_manifest,
     runtime_manifest_bytes,
 )
-from .updates import MAX_CONTENT_FILES, MAX_CONTENT_SIZE, _validate_content, content_directory
+from .updates import MAX_CONTENT_FILES, MAX_CONTENT_SIZE
 
 
-ARCHIVE_SOURCE_FORMAT = "pykim-course-source-v1"
-ARCHIVE_SOURCE_FILENAME = "content-source.json"
 MAX_STANDARD_ARCHIVE_SIZE = 25 * 1024 * 1024
 MAX_ARCHIVE_SIZE = MAX_OFFLINE_PACKAGE_SIZE + MAX_STANDARD_ARCHIVE_SIZE
 MAX_ARCHIVE_MEMBERS = MAX_CONTENT_FILES + MAX_OFFLINE_WHEELS + 50
@@ -203,24 +193,17 @@ def parse_course_archive(data: bytes) -> CourseArchive:
                 setup.trainers_path.rstrip("/"): ".yml",
             }
             content: dict[str, bytes] = {}
-            content_folded: set[str] = set()
             for path, member in visible_files.items():
                 try:
                     relative = path.relative_to(root)
                 except ValueError:
                     continue
                 name = relative.as_posix()
-                if any(part.startswith("_") for part in relative.parts):
-                    continue
                 if not any(
                     name.startswith(directory + "/") and name.endswith(suffix)
                     for directory, suffix in roots.items()
                 ):
                     continue
-                folded_name = name.casefold()
-                if folded_name in content_folded:
-                    raise ValueError("Das Kursarchiv enthält mehrdeutige Inhaltspfade.")
-                content_folded.add(folded_name)
                 content[name] = archive.read(member)
     except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError) as error:
         raise ValueError("Die Datei ist kein lesbares PyKIM-Kursarchiv.") from error
@@ -260,7 +243,7 @@ def build_course_archive(
         raise FileNotFoundError("Kursordner oder Setupdatei wurde nicht gefunden.")
     setup_data = canonical_setup_data(setup_path)
     setup = setup_info(setup_data)
-    selected: dict[str, Path] = {}
+    selected: dict[str, bytes] = {}
     for directory, suffix in (
         (setup.scripts_path, ".md"),
         (setup.assignments_path, ".md"),
@@ -272,22 +255,16 @@ def build_course_archive(
         for path in root.rglob(f"*{suffix}"):
             relative = path.relative_to(source)
             if path.is_file() and not any(part.startswith("_") for part in relative.parts):
-                selected[relative.as_posix()] = path
+                selected[relative.as_posix()] = path.read_bytes()
     if len(selected) > MAX_CONTENT_FILES:
         raise ValueError("Der Kurs enthält zu viele sichtbare Dateien.")
-    if sum(path.stat().st_size for path in selected.values()) > MAX_CONTENT_SIZE:
+    if sum(len(data) for data in selected.values()) > MAX_CONTENT_SIZE:
         raise ValueError("Der Kurs ist für ein portables Archiv zu groß.")
 
     runtime_data: bytes | None
     if runtime_manifest is None:
         runtime_path = source / RUNTIME_FILENAME
-        runtime_data = (
-            runtime_path.read_bytes()
-            if runtime_path.is_file()
-            else runtime_manifest_bytes(
-                RuntimeManifest(RUNTIME_PYTHON, default_runtime_requirements())
-            )
-        )
+        runtime_data = runtime_path.read_bytes() if runtime_path.is_file() else None
     elif isinstance(runtime_manifest, bytes):
         runtime_data = runtime_manifest
     elif isinstance(runtime_manifest, Path):
@@ -295,12 +272,13 @@ def build_course_archive(
     else:
         runtime_data = runtime_manifest.encode("utf-8")
     runtime = parse_runtime_manifest(runtime_data) if runtime_data is not None else None
-    wheels = offline_wheels or {}
-    if wheels and runtime is None:
+    wheel_paths = offline_wheels or {}
+    if wheel_paths and runtime is None:
         raise ValueError("Offline-Wheels benötigen ein Runtime-Manifest.")
-    if set(wheels) != set(runtime.hashes if runtime is not None else {}):
+    if set(wheel_paths) != set(runtime.hashes if runtime is not None else {}):
         raise ValueError("Runtime-Manifest und Offline-Wheels stimmen nicht überein.")
-    for name, path in wheels.items():
+    wheels: dict[str, bytes] = {}
+    for name, path in wheel_paths.items():
         member = PurePosixPath(name)
         if (
             member.is_absolute()
@@ -311,255 +289,20 @@ def build_course_archive(
             or not Path(path).is_file()
         ):
             raise ValueError(f"Ungültiger Offline-Wheelpfad: {name!r}")
-        if hashlib.sha256(Path(path).read_bytes()).hexdigest() != runtime.hashes[name]:
+        data = Path(path).read_bytes()
+        if hashlib.sha256(data).hexdigest() != runtime.hashes[name]:
             raise ValueError(f"Prüfsumme des Offline-Wheels stimmt nicht: {name}")
+        wheels[name] = data
 
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(setup.name, setup_data)
         if runtime_data is not None:
             archive.writestr(RUNTIME_FILENAME, runtime_manifest_bytes(runtime))
-        for name, path in sorted(selected.items()):
-            archive.writestr(name, path.read_bytes())
-        for name, path in sorted(wheels.items()):
-            archive.writestr(name, Path(path).read_bytes())
+        for name, data in sorted(selected.items()):
+            archive.writestr(name, data)
+        for name, data in sorted(wheels.items()):
+            archive.writestr(name, data)
     data = output.getvalue()
     parse_course_archive(data)
     return data
-
-
-def install_course_archive_runtime(bundle: CourseArchive, course: str | Path) -> Path | None:
-    """Installiere Manifest und Wheels versioniert im portablen Kursordner."""
-    if bundle.runtime is None or bundle.runtime_data is None:
-        clear_course_runtime(course)
-        return None
-    return install_course_runtime(
-        bundle.runtime_data,
-        course,
-        revision=bundle.revision,
-        offline_wheels=bundle.offline_wheels,
-    )
-
-
-def install_course_runtime(
-    runtime_data: bytes,
-    course: str | Path,
-    *,
-    revision: str,
-    offline_wheels: dict[str, bytes] | None = None,
-) -> Path:
-    """Aktiviere einen bereits geprüften Runtime-Stand atomar für einen Kurs."""
-    runtime = parse_runtime_manifest(runtime_data)
-    wheels = offline_wheels or {}
-    if set(wheels) != set(runtime.hashes):
-        raise ValueError("Runtime-Manifest und Offline-Wheels stimmen nicht überein.")
-    if not re.fullmatch(r"[A-Za-z0-9._-]+", revision):
-        raise ValueError("Die Runtime-Revision ist ungültig.")
-    course_root = Path(course).expanduser().resolve()
-    base = course_root / ".pykim" / "runtime"
-    versions = base / "versions"
-    versions.mkdir(parents=True, exist_ok=True)
-    target = versions / revision
-
-    def target_is_valid() -> bool:
-        try:
-            if parse_runtime_manifest(target / RUNTIME_FILENAME) != runtime:
-                return False
-            wheel_root = target / "wheelhouse"
-            actual = {
-                f"wheelhouse/{path.relative_to(wheel_root).as_posix()}":
-                hashlib.sha256(path.read_bytes()).hexdigest()
-                for path in wheel_root.rglob("*.whl")
-                if path.is_file()
-            } if wheel_root.is_dir() else {}
-            return actual == runtime.hashes
-        except (OSError, ValueError):
-            return False
-
-    if not target_is_valid():
-        with tempfile.TemporaryDirectory(prefix="insi-runtime-", dir=base) as temporary:
-            staging = Path(temporary) / "runtime"
-            staging.mkdir()
-            (staging / RUNTIME_FILENAME).write_bytes(
-                runtime_manifest_bytes(runtime)
-            )
-            for name, data in wheels.items():
-                if hashlib.sha256(data).hexdigest() != runtime.hashes[name]:
-                    raise ValueError(f"Prüfsumme des Offline-Wheels stimmt nicht: {name}")
-                relative = PurePosixPath(name).relative_to("wheelhouse")
-                destination = staging / "wheelhouse" / relative
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                destination.write_bytes(data)
-            if target.exists():
-                shutil.rmtree(target)
-            os.replace(staging, target)
-    marker = base / "active.json"
-    temporary_marker = marker.with_suffix(".json.tmp")
-    temporary_marker.write_text(
-        json.dumps({"revision": revision}, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    os.replace(temporary_marker, marker)
-    return target
-
-
-def clear_course_runtime(course: str | Path) -> None:
-    """Deaktiviere einen alten Runtime-Vertrag, ohne Versionen zu löschen."""
-    marker = Path(course).expanduser().resolve() / ".pykim" / "runtime" / "active.json"
-    try:
-        marker.unlink()
-    except FileNotFoundError:
-        pass
-
-
-def installed_course_runtime(course: str | Path) -> tuple[RuntimeManifest, Path] | None:
-    base = Path(course).expanduser().resolve() / ".pykim" / "runtime"
-    try:
-        marker = json.loads((base / "active.json").read_text(encoding="utf-8"))
-        revision = str(marker["revision"])
-        if not re.fullmatch(r"[A-Za-z0-9._-]+", revision):
-            return None
-        root = base / "versions" / revision
-        manifest = parse_runtime_manifest(root / RUNTIME_FILENAME)
-        return manifest, root
-    except (OSError, ValueError, KeyError, TypeError):
-        return None
-
-
-def course_offline_wheelhouse(
-    course: str | Path,
-    target: str | None = None,
-) -> Path | None:
-    installed = installed_course_runtime(course)
-    if installed is None:
-        return None
-    manifest, root = installed
-    selected = target or current_runtime_target()
-    if selected is None or selected not in manifest.offline_targets:
-        return None
-    wheelhouse = root / "wheelhouse" / selected
-    prefix = f"wheelhouse/{selected}/"
-    expected = {
-        name.removeprefix(prefix): digest
-        for name, digest in manifest.hashes.items()
-        if name.startswith(prefix)
-    }
-    if not expected:
-        return None
-    try:
-        actual = {
-            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
-            for path in wheelhouse.glob("*.whl")
-            if path.is_file()
-        }
-    except OSError as error:
-        raise RuntimeError("Die eingebetteten Offline-Pakete sind nicht lesbar.") from error
-    if actual != expected:
-        raise RuntimeError(
-            "Die eingebetteten Offline-Pakete fehlen oder ihre Prüfsummen stimmen nicht."
-        )
-    return wheelhouse
-
-
-def install_course_archive_content(bundle: CourseArchive) -> Path:
-    """Installiere bereits geprüftes Archivmaterial versioniert und atomar."""
-    base = content_directory()
-    versions = base / "versions"
-    versions.mkdir(parents=True, exist_ok=True)
-    target = versions / bundle.revision
-    manifest = {
-        "content_version": bundle.revision,
-        "source": "archive",
-        "files": {
-            name: hashlib.sha256(data).hexdigest()
-            for name, data in sorted(bundle.files.items())
-        },
-    }
-    if target.is_dir():
-        try:
-            _validate_content(target, manifest)
-            return target
-        except (OSError, ValueError):
-            pass
-
-    with tempfile.TemporaryDirectory(prefix="pykim-archive-", dir=base) as temporary:
-        staging = Path(temporary) / "content"
-        staging.mkdir()
-        for name, data in bundle.files.items():
-            destination = staging / PurePosixPath(name)
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(data)
-        _validate_content(staging, manifest)
-
-        from insi.training.registry import validate_training_directory
-
-        trainer_directory = staging / bundle.setup.trainers_path
-        if trainer_directory.is_dir():
-            validate_training_directory(
-                trainer_directory,
-                staging / bundle.setup.assignments_path,
-            )
-        (staging / "content-manifest.json").write_text(
-            json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
-        if target.exists():
-            shutil.rmtree(target)
-        os.replace(staging, target)
-    return target
-
-
-def course_source_path(course: str | Path) -> Path:
-    return Path(course).expanduser().resolve() / ".pykim" / ARCHIVE_SOURCE_FILENAME
-
-
-def course_content_source(course: str | Path) -> dict[str, str]:
-    try:
-        document = json.loads(course_source_path(course).read_text(encoding="utf-8"))
-    except (OSError, ValueError, TypeError):
-        return {"type": "repository"}
-    if (
-        not isinstance(document, dict)
-        or document.get("format") != ARCHIVE_SOURCE_FORMAT
-        or document.get("type") not in {"archive", "repository"}
-    ):
-        return {"type": "repository"}
-    result = {"type": str(document["type"])}
-    version = document.get("content_version")
-    if isinstance(version, str) and version:
-        result["content_version"] = version
-    return result
-
-
-def write_course_content_source(
-    course: str | Path,
-    source_type: str,
-    *,
-    content_version: str = "",
-) -> None:
-    if source_type not in {"archive", "repository"}:
-        raise ValueError("Unbekannte Kursquelle.")
-    target = course_source_path(course)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    document = {"format": ARCHIVE_SOURCE_FORMAT, "type": source_type}
-    if content_version:
-        document["content_version"] = content_version
-    temporary = target.with_suffix(target.suffix + ".tmp")
-    temporary.write_text(
-        json.dumps(document, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    os.replace(temporary, target)
-
-
-__all__ = [
-    "CourseArchive",
-    "build_course_archive",
-    "clear_course_runtime",
-    "course_offline_wheelhouse",
-    "course_content_source",
-    "install_course_archive_content",
-    "install_course_archive_runtime",
-    "install_course_runtime",
-    "installed_course_runtime",
-    "parse_course_archive",
-    "write_course_content_source",
-]

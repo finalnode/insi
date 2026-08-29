@@ -29,9 +29,11 @@ lokal im Kursordner gespeichert.
 ## 3. Eigene Projekte
 
 Unter **Meine Projekte** entstehen längere Programme mit Quellcode,
-Dokumentation und optionalen Pyxel-Ressourcen. Vor einem integrierten Start legt
-in:si einen begrenzten lokalen Projektstand an. Diese Stände sind noch keine
-vollständige Wiederherstellungsoberfläche; die folgt laut Roadmap in 0.8.
+Dokumentation und optionalen Pyxel-Ressourcen. in:si legt vor einer Ausführung
+bei verändertem Inhalt automatisch einen begrenzten Projektstand an. Zusätzlich
+lassen sich benannte Stände mit einem kurzen Kommentar speichern. Die Zeitleiste
+prüft und restauriert ältere Stände, nachdem sie den aktuellen Arbeitsstand
+noch einmal gesichert hat.
 
 ## 4. Integrierter Start und externe IDE
 

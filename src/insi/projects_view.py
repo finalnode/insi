@@ -19,6 +19,7 @@ from .workspace_files import (
     import_workspace_bytes,
     project_files_directory,
 )
+from .project_history_view import render_project_history
 
 
 TEMPLATE_LABELS = {
@@ -28,7 +29,12 @@ TEMPLATE_LABELS = {
 }
 
 
-def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
+def render_projects_view(
+    ui,
+    nicegui_run,
+    preferred_ide_label: str,
+    ide_open_buttons: list,
+):
     ui.label("Meine Projekte").classes("text-2xl font-bold")
     ui.markdown(
         "Wähle links ein Projekt und bearbeite rechts den Code oder seine "
@@ -61,6 +67,23 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
 
     def render_project(project) -> None:
         graphical = project.kind in {"pykim", "pyxel"}
+
+        async def start_project(success: str) -> None:
+            try:
+                await nicegui_run.io_bound(launch_project, project, course)
+                ui.notify(success, type="positive")
+            except (OSError, RuntimeError, ValueError) as error:
+                ui.notify(str(error), type="negative")
+
+        async def start_resource_editor(editor: str, label: str) -> None:
+            try:
+                await nicegui_run.io_bound(
+                    launch_project_editor, project, course, editor
+                )
+                ui.notify(f"{label} wurde gestartet.", type="positive")
+            except (OSError, RuntimeError, ValueError) as error:
+                ui.notify(str(error), type="negative")
+
         with ui.row().classes("w-full items-center gap-2"):
             ui.label(project.name).classes("text-xl font-bold")
             ui.badge(TEMPLATE_LABELS.get(project.kind, project.kind), color="secondary")
@@ -71,17 +94,14 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
 
         if project.resources is not None and not project.resources.exists():
             ui.label(
-                "Ressourcen noch nicht gespeichert – öffne zuerst den Sprite- und "
-                "Musikeditor."
+                "Ressourcen noch nicht gespeichert – öffne zuerst einen der "
+                "Ressourceneditoren und speichere dort."
             ).classes("text-sm text-orange")
 
         with ui.row().classes("items-center gap-2"):
             start_button = ui.button(
                 "Starten",
-                on_click=lambda selected=project: action(
-                    lambda: launch_project(selected, course),
-                    "Projekt wurde gestartet.",
-                ),
+                on_click=lambda: start_project("Projekt wurde gestartet."),
                 icon="play_arrow",
             )
             if not protection.available or (graphical and not protection.gui_available):
@@ -105,12 +125,14 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
             ).props("outline")
             if project.resources is not None:
                 ui.button(
-                    "Sprite- und Musikeditor",
-                    on_click=lambda selected=project: action(
-                        lambda: launch_project_editor(selected, course),
-                        "Pyxel-Ressourceneditor wurde gestartet.",
-                    ),
-                    icon="palette",
+                    "Spriteeditor",
+                    on_click=lambda: start_resource_editor("image", "Spriteeditor"),
+                    icon="image",
+                ).props("outline")
+                ui.button(
+                    "Musikeditor",
+                    on_click=lambda: start_resource_editor("music", "Musikeditor"),
+                    icon="music_note",
                 ).props("outline")
 
         async def import_project_file(event) -> None:
@@ -175,11 +197,10 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
                         ui.notify(str(error), type="warning")
                         return False
 
-                def save_and_start() -> None:
+                async def save_and_start() -> None:
                     if save_code(notify=False):
-                        action(
-                            lambda: launch_project(project, course),
-                            "Projekt wurde gespeichert und gestartet.",
+                        await start_project(
+                            "Projekt wurde gespeichert und gestartet."
                         )
 
                 code_editor.on(
@@ -224,7 +245,7 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
 
                 docs_editor.on_value_change(update_documentation_preview)
 
-                def save_documentation() -> None:
+                def save_documentation(notify=True) -> bool:
                     try:
                         save_project_text(
                             project,
@@ -235,11 +256,14 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
                         docs_state["hash"] = project_text_hash(docs_editor.value)
                         docs_status.set_text("Gespeichert")
                         docs_status.classes(replace="text-xs text-grey-7")
-                        ui.notify("Dokumentation gespeichert.", type="positive")
+                        if notify:
+                            ui.notify("Dokumentation gespeichert.", type="positive")
+                        return True
                     except (OSError, RuntimeError, ValueError) as error:
                         docs_status.set_text("Speichern nicht möglich")
                         docs_status.classes(replace="text-xs text-negative")
                         ui.notify(str(error), type="warning")
+                        return False
 
                 with ui.row().classes("items-center"):
                     ui.button(
@@ -252,6 +276,16 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
                         on_click=lambda: ui.clipboard.write(docs_editor.value),
                         icon="content_copy",
                     ).props("outline")
+
+        render_project_history(
+            ui,
+            nicegui_run,
+            project,
+            course,
+            save_code,
+            save_documentation,
+            refresh,
+        )
 
     def refresh() -> None:
         workspace.clear()

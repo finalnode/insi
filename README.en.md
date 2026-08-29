@@ -6,18 +6,40 @@
 
 **Language:** [Deutsch](README.md) · English
 
-**in:si 0.7.1** is a local desktop learning environment for
-modular computer science courses. It combines course installation, learning
-texts, interactive assignments, automated feedback, progress, projects and
-authoring tools in one application that remains largely offline after setup.
+**This development branch builds in:si 0.8.0.dev0.** It is not a published
+release yet. **in:si 0.7.1** remains the current stable release of the local
+desktop learning environment for modular computer science courses. The app combines course
+installation, learning texts, interactive assignments, automated feedback,
+progress, projects and authoring tools in one application that remains largely
+offline after setup.
+The current work is available on
+[`develop/v0.8`](https://github.com/finalnode/insi/tree/develop/v0.8); `main`
+remains on the 0.7 state until the new version passes its release checks.
+
+The name **in:si** stands for **informatica simplicissima**: computer science
+should be made as accessible as possible without hiding real languages, files
+and tools behind a simplified learning interface. Its educational principle is:
+**Simplify as much as necessary, abstract as little as possible.**
 
 > **Project status: alpha.** Interfaces and local formats may still change.
 > Desktop builds are not production-signed. The macOS build is ad-hoc signed
 > but not notarized.
 
-> **Development:** The upcoming version 0.8 is being developed on the
-> [`develop/v0.8`](https://github.com/finalnode/insi/tree/develop/v0.8) branch.
-> This development state has not been released yet and may change.
+> **Current build evidence:** Commit `c3e2923` of `develop/v0.8` built
+> successfully for Windows, Linux and both macOS architectures. Windows
+> AppContainer and real window launch, Linux Bubblewrap/Wayland and both macOS
+> Seatbelt checks passed. Each platform also rebuilt a fresh course runtime
+> exclusively from its packaged offline wheelhouse. Verification on real school
+> devices remains required.
+
+> **0.8.0.dev0 development state:** `develop/v0.8` now includes versioned data
+> migration, visible project snapshots, local data control, faster startup
+> paths and a more focused test structure. The current check reports 483
+> passed tests, one platform-related skip and four additional E2E tests passing
+> in their dedicated CI job. See the
+> [draft 0.8 release notes](docs/release-notes-0.8.md) for progress and release
+> blockers. The [0.8 scope-cut protocol](docs/v0.8-abschlussprotokoll.md)
+> separates completed scope from outstanding release evidence.
 
 ## Why in:si exists
 
@@ -60,6 +82,8 @@ proprietary format.
 - solve code, free-text, matching and Parsons-style assignments;
 - run automated trainers through a subject-neutral engine contract;
 - keep progress, projects and notes in the selected course workspace;
+- save automatic or named project states and restore them without discarding
+  the current working state;
 - edit course texts in WYSIWYG or Markdown mode while storing plain Markdown;
 - create and validate course packages and portable ZIP archives;
 - use controlled, fail-closed execution on Windows, macOS and Linux;
@@ -68,13 +92,13 @@ proprietary format.
 
 ## Installation and development
 
-Python 3.10 or newer is required for a source installation:
+Python 3.11 or newer is required for a source installation:
 
 ```bash
 git clone https://github.com/finalnode/insi.git
 cd insi
-python -m venv .venv
-source .venv/bin/activate
+python -m venv venv
+source venv/bin/activate
 python -m pip install -e .
 insi
 ```
@@ -82,8 +106,12 @@ insi
 On Windows activate the environment with:
 
 ```powershell
-.venv\Scripts\activate
+venv\Scripts\activate
 ```
+
+The visible `venv` directory name also avoids inherited Finder hidden flags on
+macOS with Python 3.14, which can otherwise disable the `.pth` file of an
+editable installation.
 
 The desktop packages for `0.7.1` are built automatically from the corresponding
 version tag and published in the official GitHub release:
@@ -117,8 +145,9 @@ deletion paths are listed in [DATENSCHUTZ.md](DATENSCHUTZ.md) in German.
   widths; the previously observed WYSIWYG freeze is fixed.
 - The real-device school matrix for Windows, macOS and Linux is not complete.
 - Desktop packages are not production-signed or notarized.
-- Automated cross-version migrations, visible snapshot restoration and local
-  multi-user profiles belong to later milestones.
+- The 0.7-to-0.8 migration and visible snapshot restoration are implemented on
+  the development branch but still require release and platform verification.
+- Local multi-user profiles belong to a later milestone.
 - Setup, course, trainer and data formats do not receive a 1.x stability promise
   before version 1.0.
 

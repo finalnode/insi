@@ -3,21 +3,41 @@
 from __future__ import annotations
 
 import json
-import importlib.util
+import importlib.metadata
 import os
 import platform
 import shutil
 import subprocess
 import sys
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
+from functools import cache
 from pathlib import Path
+from tempfile import NamedTemporaryFile, mkdtemp
 
 from .interpreter import command_for
 
 
-MINIMUM_PYTHON = (3, 10)
-RUNTIME_ENV = "PYKIM_PYTHON"
+MINIMUM_PYTHON = (3, 11)
+RUNTIME_ENV = "INSI_PYTHON"
+LEGACY_RUNTIME_ENV = "PYKIM_PYTHON"
+PYXEL_RUNTIME_REQUIREMENT = "Pyxel==2.9.9"
+LEGACY_RUNTIME_REQUIREMENTS = (
+    "PyKIM==0.6.0",
+    PYXEL_RUNTIME_REQUIREMENT,
+    "PyYAML==6.0.3",
+)
+
+
+def _normalized_package_name(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name.casefold())
+
+
+LEGACY_RUNTIME_PACKAGE_NAMES = frozenset(
+    _normalized_package_name(requirement.split("==", 1)[0])
+    for requirement in LEGACY_RUNTIME_REQUIREMENTS
+)
 
 
 def _executable_path(executable: str | Path) -> Path:
@@ -33,9 +53,12 @@ class RuntimeCandidate:
     version: str
     source: str
     supported: bool
-    pykim: bool
-    pyxel: bool
+    packages: tuple[str, ...]
     error: str = ""
+
+    def has_package(self, name: str) -> bool:
+        expected = _normalized_package_name(name)
+        return any(_normalized_package_name(item) == expected for item in self.packages)
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -79,14 +102,21 @@ def _python_in_environment(root: Path) -> Path:
     return root / ("Scripts/python.exe" if platform.system() == "Windows" else "bin/python")
 
 
+def _directory_entries(directory: Path) -> tuple[Path, ...]:
+    try:
+        return tuple(directory.iterdir())
+    except OSError:
+        return ()
+
+
 def _matching_pythons(directory: Path) -> list[Path]:
     """Finde echte Python-Programme, aber keine python-config-Helfer."""
-    try:
-        entries = tuple(directory.iterdir())
-    except OSError:
-        return []
     pattern = re.compile(r"python(?:3(?:\.\d+)?)?(?:\.exe)?$", re.IGNORECASE)
-    return [entry for entry in entries if entry.is_file() and pattern.fullmatch(entry.name)]
+    return [
+        entry
+        for entry in _directory_entries(directory)
+        if entry.is_file() and pattern.fullmatch(entry.name)
+    ]
 
 
 def _environment_pythons(root: Path) -> list[Path]:
@@ -140,11 +170,7 @@ def _installed_python_paths() -> list[tuple[Path, str]]:
         (home / ".local" / "share" / "uv" / "python", "uv"),
     )
     for parent, label in environment_roots:
-        try:
-            roots = tuple(parent.iterdir())
-        except OSError:
-            continue
-        for root in roots:
+        for root in _directory_entries(parent):
             if root.is_dir():
                 found.extend((path, label) for path in _environment_pythons(root))
 
@@ -163,11 +189,7 @@ def _installed_python_paths() -> list[tuple[Path, str]]:
         ):
             found.extend((path, label) for path in _matching_pythons(directory))
         framework = Path("/Library/Frameworks/Python.framework/Versions")
-        try:
-            versions = tuple(framework.iterdir())
-        except OSError:
-            versions = ()
-        for version in versions:
+        for version in _directory_entries(framework):
             found.extend((path, "python.org") for path in _matching_pythons(version / "bin"))
         for application_root in (Path("/Applications"), home / "Applications"):
             thonny = application_root / "Thonny.app" / "Contents"
@@ -188,11 +210,7 @@ def _installed_python_paths() -> list[tuple[Path, str]]:
         for root in roots:
             if str(root) in {".", ""}:
                 continue
-            try:
-                directories = tuple(root.iterdir())
-            except OSError:
-                continue
-            for directory in directories:
+            for directory in _directory_entries(root):
                 if directory.is_dir() and (
                     "python" in directory.name.lower() or "thonny" in str(root).lower()
                 ):
@@ -205,7 +223,7 @@ def _installed_python_paths() -> list[tuple[Path, str]]:
 
 
 def managed_runtime_path(course: str | Path) -> Path:
-    """Liefere den lokalen Runtime-Pfad eines Kurses.
+    """Liefere den stabilen lokalen Verwaltungsordner eines Kurses.
 
     Die Umgebung liegt absichtlich nicht im synchronisierten Kursordner. Der
     stabile Hash verhindert gleichzeitig Kollisionen zwischen Kursen.
@@ -214,8 +232,65 @@ def managed_runtime_path(course: str | Path) -> Path:
 
     root = Path(course).expanduser().resolve()
     key = sha256(str(root).encode("utf-8")).hexdigest()[:12]
-    base = Path(os.environ.get("PYKIM_RUNTIME_DIR", Path.home() / ".pykim" / "runtimes"))
+    configured = os.environ.get("INSI_RUNTIME_DIR") or os.environ.get(
+        "PYKIM_RUNTIME_DIR"
+    )
+    base = Path(configured or Path.home() / ".pykim" / "runtimes")
     return base.expanduser() / key
+
+
+def _active_managed_python(course: str | Path) -> Path | None:
+    """Lese die atomar aktivierte Runtime-Generation eines Kurses."""
+    root = managed_runtime_path(course).resolve()
+    try:
+        data = json.loads((root / "active.json").read_text(encoding="utf-8"))
+        relative = Path(str(data["environment"]))
+        if relative.is_absolute() or ".." in relative.parts:
+            return None
+        environment = (root / relative).resolve()
+        if not environment.is_relative_to(root):
+            return None
+        python = _python_in_environment(environment)
+        return python if python.is_file() else None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def _runtime_environment(executable: str | Path) -> Path:
+    path = _executable_path(executable)
+    if path.parent.name.casefold() in {"bin", "scripts"}:
+        return path.parent.parent
+    raise ValueError("Der Interpreter gehört zu keiner erkennbaren Kursumgebung.")
+
+
+def _activate_managed_runtime(course: str | Path, executable: str | Path) -> None:
+    """Aktiviere eine vollständig geprüfte Generation über einen atomaren Marker."""
+    root = managed_runtime_path(course).resolve()
+    environment = _runtime_environment(executable).resolve()
+    if not environment.is_relative_to(root):
+        raise ValueError("Die neue Laufzeit liegt außerhalb der Kursverwaltung.")
+    root.mkdir(parents=True, exist_ok=True)
+    marker = root / "active.json"
+    temporary_path = None
+    try:
+        with NamedTemporaryFile(
+            "w", encoding="utf-8", dir=root, prefix="active-", delete=False
+        ) as temporary:
+            json.dump(
+                {"environment": environment.relative_to(root).as_posix()},
+                temporary,
+                ensure_ascii=False,
+                indent=2,
+            )
+            temporary.write("\n")
+            temporary_path = Path(temporary.name)
+        os.replace(temporary_path, marker)
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink()
+            except FileNotFoundError:
+                pass
 
 
 def is_managed_runtime(executable: str | Path, course: str | Path) -> bool:
@@ -225,11 +300,14 @@ def is_managed_runtime(executable: str | Path, course: str | Path) -> bool:
 
 def _candidate_paths(course: str | Path | None = None) -> list[tuple[Path, str]]:
     paths: list[tuple[Path, str]] = []
-    configured = os.environ.get(RUNTIME_ENV)
+    configured = os.environ.get(RUNTIME_ENV) or os.environ.get(LEGACY_RUNTIME_ENV)
     if configured:
         paths.append((Path(configured).expanduser(), "Umgebungsvariable"))
     if course is not None:
-        paths.append((_python_in_environment(managed_runtime_path(course)), "PyKIM-Kursumgebung"))
+        active = _active_managed_python(course)
+        if active is not None:
+            paths.append((active, "Kursumgebung"))
+        paths.append((_python_in_environment(managed_runtime_path(course)), "Kursumgebung"))
     paths.append((Path(sys.executable), "Suite"))
     for command in ("python3", "python"):
         executable = shutil.which(command)
@@ -239,16 +317,22 @@ def _candidate_paths(course: str | Path | None = None) -> list[tuple[Path, str]]
     return paths
 
 
+@cache
+def _suite_packages() -> tuple[str, ...]:
+    """Inventarisiere den unveränderlichen Paketbestand des App-Prozesses einmal."""
+    names = {item.metadata.get("Name", "") for item in importlib.metadata.distributions()}
+    return tuple(sorted(names - {""}))
+
+
 def inspect_runtime(executable: str | Path, source: str = "Benutzerdefiniert") -> RuntimeCandidate:
     """Prüfe einen Interpreter in einem getrennten Prozess."""
     path = _executable_path(executable)
     if not path.is_file():
-        return RuntimeCandidate(str(path), "", source, False, False, False, "Nicht gefunden")
+        return RuntimeCandidate(str(path), "", source, False, (), "Nicht gefunden")
     probe = (
-        "import importlib.util,json,sys;"
+        "import importlib.metadata as m,json,sys;"
         "print(json.dumps({'version':list(sys.version_info[:3]),"
-        "'pykim':importlib.util.find_spec('pykim') is not None,"
-        "'pyxel':importlib.util.find_spec('pyxel') is not None}))"
+        "'packages':sorted({d.metadata.get('Name','') for d in m.distributions()} - {''})}))"
     )
     try:
         completed = subprocess.run(
@@ -266,16 +350,15 @@ def inspect_runtime(executable: str | Path, source: str = "Benutzerdefiniert") -
             ".".join(str(value) for value in version_parts),
             source,
             version_parts >= MINIMUM_PYTHON,
-            bool(data["pykim"]),
-            bool(data["pyxel"]),
+            tuple(str(item) for item in data["packages"]),
         )
     except (OSError, subprocess.SubprocessError, ValueError, KeyError, RuntimeError) as error:
-        return RuntimeCandidate(str(path), "", source, False, False, False, str(error))
+        return RuntimeCandidate(str(path), "", source, False, (), str(error))
 
 
 def discover_runtimes(course: str | Path | None = None) -> tuple[RuntimeCandidate, ...]:
-    """Finde Interpreter ohne Duplikate und prüfe jeden genau einmal."""
-    found: list[RuntimeCandidate] = []
+    """Finde Interpreter und prüfe unabhängige Prozesse begrenzt parallel."""
+    pending: list[RuntimeCandidate | tuple[Path, str]] = []
     seen: set[Path] = set()
     for path, source in _candidate_paths(course):
         executable = _executable_path(path)
@@ -283,19 +366,27 @@ def discover_runtimes(course: str | Path | None = None) -> tuple[RuntimeCandidat
             continue
         seen.add(executable)
         if executable == _executable_path(sys.executable):
-            found.append(
+            pending.append(
                 RuntimeCandidate(
                     str(executable),
                     platform.python_version(),
                     source,
                     sys.version_info >= MINIMUM_PYTHON,
-                    importlib.util.find_spec("pykim") is not None,
-                    importlib.util.find_spec("pyxel") is not None,
+                    _suite_packages(),
                 )
             )
         else:
-            found.append(inspect_runtime(executable, source))
-    return tuple(found)
+            pending.append((executable, source))
+
+    probes = [item for item in pending if isinstance(item, tuple)]
+    if not probes:
+        return tuple(item for item in pending if isinstance(item, RuntimeCandidate))
+    with ThreadPoolExecutor(max_workers=min(4, len(probes))) as executor:
+        inspected = iter(executor.map(lambda item: inspect_runtime(*item), probes))
+        return tuple(
+            next(inspected) if isinstance(item, tuple) else item
+            for item in pending
+        )
 
 
 def _requirement_versions(
@@ -339,15 +430,33 @@ def _package_checks(
     requirements: tuple[str, ...],
 ) -> tuple[RuntimePackageCheck, ...]:
     installed = _requirement_versions(candidate.executable, requirements)
-    return tuple(
-        RuntimePackageCheck(
-            requirement,
-            installed.get(requirement.split("==", 1)[0], ""),
-            installed.get(requirement.split("==", 1)[0], "")
-            == requirement.split("==", 1)[1],
-        )
-        for requirement in requirements
+    checks = []
+    for requirement in requirements:
+        name, expected = requirement.split("==", 1)
+        actual = installed.get(name, "")
+        checks.append(RuntimePackageCheck(requirement, actual, actual == expected))
+    return tuple(checks)
+
+
+def _installed_manifest(course: str | Path):
+    from .course_storage import installed_course_runtime
+
+    installed = installed_course_runtime(course)
+    return installed[0] if installed is not None else None
+
+
+def _has_nonstandard_requirements(requirements: tuple[str, ...]) -> bool:
+    return any(
+        _normalized_package_name(item.split("==", 1)[0])
+        not in LEGACY_RUNTIME_PACKAGE_NAMES
+        for item in requirements
     )
+
+
+def _matches_python(candidate: RuntimeCandidate, required_python: str | None) -> bool:
+    """Prüfe Support und optional die geforderte Python-Major/Minor-Version."""
+    version = ".".join(candidate.version.split(".")[:2])
+    return candidate.supported and (not required_python or version == required_python)
 
 
 def course_runtime_preflight(
@@ -357,20 +466,20 @@ def course_runtime_preflight(
 ) -> RuntimePreflight:
     """Prüfe vor Kursstart Python, Pakete, Plattform und Offline-Integrität."""
     from .course import get_runtime_preference
-    from .course_archive import course_offline_wheelhouse, installed_course_runtime
+    from .course_storage import course_offline_wheelhouse
     from .course_runtime import RUNTIME_TARGETS, current_runtime_target
 
     root = Path(course).expanduser().resolve()
-    installed_runtime = installed_course_runtime(root)
-    manifest = installed_runtime[0] if installed_runtime is not None else None
+    manifest = _installed_manifest(root)
     required_python = manifest.python if manifest is not None else ""
-    requirements = manifest.requirements if manifest is not None else ()
+    requirements = (
+        manifest.requirements if manifest is not None else LEGACY_RUNTIME_REQUIREMENTS
+    )
     target = current_runtime_target()
     issues: list[str] = []
     warnings: list[str] = []
     hard_failure = False
     offline_packages = False
-
     if manifest is not None and target is None:
         issues.append(
             "Die aktuelle Kombination aus Betriebssystem und Architektur wird "
@@ -381,11 +490,7 @@ def course_runtime_preflight(
         try:
             wheelhouse = course_offline_wheelhouse(root, target)
             offline_packages = wheelhouse is not None
-            has_extras = any(
-                re.sub(r"[-_.]+", "-", item.split("==", 1)[0].casefold())
-                not in {"pykim", "pyxel"}
-                for item in requirements
-            )
+            has_extras = _has_nonstandard_requirements(requirements)
             if has_extras and wheelhouse is None:
                 issues.append(
                     "Das Offlinepaket ist für diese Plattform unvollständig. "
@@ -395,11 +500,7 @@ def course_runtime_preflight(
         except RuntimeError as error:
             issues.append(str(error))
             hard_failure = True
-    elif manifest is not None and any(
-        re.sub(r"[-_.]+", "-", item.split("==", 1)[0].casefold())
-        not in {"pykim", "pyxel"}
-        for item in requirements
-    ):
+    elif manifest is not None and _has_nonstandard_requirements(requirements):
         label = RUNTIME_TARGETS[target].label if target in RUNTIME_TARGETS else "dieses System"
         warnings.append(
             f"Für {label} sind keine Zusatzpakete eingebettet; eine Einrichtung "
@@ -407,28 +508,29 @@ def course_runtime_preflight(
         )
 
     discovered = candidates if candidates is not None else discover_runtimes(root)
-    ordered: list[RuntimeCandidate] = []
+    by_path = {
+        _executable_path(candidate.executable): candidate
+        for candidate in discovered
+    }
     preference = get_runtime_preference()
     if preference:
-        ordered.append(inspect_runtime(preference, "Ausgewählt"))
-    for candidate in discovered:
-        if all(_executable_path(item.executable) != _executable_path(candidate.executable) for item in ordered):
-            ordered.append(candidate)
-
-    def python_matches(candidate: RuntimeCandidate) -> bool:
-        version = ".".join(candidate.version.split(".")[:2])
-        return candidate.supported and (
-            not required_python or version == required_python
+        preferred_path = _executable_path(preference)
+        preferred = by_path.pop(preferred_path, None) or inspect_runtime(
+            preference, "Ausgewählt"
         )
+        ordered = (preferred, *by_path.values())
+    else:
+        ordered = tuple(by_path.values())
 
-    matching = tuple(candidate for candidate in ordered if python_matches(candidate))
+    matching = tuple(
+        candidate for candidate in ordered
+        if _matches_python(candidate, required_python)
+    )
     checked: dict[str, tuple[RuntimePackageCheck, ...]] = {}
     probe_errors: dict[str, str] = {}
     ready_candidate = None
     ready_packages: tuple[RuntimePackageCheck, ...] = ()
     for candidate in matching:
-        if not (candidate.pykim and candidate.pyxel):
-            continue
         try:
             package_status = _package_checks(candidate, requirements)
         except RuntimeError as error:
@@ -440,24 +542,16 @@ def course_runtime_preflight(
             ready_packages = package_status
             break
 
-    selected = ready_candidate
-    if selected is None:
-        selected = next(
-            (
-                candidate for candidate in matching
-                if is_managed_runtime(candidate.executable, root)
-            ),
-            matching[0] if matching else None,
-        )
+    selected = ready_candidate or next(
+        (
+            candidate for candidate in matching
+            if is_managed_runtime(candidate.executable, root)
+        ),
+        matching[0] if matching else None,
+    )
     packages = ready_packages
     if selected is not None and ready_candidate is None and requirements:
-        try:
-            packages = checked.get(selected.executable) or _package_checks(
-                selected, requirements
-            )
-        except RuntimeError as error:
-            probe_errors[selected.executable] = str(error)
-            packages = ()
+        packages = checked.get(selected.executable, ())
 
     if selected is None:
         version_note = f" {required_python}" if required_python else ""
@@ -466,25 +560,18 @@ def course_runtime_preflight(
             "Installiere die benötigte Python-Version und versuche es erneut."
         )
     elif ready_candidate is None:
-        if not selected.pykim:
-            issues.append("PyKIM fehlt in der ausgewählten Kurslaufzeit.")
-        if not selected.pyxel:
-            issues.append("Pyxel fehlt in der ausgewählten Kurslaufzeit.")
         for package in packages:
             if package.ready:
                 continue
             name, expected = package.requirement.split("==", 1)
-            normalized = re.sub(r"[-_.]+", "-", name.casefold())
-            if (normalized == "pykim" and not selected.pykim) or (
-                normalized == "pyxel" and not selected.pyxel
-            ):
-                continue
             if package.installed:
                 issues.append(
                     f"{name} hat Version {package.installed}; benötigt wird {expected}."
                 )
             else:
-                issues.append(f"{package.requirement} ist nicht installiert.")
+                issues.append(
+                    f"{name} fehlt; benötigt wird {package.requirement}."
+                )
         if selected.executable in probe_errors:
             issues.append(probe_errors[selected.executable])
 
@@ -493,7 +580,7 @@ def course_runtime_preflight(
         not ready
         and not hard_failure
         and selected is not None
-        and python_matches(selected)
+        and _matches_python(selected, required_python)
         and is_managed_runtime(selected.executable, root)
     )
     managed_root = managed_runtime_path(root).resolve()
@@ -516,100 +603,108 @@ def course_runtime_preflight(
     )
 
 
-def selected_runtime(course: str | Path | None = None) -> RuntimeCandidate:
-    """Wähle eine funktionierende PyKIM-Laufzeit deterministisch aus."""
+def selected_runtime(
+    course: str | Path | None = None,
+    *,
+    additional_requirements: tuple[str, ...] = (),
+) -> RuntimeCandidate:
+    """Wähle eine mit dem Kursprofil kompatible Laufzeit deterministisch aus."""
     from .course import get_runtime_preference
 
     required_python = None
-    requirements: tuple[str, ...] = ()
+    requirements = LEGACY_RUNTIME_REQUIREMENTS
     if course is not None:
-        from .course_archive import installed_course_runtime
-
-        installed = installed_course_runtime(course)
-        if installed is not None:
-            required_python = installed[0].python
-            requirements = installed[0].requirements
+        manifest = _installed_manifest(course)
+        if manifest is not None:
+            required_python = manifest.python
+            requirements = manifest.requirements
+    effective_requirements = tuple(
+        dict.fromkeys((*requirements, *additional_requirements))
+    )
 
     def suitable(candidate: RuntimeCandidate) -> bool:
-        version = ".".join(candidate.version.split(".")[:2])
-        basics_ready = (
-            candidate.supported
-            and candidate.pykim
-            and candidate.pyxel
-            and (required_python is None or version == required_python)
-        )
-        if not basics_ready:
+        if not _matches_python(candidate, required_python):
             return False
         try:
             return all(
                 package.ready
-                for package in _package_checks(candidate, requirements)
+                for package in _package_checks(candidate, effective_requirements)
             )
         except RuntimeError:
             return False
 
     preference = get_runtime_preference()
+    checked_paths: set[Path] = set()
     if preference:
         preferred = inspect_runtime(preference, "Ausgewählt")
+        checked_paths.add(_executable_path(preferred.executable))
         if suitable(preferred):
             return preferred
     candidates = discover_runtimes(course)
     for candidate in candidates:
+        if _executable_path(candidate.executable) in checked_paths:
+            continue
         if suitable(candidate):
             return candidate
     version_note = f" in Version {required_python}" if required_python else ""
+    package_note = (
+        " mit " + ", ".join(additional_requirements)
+        if additional_requirements
+        else ""
+    )
     raise RuntimeError(
-        f"Keine geeignete Python-Laufzeit{version_note} mit PyKIM und Pyxel gefunden. "
-        "Richte im Setup zuerst eine PyKIM-Laufzeit ein."
+        f"Keine geeignete Python-Laufzeit{version_note}{package_note} "
+        "für das Kursprofil gefunden. "
+        "Richte im Setup zuerst eine kompatible Laufzeit ein."
     )
 
 
-def create_managed_runtime(course: str | Path, base_python: str | Path) -> RuntimeCandidate:
-    """Erzeuge eine isolierte Kursumgebung aus einem geprüften Interpreter.
+def create_managed_runtime(
+    course: str | Path,
+    base_python: str | Path | RuntimeCandidate,
+) -> RuntimeCandidate:
+    """Erzeuge eine neue isolierte Runtime-Generation.
 
-    Die Installation von PyKIM/Pyxel bleibt ein eigener, expliziter Schritt;
+    Die Paketinstallation bleibt ein eigener, expliziter Schritt;
     damit löst diese Funktion weder ungefragt Downloads noch Updates aus.
     """
-    base = inspect_runtime(base_python, "Basis")
+    base = (
+        base_python
+        if isinstance(base_python, RuntimeCandidate)
+        else inspect_runtime(base_python, "Basis")
+    )
     if not base.supported:
-        raise RuntimeError("Der ausgewählte Interpreter wird von PyKIM nicht unterstützt.")
-    from .course_archive import installed_course_runtime
-
-    installed = installed_course_runtime(course)
-    if installed is not None and ".".join(base.version.split(".")[:2]) != installed[0].python:
+        raise RuntimeError("Der ausgewählte Interpreter wird von in:si nicht unterstützt.")
+    manifest = _installed_manifest(course)
+    if manifest is not None and not _matches_python(base, manifest.python):
         raise RuntimeError(
-            f"Dieser Kurs benötigt Python {installed[0].python}; ausgewählt ist "
+            f"Dieser Kurs benötigt Python {manifest.python}; ausgewählt ist "
             f"Python {base.version or 'unbekannt'}."
         )
-    root = managed_runtime_path(course)
-    subprocess.run([base.executable, "-m", "venv", str(root)], check=True)
-    return inspect_runtime(_python_in_environment(root), "PyKIM-Kursumgebung")
-
-
-def _package_source() -> Path:
-    """Finde ein mitgeliefertes Wheel oder den Entwicklungs-Quellbaum."""
-    configured = os.environ.get("PYKIM_PACKAGE_SOURCE")
-    if configured:
-        source = Path(configured).expanduser().resolve()
-        if source.exists():
-            return source
-        raise RuntimeError("Die konfigurierte PyKIM-Paketquelle wurde nicht gefunden.")
-    wheels = bundled_wheelhouse()
-    if wheels is not None:
-        pykim_wheels = sorted(wheels.glob("PyKIM-*.whl"))
-        if pykim_wheels:
-            return pykim_wheels[-1]
-    project = Path(__file__).resolve().parents[3]
-    if (project / "pyproject.toml").is_file():
-        return project
-    raise RuntimeError(
-        "Im Suite-Paket wurde kein PyKIM-Wheel gefunden. Die Installation kann nicht fortgesetzt werden."
-    )
+    versions = managed_runtime_path(course) / "versions"
+    versions.mkdir(parents=True, exist_ok=True)
+    environment = Path(mkdtemp(prefix="runtime-", dir=versions))
+    try:
+        subprocess.run(
+            [*command_for(base.executable), "-m", "venv", str(environment)],
+            check=True,
+        )
+        candidate = inspect_runtime(_python_in_environment(environment), "Kursumgebung")
+        if not candidate.supported:
+            raise RuntimeError(
+                "Die neue Kursumgebung konnte nicht vollständig erzeugt werden."
+            )
+        return candidate
+    except BaseException:
+        shutil.rmtree(environment, ignore_errors=True)
+        raise
 
 
 def bundled_wheelhouse() -> Path | None:
     """Finde ein vollständiges Offline-Wheel-Verzeichnis der Suite."""
-    configured = os.environ.get("PYKIM_WHEELHOUSE")
+    configured = os.environ.get("INSI_WHEELHOUSE") or os.environ.get(
+        "PYKIM_WHEELHOUSE"
+    )
     candidates = []
     if configured:
         candidates.append(Path(configured).expanduser())
@@ -642,11 +737,10 @@ def _install_runtime_packages(
     course_wheels = None
     manifest = None
     if course is not None:
-        from .course_archive import course_offline_wheelhouse, installed_course_runtime
+        from .course_storage import course_offline_wheelhouse
 
         course_wheels = course_offline_wheelhouse(course)
-        installed = installed_course_runtime(course)
-        manifest = installed[0] if installed is not None else None
+        manifest = _installed_manifest(course)
     bundled = bundled_wheelhouse()
     wheelhouses = []
     for wheels in (explicit, course_wheels, bundled):
@@ -655,16 +749,12 @@ def _install_runtime_packages(
         if not wheels.is_dir():
             raise RuntimeError("Das konfigurierte Offline-Wheel-Verzeichnis fehlt.")
         wheelhouses.append(wheels)
-    requirements = tuple(manifest.requirements) if manifest is not None else ()
-    additional = tuple(
-        item for item in requirements
-        if re.sub(r"[-_.]+", "-", item.split("==", 1)[0].casefold()) != "pykim"
+    requirements = (
+        tuple(manifest.requirements)
+        if manifest is not None
+        else LEGACY_RUNTIME_REQUIREMENTS
     )
-    has_nonstandard = any(
-        re.sub(r"[-_.]+", "-", item.split("==", 1)[0].casefold())
-        not in {"pykim", "pyxel"}
-        for item in requirements
-    )
+    has_nonstandard = _has_nonstandard_requirements(requirements)
     current_target_is_offline = False
     if manifest is not None:
         from .course_runtime import current_runtime_target
@@ -680,35 +770,53 @@ def _install_runtime_packages(
             command.append("--no-index")
         for wheels in wheelhouses:
             command.extend(["--find-links", str(wheels)])
-    command.append(str(_package_source()))
-    command.extend(additional)
+    command.extend(requirements)
     return subprocess.run(command, check=True, capture_output=True, text=True)
+
+
+def _validate_managed_runtime(
+    course: str | Path,
+    candidate: RuntimeCandidate,
+    *,
+    action: str,
+) -> None:
+    """Prüfe eine neue Generation vollständig vor ihrer Aktivierung."""
+    if not candidate.supported:
+        raise RuntimeError(
+            f"{action} wurde beendet, aber die Laufzeit ist nicht vollständig."
+        )
+    manifest = _installed_manifest(course)
+    requirements = (
+        manifest.requirements if manifest is not None else LEGACY_RUNTIME_REQUIREMENTS
+    )
+    packages = _package_checks(candidate, requirements)
+    missing = [item.requirement for item in packages if not item.ready]
+    if missing:
+        raise RuntimeError(
+            f"{action} hat nicht alle geforderten Paketversionen hergestellt: "
+            + ", ".join(missing)
+        )
 
 
 def provision_managed_runtime(
     course: str | Path,
-    base_python: str | Path,
+    base_python: str | Path | RuntimeCandidate,
     *,
     wheelhouse: str | Path | None = None,
 ) -> RuntimeCandidate:
-    """Erzeuge eine Kursumgebung und installiere PyKIM samt Abhängigkeiten."""
+    """Baue, prüfe und aktiviere eine neue Runtime-Generation."""
     candidate = create_managed_runtime(course, base_python)
-    python = candidate.executable
-    _install_runtime_packages(python, course=course, wheelhouse=wheelhouse)
-    ready = inspect_runtime(python, "PyKIM-Kursumgebung")
-    if not (ready.supported and ready.pykim and ready.pyxel):
-        raise RuntimeError("Die Kursumgebung wurde erstellt, ist aber noch nicht vollständig.")
-    from .course_archive import installed_course_runtime
-
-    installed = installed_course_runtime(course)
-    if installed is not None:
-        packages = _package_checks(ready, installed[0].requirements)
-        missing = [item.requirement for item in packages if not item.ready]
-        if missing:
-            raise RuntimeError(
-                "Die Kursumgebung enthält nicht die geforderten Paketversionen: "
-                + ", ".join(missing)
-            )
+    environment = _runtime_environment(candidate.executable)
+    try:
+        _install_runtime_packages(
+            candidate.executable, course=course, wheelhouse=wheelhouse
+        )
+        ready = inspect_runtime(candidate.executable, "Kursumgebung")
+        _validate_managed_runtime(course, ready, action="Die Einrichtung")
+    except BaseException:
+        shutil.rmtree(environment, ignore_errors=True)
+        raise
+    _activate_managed_runtime(course, ready.executable)
     from .course import set_runtime_preference
 
     set_runtime_preference(ready.executable)
@@ -720,41 +828,20 @@ def repair_runtime(
     *,
     wheelhouse: str | Path | None = None,
 ) -> RuntimeCandidate:
-    """Installiere die vorgesehenen Pakete erneut in der gewählten Runtime."""
-    from .course import get_runtime_preference, set_runtime_preference
+    """Ersetze eine defekte Runtime erst nach erfolgreichem Neuaufbau."""
+    from .course import get_runtime_preference
 
     executable = get_runtime_preference()
     if not executable:
         raise RuntimeError("Es wurde noch keine Python-Laufzeit ausgewählt.")
     if not is_managed_runtime(executable, course):
         raise RuntimeError(
-            "Nur eine von PyKIM verwaltete Kursumgebung kann automatisch repariert werden."
+            "Nur eine von in:si verwaltete Kursumgebung kann automatisch repariert werden."
         )
     before = inspect_runtime(executable, "Ausgewählt")
     if not before.supported:
         raise RuntimeError("Die gewählte Python-Laufzeit ist nicht mehr verfügbar oder ungeeignet.")
-    from .course_archive import installed_course_runtime
-
-    installed = installed_course_runtime(course)
-    if installed is not None and ".".join(before.version.split(".")[:2]) != installed[0].python:
-        raise RuntimeError(
-            f"Dieser Kurs benötigt Python {installed[0].python}; die vorhandene "
-            f"Kursumgebung verwendet Python {before.version or 'unbekannt'}."
-        )
-    _install_runtime_packages(executable, course=course, wheelhouse=wheelhouse)
-    ready = inspect_runtime(executable, "PyKIM-Kursumgebung")
-    if not (ready.supported and ready.pykim and ready.pyxel):
-        raise RuntimeError("Die Reparatur wurde beendet, aber die Laufzeit ist nicht vollständig.")
-    if installed is not None:
-        packages = _package_checks(ready, installed[0].requirements)
-        missing = [item.requirement for item in packages if not item.ready]
-        if missing:
-            raise RuntimeError(
-                "Die Reparatur hat nicht alle geforderten Paketversionen hergestellt: "
-                + ", ".join(missing)
-            )
-    set_runtime_preference(ready.executable)
-    return ready
+    return provision_managed_runtime(course, before, wheelhouse=wheelhouse)
 
 
 def runtime_diagnostics(course: str | Path | None = None) -> dict[str, object]:

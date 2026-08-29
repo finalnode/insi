@@ -3,6 +3,36 @@
 Dieses Dokument trennt automatisiert geprüfte Eigenschaften von Prüfungen, die
 auf echten Schulgeräten oder im Unterricht stattfinden müssen.
 
+## Aktueller Nachweis für 0.8
+
+Auf `develop/v0.8` umfasst der normale Testlauf für `0.8.0.dev0` am
+27. August 2026 insgesamt 483 bestandene Prüfungen und eine auf macOS erwartbar
+übersprungene Linux-Bubblewrap-Prüfung. Alle vier bewusst separat markierten
+NiceGUI-E2E-Prüfungen bestehen ebenfalls als eigener Job im
+[PR-CI-Lauf auf Commit `c3e2923`](https://github.com/finalnode/insi/actions/runs/33114177915).
+Die Zahl ist ein fortzuschreibender Entwicklungsstand, kein Ersatz für die
+unten aufgeführte Plattformmatrix.
+
+Der [Desktop-Workflow auf Commit `c3e2923`](https://github.com/finalnode/insi/actions/runs/33114183180)
+bestand unter Windows, Linux und beiden macOS-Architekturen. Windows bestand
+AppContainer-, Job-Object- und echten Fensterstart, Linux Bubblewrap und den
+geschützten Wayland-Start, beide macOS-Builds den Seatbelt-Selbsttest. Die
+komprimierten Artefakte messen 72,0 MiB unter Windows, 127,6 MiB unter Linux,
+80,8 MiB unter macOS Intel und 78,6 MiB unter macOS ARM. Alle vier enthalten
+Build- und Wheelhouse-Manifeste mit dem PyKIM-Commit
+`7494db55a84e95b6dc13fc4a32a586b62fb5830d` und Prüfsummen der Offline-Wheels.
+In allen vier Jobs wurde zusätzlich eine leere Kurs-Runtime mit `--no-index`
+ausschließlich aus dem jeweils paketierten Wheelhouse aufgebaut; Manifest,
+Prüfsummen und die anschließenden Importe von PyKIM, Pyxel und PyYAML bestanden.
+Alle vier Builds lösten ihre App- und Buildabhängigkeiten dabei gegen den
+eingecheckten Lock der jeweiligen Zielplattform auf.
+Der erste Windows-Versuch konnte einmalig das eingebettete PyInstaller-PKG der
+Hilfs-EXE nicht erneut öffnen. Der unveränderte Wiederholungslauf bestand die
+vollständige Windows-Matrix; der Befund bleibt bis zur realen Geräteprobe als
+sporadischer CI-Hinweis dokumentiert.
+Die Linux-Größe von 127,6 MiB ist für 0.8 als bekannte sichere Abweichung vom
+weichen 100-MiB-Ziel akzeptiert. Die echte Schulgeräteprobe bleibt offen.
+
 ## Automatisch geprüft
 
 - Kern-API, Welt, Pixel, Farben, Töne und Parallelplanung
@@ -49,17 +79,17 @@ auf echten Schulgeräten oder im Unterricht stattfinden müssen.
 - Projektstart mit ausgewählter Runtime und korrektem Arbeitsverzeichnis
 - Offline-Installation mit `--no-index` aus einem plattformspezifischen Wheelhouse
 - isoliertes Thonny-Profil mit derselben Runtime wie Suite und VS Code
-- Reparatur nur innerhalb einer von PyKIM verwalteten Umgebung
+- Reparatur nur innerhalb einer von in:si verwalteten Kursumgebung
 - Wheel-Inhalt einschließlich Markdown-Bibliothek
 - browserloser NiceGUI-Smoke: Übersicht → Aufgaben → Skript → Autorenwerkzeuge
 - macOS-Bundle enthält Runtime, Trainer-Module, Beispiele und Offline-Wheelhouse
 - Startprüfung für getrennte App- und Inhaltsversionen blockiert Offline-Starts nicht
 - Inhaltsupdates prüfen Archiv- und Einzeldateihashes und verändern keinen Schülercode
 
-Normale Tests:
+Normaler Entwicklungsnachweis:
 
 ```bash
-pytest
+python -m pytest
 ```
 
 Die Linux-Sicherheitsjobs verwenden derzeit den weiterhin unterstützten
@@ -68,10 +98,11 @@ der gehosteten CI beim Konfigurieren des isolierten Loopback-Interfaces. Die
 Prüfung wird deshalb nicht übersprungen oder abgeschwächt, sondern auf dem
 Runner ausgeführt, der den echten Netzwerk-Namespace bereitstellen kann.
 
-Der UI-Gesamtworkflow benötigt NiceGUI und lokale Prozess-Semaphoren:
+Der UI-Gesamtworkflow benötigt NiceGUI und Prozess-Semaphoren und läuft in der
+CI als eigener Python-3.11-Job:
 
 ```bash
-python -m pip install -e '.[e2e]'
+python -m pip install -e '.[test]'
 pytest -m e2e
 ```
 
@@ -89,6 +120,62 @@ Vor einem breiten Rollout wird jede Zeile auf einem echten Gerät geprüft:
 
 Zu protokollieren sind Python-Version, Installationsart, IDE-Pfad,
 Pyxel-Version, Laufwerkstyp und die genaue Fehlermeldung.
+
+### Gemeinsamer 0.8-Smoke-Test pro Gerät
+
+Für jede Zeile der Plattformmatrix wird dasselbe unveränderte Desktop-Artefakt
+vollständig entpackt beziehungsweise als App-Bundle verwendet. Build-Commit,
+Artefakt-Prüfsumme, Betriebssystem und vollständiger Kursordner werden zusammen
+mit dem Ergebnis notiert.
+
+1. in:si offline starten, einen vorhandenen Kurs auswählen und anschließend zu
+   einem zweiten Kurs und zurück wechseln.
+2. Eine Skriptseite und eine Aufgabe öffnen. Gestufte Hinweise anzeigen, Code
+   ausführen, Ausgabe prüfen und den Lauf vollständig stoppen.
+3. Einen Projektlauf starten. Sprite- und Musikeditor getrennt öffnen und
+   kontrollieren, dass jeweils das erwartete Fenster sichtbar wird.
+4. Einen benannten Projektstand mit Kommentar speichern, eine Datei ändern und
+   den älteren Stand wiederherstellen. Die Sicherheitskopie des neueren Stands
+   muss danach weiterhin auswählbar sein.
+5. Im Kursstudio bei schmalem und breitem Fenster Markdown und WYSIWYG
+   wechseln. Toolbar und Annotationsmenü müssen erreichbar bleiben; Hinweise
+   einer Aufgabe speichern und erneut öffnen.
+6. Die Übersicht lokaler Daten öffnen, einen Gesamtexport in einen leeren
+   Zielordner schreiben und dessen Inhalt kontrollieren. Die Löschfunktion nur
+   mit ausdrücklich angelegten Testdaten prüfen; Export und externe Kopien
+   dürfen nicht mit entfernt werden.
+7. in:si schließen und prüfen, dass weder App noch gestarteter Lernprozess
+   zurückbleiben. Nach dem Neustart müssen Kursauswahl, Projektstand und
+   Lernfortschritt weiterhin vorhanden sein.
+
+### 0.7→0.8-Migration und entfernbarer Datenträger
+
+Dieser Test verwendet ausschließlich eine zusätzliche Kopie realer
+0.7-Beispieldaten. Originale Lernstände und der einzige vorhandene Datenträger
+dürfen nicht als Testobjekt dienen.
+
+1. Eine unveränderte 0.7-Kurskopie samt Lernstand auf einen Testdatenträger
+   legen und außerhalb dieses Datenträgers eine zweite Schutzkopie behalten.
+2. Die Kurskopie erstmals mit 0.8 öffnen. Inhalte, Lernfortschritt und Projekte
+   prüfen; anschließend Originalbackup und Versionsmarker der Migration
+   kontrollieren.
+3. Den Kurs erneut öffnen. Es darf weder ein zweites Originalbackup entstehen
+   noch ein bereits migrierter Wert verändert werden.
+4. Einen Projektstand anlegen, eine Datei extern verändern und einen älteren
+   Stand wiederherstellen. Die externe Änderung muss sichtbar behandelt und
+   darf nicht still überschrieben werden.
+5. Die Abbruchprobe nur auf einem entbehrlichen Testdatenträger mit vollständig
+   gesicherten Testdaten durchführen: Datenträger während einer Migration oder
+   eines Exports entfernen, wieder verbinden und denselben Vorgang erneut
+   starten. Die Quelldaten müssen entweder unverändert oder vollständig
+   aktualisiert sein; eine halbe Aktivierung gilt als Fehler.
+6. Dateisystem (zum Beispiel NTFS oder exFAT), Anschlussart, Zeitpunkt der
+   Unterbrechung, sichtbare Meldung und Zustand nach dem Wiederanstecken
+   protokollieren.
+
+| Gerät / Datenträger | 0.7-Daten erhalten | Migration wiederholbar | Abbruch sicher | Wiederherstellung | Export / Löschen | Status |
+|---|---:|---:|---:|---:|---:|---|
+|  | ☐ | ☐ | ☐ | ☐ | ☐ | offen |
 
 ### macOS-Bundle
 
@@ -166,7 +253,7 @@ Der vollständige native Test kann in einer Wayland-Sitzung mit
 5. Unterbrochene Verbindung hinterlässt keine halbe `progress.json`.
 6. Zurücksetzen erzeugt erreichbare Backups unter `.pykim/backups`.
 
-PyKIM unterstützt bewusst das **nacheinander** Arbeiten auf mehreren Geräten.
+in:si unterstützt bewusst das **nacheinander** Arbeiten auf mehreren Geräten.
 Gleichzeitiges Bearbeiten derselben Datei ist kein unterstützter Workflow.
 
 ## Unterrichtspilot

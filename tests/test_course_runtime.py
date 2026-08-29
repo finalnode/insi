@@ -6,12 +6,15 @@ from pathlib import Path
 
 import pytest
 
+from insi.course import set_runtime_preference
 from insi.course_archive import (
     build_course_archive,
+    parse_course_archive,
+)
+from insi.course_storage import (
     course_offline_wheelhouse,
     install_course_runtime,
     installed_course_runtime,
-    parse_course_archive,
 )
 from insi.course_builder_view import create_portable_course, ensure_course_source
 from insi.course_runtime import (
@@ -27,8 +30,10 @@ from insi.course_runtime import (
 from insi.runtime import (
     RuntimeCandidate,
     RuntimePackageCheck,
+    _suite_packages,
     course_runtime_preflight,
     managed_runtime_path,
+    selected_runtime,
 )
 
 
@@ -36,6 +41,25 @@ def course_source(tmp_path: Path) -> Path:
     source = ensure_course_source(tmp_path / "Kurs")
     (source / "Skripte" / "start.md").write_text("# Start\n", encoding="utf-8")
     return source
+
+
+def test_suite_package_inventory_is_cached(monkeypatch):
+    calls = []
+
+    class Distribution:
+        metadata = {"Name": "Demo"}
+
+    monkeypatch.setattr(
+        "insi.runtime.importlib.metadata.distributions",
+        lambda: calls.append(True) or (Distribution(),),
+    )
+    _suite_packages.cache_clear()
+    try:
+        assert _suite_packages() == ("Demo",)
+        assert _suite_packages() == ("Demo",)
+        assert calls == [True]
+    finally:
+        _suite_packages.cache_clear()
 
 
 def test_runtime_manifest_accepts_only_exact_versions_and_roundtrips():
@@ -66,7 +90,8 @@ def test_standard_course_export_stays_small_and_writes_runtime_contract(tmp_path
         teacher="Ada",
         school="Beispielschule",
         course="Kompakter Kurs",
-        additional_requirements="requests==2.32.5",
+        runtime_python="3.12",
+        runtime_requirements="DemoTrainer==1.2.3\nrequests==2.32.5",
     )
 
     bundle = parse_course_archive(archive.read_bytes())
@@ -74,9 +99,13 @@ def test_standard_course_export_stays_small_and_writes_runtime_contract(tmp_path
     assert archive.stat().st_size < 1024 * 1024
     assert bundle.runtime == source_runtime
     assert bundle.runtime is not None
+    assert bundle.runtime.python == "3.12"
     assert bundle.runtime.offline_targets == ()
     assert bundle.runtime.hashes == {}
-    assert "requests==2.32.5" in bundle.runtime.requirements
+    assert bundle.runtime.requirements == (
+        "DemoTrainer==1.2.3",
+        "requests==2.32.5",
+    )
 
 
 def test_offline_export_is_opt_in_and_keeps_source_manifest_compact(
@@ -104,7 +133,8 @@ def test_offline_export_is_opt_in_and_keeps_source_manifest_compact(
         teacher="Ada",
         school="Beispielschule",
         course="Offlinekurs",
-        additional_requirements="demo==1.2.3",
+        runtime_python=RUNTIME_PYTHON,
+        runtime_requirements="demo==1.2.3",
         include_offline_packages=True,
         offline_targets=targets,
     )
@@ -124,18 +154,20 @@ def test_offline_export_requires_explicit_package_and_target(tmp_path):
         "teacher": "Ada",
         "school": "Beispielschule",
         "course": "Offlinekurs",
+        "runtime_python": RUNTIME_PYTHON,
         "include_offline_packages": True,
     }
-    with pytest.raises(ValueError, match="zusätzliches Paket"):
+    with pytest.raises(ValueError, match="Kurspaket"):
         create_portable_course(
             source,
+            runtime_requirements=(),
             offline_targets=("windows-x86_64-python311",),
             **common,
         )
     with pytest.raises(ValueError, match="Zielplattform"):
         create_portable_course(
             source,
-            additional_requirements="demo==1.2.3",
+            runtime_requirements="demo==1.2.3",
             **common,
         )
 
@@ -161,6 +193,8 @@ def test_pip_download_uses_selected_python311_platform(tmp_path, monkeypatch):
     assert command[command.index("--platform") + 1] == "win_amd64"
     assert command[command.index("--python-version") + 1] == "311"
     assert "--only-binary=:all:" in command
+    assert "--constraint" not in command
+    assert command[-1] == "demo==1.2.3"
     assert set(wheels) == {
         "wheelhouse/windows-x86_64-python311/demo-1.2.3-py3-none-any.whl"
     }
@@ -178,6 +212,7 @@ def test_archive_rejects_a_tampered_offline_wheel(tmp_path):
     wheel.write_bytes(b"original")
     name = f"wheelhouse/{target}/{wheel.name}"
     manifest = manifest_with_wheels(
+        RUNTIME_PYTHON,
         ("PyKIM==0.6.0", "pyxel==2.9.9", "demo==1.2.3"),
         (target,),
         {name: wheel},
@@ -220,15 +255,12 @@ def test_installed_offline_runtime_is_versioned_and_used_by_pip(tmp_path, monkey
     app_wheels = tmp_path / "app-wheels"
     app_wheels.mkdir()
     (app_wheels / "PyKIM-0.6.0-py3-none-any.whl").write_bytes(b"app")
-    package_source = tmp_path / "PyKIM.whl"
-    package_source.write_bytes(b"source")
     python = tmp_path / "python"
     python.write_bytes(b"")
     calls = []
-    monkeypatch.setattr("insi.course_archive.current_runtime_target", lambda: target)
+    monkeypatch.setattr("insi.course_storage.current_runtime_target", lambda: target)
     monkeypatch.setattr("insi.course_runtime.current_runtime_target", lambda: target)
     monkeypatch.setattr("insi.runtime.bundled_wheelhouse", lambda: app_wheels)
-    monkeypatch.setattr("insi.runtime._package_source", lambda: package_source)
     monkeypatch.setattr(
         "insi.runtime.subprocess.run",
         lambda command, **kwargs: calls.append((command, kwargs))
@@ -245,7 +277,7 @@ def test_installed_offline_runtime_is_versioned_and_used_by_pip(tmp_path, monkey
     assert command.count("--find-links") == 2
     assert "pyxel==2.9.9" in command
     assert "demo==1.2.3" in command
-    assert "PyKIM==0.6.0" not in command
+    assert "PyKIM==0.6.0" in command
     (root / "wheelhouse" / target / "demo-1.2.3-py3-none-any.whl").write_bytes(
         b"tampered"
     )
@@ -287,7 +319,7 @@ def test_course_preflight_accepts_exact_python_and_package_versions(
     python = tmp_path / "python311"
     python.write_bytes(b"")
     candidate = RuntimeCandidate(
-        str(python), "3.11.9", "Test", True, True, True
+        str(python), "3.11.9", "Test", True, ("PyKIM", "Pyxel")
     )
     monkeypatch.setattr(
         "insi.runtime._package_checks",
@@ -304,6 +336,121 @@ def test_course_preflight_accepts_exact_python_and_package_versions(
     assert report.required_python == "3.11"
     assert all(package.ready for package in report.packages)
     assert not report.issues
+
+
+def test_course_preflight_reuses_discovered_preferred_runtime(tmp_path, monkeypatch):
+    from insi.course import set_runtime_preference
+
+    monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
+    course = tmp_path / "course"
+    python = tmp_path / "python"
+    python.write_bytes(b"")
+    set_runtime_preference(python)
+    candidate = RuntimeCandidate(
+        str(python.resolve()), "3.13.1", "System", True, ("PyKIM", "Pyxel")
+    )
+    monkeypatch.setattr(
+        "insi.runtime.inspect_runtime",
+        lambda *_args: pytest.fail("bevorzugte Runtime wurde doppelt geprüft"),
+    )
+    monkeypatch.setattr(
+        "insi.runtime._package_checks",
+        lambda _candidate, requirements: tuple(
+            RuntimePackageCheck(item, item.split("==", 1)[1], True)
+            for item in requirements
+        ),
+    )
+
+    report = course_runtime_preflight(course, candidates=(candidate,))
+
+    assert report.ready
+    assert report.candidate is candidate
+
+
+def test_course_preflight_does_not_retry_failed_package_probe(tmp_path, monkeypatch):
+    course = tmp_path / "course"
+    candidate = RuntimeCandidate(
+        str(tmp_path / "python"), "3.13.1", "System", True, ("PyKIM",)
+    )
+    calls = []
+
+    def fail_once(_candidate, _requirements):
+        calls.append(_candidate.executable)
+        raise RuntimeError("Probe absichtlich fehlgeschlagen")
+
+    monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
+    monkeypatch.setattr("insi.runtime._package_checks", fail_once)
+
+    report = course_runtime_preflight(course, candidates=(candidate,))
+
+    assert calls == [candidate.executable]
+    assert not report.ready
+    assert "absichtlich fehlgeschlagen" in " ".join(report.issues)
+
+
+def test_runtime_selection_does_not_recheck_rejected_preference(
+    tmp_path, monkeypatch
+):
+    preferred_path = tmp_path / "preferred-python"
+    current_path = tmp_path / "current-python"
+    for path in (preferred_path, current_path):
+        path.write_text("", encoding="utf-8")
+    preferred = RuntimeCandidate(
+        str(preferred_path.resolve()), "3.13.1", "Ausgewählt", True, ("Pyxel",)
+    )
+    current = RuntimeCandidate(
+        str(current_path.resolve()), "3.13.1", "System", True, ("Pyxel",)
+    )
+    checks = []
+    monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
+    set_runtime_preference(preferred_path)
+    monkeypatch.setattr("insi.runtime.inspect_runtime", lambda *_args: preferred)
+    monkeypatch.setattr(
+        "insi.runtime.discover_runtimes", lambda _course=None: (preferred, current)
+    )
+
+    def package_checks(candidate, requirements):
+        checks.append(candidate.executable)
+        ready = candidate is current
+        return tuple(
+            RuntimePackageCheck(item, item.split("==", 1)[1] if ready else "", ready)
+            for item in requirements
+        )
+
+    monkeypatch.setattr("insi.runtime._package_checks", package_checks)
+
+    assert selected_runtime() is current
+    assert checks == [preferred.executable, current.executable]
+
+
+def test_course_preflight_accepts_manifest_without_standard_training_engine(
+    tmp_path, monkeypatch
+):
+    """Das Runtime-Modell darf Kurse nicht implizit an PyKIM koppeln."""
+    monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
+    course = tmp_path / "course"
+    manifest = RuntimeManifest("3.11", ("DemoTrainer==1.2.3",))
+    install_course_runtime(runtime_manifest_bytes(manifest), course, revision="generic")
+    python = tmp_path / "python311"
+    python.write_bytes(b"")
+    candidate = RuntimeCandidate(
+        str(python), "3.11.9", "Test", True, ("DemoTrainer",)
+    )
+    monkeypatch.setattr(
+        "insi.runtime._package_checks",
+        lambda _candidate, requirements: tuple(
+            RuntimePackageCheck(item, item.split("==", 1)[1], True)
+            for item in requirements
+        ),
+    )
+
+    report = course_runtime_preflight(course, candidates=(candidate,))
+
+    assert report.ready
+    assert report.candidate == candidate
+    assert report.packages == (
+        RuntimePackageCheck("DemoTrainer==1.2.3", "1.2.3", True),
+    )
 
 
 def test_course_preflight_marks_managed_package_mismatch_as_repairable(
@@ -323,7 +470,7 @@ def test_course_preflight_marks_managed_package_mismatch_as_repairable(
     python.parent.mkdir(parents=True)
     python.write_bytes(b"")
     candidate = RuntimeCandidate(
-        str(python), "3.11.9", "Kursumgebung", True, True, True
+        str(python), "3.11.9", "Kursumgebung", True, ("PyKIM", "Pyxel")
     )
     monkeypatch.setattr(
         "insi.runtime._package_checks",
@@ -355,8 +502,8 @@ def test_course_preflight_offers_only_matching_base_python(tmp_path, monkeypatch
     matching.write_bytes(b"")
     wrong.write_bytes(b"")
     candidates = (
-        RuntimeCandidate(str(wrong), "3.13.4", "Falsch", True, True, True),
-        RuntimeCandidate(str(matching), "3.11.9", "Passend", True, False, False),
+        RuntimeCandidate(str(wrong), "3.13.4", "Falsch", True, ("PyKIM", "Pyxel")),
+        RuntimeCandidate(str(matching), "3.11.9", "Passend", True, ()),
     )
     monkeypatch.setattr(
         "insi.runtime._package_checks",
@@ -415,7 +562,7 @@ def test_course_preflight_blocks_unsupported_platform(tmp_path, monkeypatch):
     python = tmp_path / "python311"
     python.write_bytes(b"")
     candidate = RuntimeCandidate(
-        str(python), "3.11.9", "Test", True, True, True
+        str(python), "3.11.9", "Test", True, ("PyKIM", "Pyxel")
     )
     monkeypatch.setattr("insi.course_runtime.current_runtime_target", lambda: None)
     monkeypatch.setattr(
