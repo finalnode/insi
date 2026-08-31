@@ -129,6 +129,9 @@ def test_windows_build_uses_one_executable_for_app_and_internal_python():
     assert "run_packaged_python.py dist/windows/insi/insi-python.exe" not in workflow
     assert "Einzelnen Windows-Starter prüfen" in workflow
 
+    entrypoint = (PROJECT / "packaging/app_entry.py").read_text(encoding="utf-8")
+    assert "reject_frozen_windows_network_launch()" in entrypoint
+
 
 def test_packaged_python_checker_waits_and_returns_child_status(
     monkeypatch, tmp_path, capsys

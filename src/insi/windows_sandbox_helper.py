@@ -20,6 +20,8 @@ from ctypes import wintypes
 from pathlib import Path
 from typing import Any, Mapping
 
+from .windows_paths import is_windows_network_path, windows_network_path_message
+
 
 PAYLOAD_VERSION = 1
 MAX_PAYLOAD_BYTES = 64 * 1024
@@ -458,11 +460,14 @@ class _WindowsBroker:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             timeout=120,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         if check and completed.returncode:
             raise OSError(f"Dateifreigabe für den AppContainer fehlgeschlagen: {path}")
 
     def _grant_path(self, path: Path, *, writable: bool) -> None:
+        if is_windows_network_path(path):
+            raise OSError(windows_network_path_message(path))
         resolved = path.resolve(strict=True)
         if resolved.is_file():
             # Windows checks the containing directory as libraries inspect

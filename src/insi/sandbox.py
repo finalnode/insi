@@ -22,6 +22,7 @@ from typing import IO, Any, Mapping, Protocol, Sequence
 from .execution_security import CodeOrigin, ExecutionPolicy, popen_isolation_options
 from .interpreter import python_command
 from .windows_sandbox_helper import PAYLOAD_VERSION, encode_payload, windows_api_available
+from .windows_paths import is_windows_network_path, windows_network_path_message
 
 
 class SandboxUnavailableError(RuntimeError):
@@ -549,6 +550,15 @@ class WindowsAppContainerAdapter:
                 "Windows AppContainer steht nur unter Windows zur Verfügung.",
             )
             return self._status
+        runner = python_command()
+        if runner and is_windows_network_path(runner[0]):
+            self._status = SandboxStatus(
+                False,
+                self.name,
+                system,
+                windows_network_path_message(runner[0]),
+            )
+            return self._status
         available, detail = windows_api_available()
         if not available:
             self._status = SandboxStatus(False, self.name, system, detail)
@@ -643,6 +653,19 @@ class WindowsAppContainerAdapter:
         environment: Mapping[str, str],
         policy: ExecutionPolicy,
     ) -> PreparedLaunch:
+        candidates: list[str | Path] = [
+            cwd,
+            *policy.readable_roots,
+            *policy.writable_roots,
+        ]
+        if command:
+            candidates.append(command[0])
+        network_path = next(
+            (path for path in candidates if is_windows_network_path(path)),
+            None,
+        )
+        if network_path is not None:
+            raise SandboxUnavailableError(windows_network_path_message(network_path))
         status = self.status()
         if not status.available:
             raise SandboxUnavailableError(status.detail)

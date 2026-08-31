@@ -10,7 +10,12 @@
   kann;
 - das Entfernen des ausschließlich für den Windows-Sandbox-Selbsttest
   verwendeten temporären Ordners gegen kurzzeitige Dateisperren gehärtet, ohne
-  die eigentliche Isolationsprüfung abzuschwächen.
+  die eigentliche Isolationsprüfung abzuschwächen;
+- direkte Windows-Starts aus UNC-/Netzwerkpfaden vor dem langsamen App-Import
+  mit einem klaren lokalen Kopierhinweis beendet und Netzwerkkurse vor dem
+  AppContainer-Probelauf fail-closed erkannt;
+- die nativen `icacls`-Hilfsprozesse des Windows-Brokers fensterlos gestartet,
+  sodass keine kurz aufblinkenden Systemkonsolen mehr erscheinen.
 
 ## 0.7.1 – 2026-08-27
 

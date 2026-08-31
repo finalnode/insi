@@ -75,7 +75,9 @@ def render_setup_panel(
     ui.label("Kursordner einrichten").classes("text-2xl font-bold")
     ui.markdown(
         "Der Ordner darf auf einem lokalen, USB- oder eingebundenen "
-        "WebDAV-Laufwerk liegen. Vorhandene Lösungen werden nicht überschrieben."
+        "WebDAV-Laufwerk liegen. Vorhandene Lösungen werden nicht überschrieben. "
+        "Unter Windows benötigt die integrierte Ausführung einen lokalen "
+        "NTFS-Ordner; für Netzwerkkurse steht die externe IDE zur Verfügung."
     )
     default = str(get_course_directory() or Path.home() / "PyKIM-Kurs")
     with ui.row().classes("w-full items-end gap-2"):

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from insi import sandbox
+from insi import sandbox, windows_paths
 from insi.execution_security import builtin_policy, execution_environment, student_policy
 from insi.sandbox import (
     BubblewrapAdapter,
@@ -23,6 +23,11 @@ from insi.sandbox import (
     WindowsAppContainerAdapter,
 )
 from insi.windows_sandbox_helper import decode_payload, encode_payload
+from insi.windows_paths import (
+    is_windows_network_path,
+    reject_frozen_windows_network_launch,
+    windows_network_path_message,
+)
 
 
 class UnavailableAdapter:
@@ -295,6 +300,72 @@ def test_windows_adapter_refuses_network_capability(tmp_path, monkeypatch):
         )
 
 
+@pytest.mark.parametrize(
+    "path",
+    (
+        r"\\server\share\insi\insi.exe",
+        "//server/share/course",
+        r"\\?\UNC\server\share\course",
+    ),
+)
+def test_windows_network_paths_are_detected_without_touching_the_share(path):
+    assert is_windows_network_path(path)
+    assert "lokales NTFS-Laufwerk" in windows_network_path_message(path)
+
+
+@pytest.mark.parametrize("path", (r"C:\insi\insi.exe", r"D:\PyKIM-Kurs"))
+def test_local_windows_paths_are_not_mistaken_for_unc_paths(path):
+    assert not is_windows_network_path(path)
+
+
+def test_packaged_windows_network_launch_shows_local_copy_message(monkeypatch):
+    calls = []
+
+    class MessageBox:
+        argtypes = None
+        restype = None
+
+        def __call__(self, window, message, title, flags):
+            calls.append((window, message, title, flags))
+
+    class User32:
+        MessageBoxW = MessageBox()
+
+    monkeypatch.setattr(windows_paths.sys, "platform", "win32")
+    monkeypatch.setattr(
+        windows_paths.ctypes,
+        "WinDLL",
+        lambda *args, **kwargs: User32(),
+        raising=False,
+    )
+
+    with pytest.raises(SystemExit, match="lokales NTFS-Laufwerk"):
+        reject_frozen_windows_network_launch(r"\\server\share\insi\insi.exe")
+
+    assert len(calls) == 1
+    assert "Netzwerkpfad" in calls[0][1]
+    assert calls[0][2] == "in:si – lokaler Start erforderlich"
+    assert calls[0][3] == 0x10
+
+
+def test_windows_adapter_rejects_unc_course_before_running_probe(tmp_path, monkeypatch):
+    adapter = WindowsAppContainerAdapter()
+    monkeypatch.setattr(
+        adapter,
+        "status",
+        lambda: pytest.fail("Der AppContainer-Probelauf darf nicht beginnen."),
+    )
+    policy = student_policy(tmp_path, readable_roots=(tmp_path,))
+
+    with pytest.raises(SandboxUnavailableError, match="Netzwerkpfad"):
+        adapter.prepare(
+            [r"C:\Python\python.exe", "-c", "pass"],
+            cwd=Path(r"\\server\share\course"),
+            environment={},
+            policy=policy,
+        )
+
+
 def test_windows_broker_payload_rejects_tampering_and_invalid_limits(tmp_path):
     payload = {
         "version": 1,
@@ -533,6 +604,8 @@ def test_windows_broker_declares_fail_closed_kernel_controls():
     assert "GetAppContainerFolderPath(\n            self.sid_string" in source
     assert 'self._icacls(parent, ["/grant:r", f"*{self.sid_string}:RX"])' in source
     assert 'if not self.payload["allow_gui"]:' in source
+    assert 'creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)' in source
+    assert "is_windows_network_path(path)" in source
 
 
 @pytest.mark.parametrize(

@@ -12,6 +12,8 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
+from insi.windows_paths import reject_frozen_windows_network_launch
+
 
 _DESKTOP_LOG = None
 
@@ -80,6 +82,10 @@ def run_app() -> None:
 
 
 if __name__ == "__main__":
+    # AppContainer-SIDs und die zugesagte Netzwerksperre sind mit einem direkt
+    # von SMB/WebDAV gestarteten PyInstaller-Paket nicht vereinbar. Vor allen
+    # teuren Imports und ACL-Probeläufen deshalb lokal starten lassen.
+    reject_frozen_windows_network_launch()
     # multiprocessing.freeze_support() übernimmt den nativen Fensterprozess,
     # bevor run_app() erreicht wird. Das Log muss deshalb bereits hier stehen.
     if "--pykim-python" not in sys.argv:

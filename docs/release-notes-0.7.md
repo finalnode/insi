@@ -12,9 +12,17 @@ Fremdsperren beim anschließenden Entfernen des Probeordners werden begrenzt
 wiederholt und nicht mehr mit einer fehlgeschlagenen Isolation verwechselt. Die
 eigentliche Datei- und Netzwerkprüfung bleibt unverändert fail-closed.
 
-Die vollständige automatisierte Desktopmatrix ist erfolgreich. Vor einer
-Veröffentlichung bleibt der [reale lokale, iServ-/UNC- und USB-Test](windows-test-0.7.2.md)
-auf den betroffenen Schulrechnern erforderlich.
+Ein realer iServ-Test zeigte außerdem, dass ein direkter Start aus einer
+UNC-Ablage mehrere sichtbare `icacls.exe`-Prozesse, langsames Laden und einen
+45-Sekunden-Timeout auslöste. Der Kandidat erkennt Netzwerkpfade nun vor jedem
+teuren Probezugriff, erklärt den notwendigen lokalen NTFS-Start und startet die
+ACL-Helfer fensterlos. iServ und USB bleiben unter Windows unterstützte
+Transportwege; App und integrierter Kurslauf werden lokal ausgeführt.
+
+Die vorherige automatisierte Desktopmatrix war erfolgreich. Vor einer
+Veröffentlichung müssen der korrigierte Build und die [reale Abnahme für
+lokalen Start sowie iServ-/UNC-/USB-Transport](windows-test-0.7.2.md) auf den
+betroffenen Schulrechnern erneut erfolgreich sein.
 
 ## Hotfix 0.7.1
 
@@ -76,9 +84,17 @@ The portable Windows folder now contains a single `insi.exe` which serves as
 both the desktop entry point and, with an internal switch, the controlled
 Python and sandbox runner. Explicit AppContainer access to this executable and
 bounded retries for transient probe-directory cleanup address the two observed
-school-device failure paths without weakening the isolation test. Release still
-has passed the complete automated desktop matrix and still requires
-verification on the affected iServ devices, from UNC storage and from USB.
+school-device failure paths without weakening the isolation test. The previous
+candidate passed the complete automated desktop matrix.
+
+A real iServ test subsequently showed visible `icacls.exe` windows, slow
+loading and a 45-second timeout when the package was executed directly from a
+UNC share. The candidate now rejects network execution before any expensive
+sandbox probe, explains the required local NTFS copy, and launches ACL helpers
+without a visible console. iServ and USB remain supported transport paths;
+the app and integrated course execution run from local NTFS storage. The
+corrected build still requires a fresh desktop matrix and real-device checks of
+local execution plus transport from the affected iServ share and USB.
 
 ## Hotfix 0.7.1
 
