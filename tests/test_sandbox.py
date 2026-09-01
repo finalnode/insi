@@ -23,6 +23,10 @@ from insi.sandbox import (
     WindowsAppContainerAdapter,
 )
 from insi.windows_sandbox_helper import decode_payload, encode_payload
+from insi.windows_sandbox_helper import (
+    _is_preauthorized_read,
+    _preauthorized_application_root,
+)
 from insi.windows_paths import (
     is_windows_network_path,
 )
@@ -360,7 +364,11 @@ def test_packaged_windows_network_launch_is_staged_and_relaunched(tmp_path, monk
     assert (Path(command[0]).parent / "_internal" / "library.zip").is_file()
     assert options["cwd"] == Path(command[0]).parent
     assert options["env"]["INSI_STAGED_FROM_NETWORK"] == str(source / "insi.exe")
+    assert options["env"]["INSI_STAGED_APPLICATION_ROOT"] == str(
+        Path(command[0]).parent
+    )
     assert options["env"]["PYINSTALLER_RESET_ENVIRONMENT"] == "1"
+    assert (Path(command[0]).parent / ".insi-appcontainer-access").is_file()
 
 
 def test_packaged_windows_cache_changes_with_distribution_identity(tmp_path):
@@ -385,6 +393,60 @@ def test_packaged_windows_cache_changes_with_distribution_identity(tmp_path):
 
     assert first.parent != second.parent
     assert first.read_bytes() == second.read_bytes() == b"unchanged-launcher"
+
+
+def test_staged_application_root_skips_only_validated_read_grants(tmp_path):
+    application = tmp_path / "staged-app"
+    internal = application / "_internal"
+    internal.mkdir(parents=True)
+    marker = application / ".insi-appcontainer-access"
+    marker.write_text("S-1-15-2-1", encoding="ascii")
+    runtime = internal / "python311.dll"
+    runtime.touch()
+    project = tmp_path / "project"
+    project.mkdir()
+
+    root = _preauthorized_application_root(
+        {"INSI_STAGED_APPLICATION_ROOT": str(application)}
+    )
+
+    assert root == application.resolve()
+    assert _is_preauthorized_read(runtime, root)
+    assert not _is_preauthorized_read(project, root)
+    marker.write_text("invalid", encoding="ascii")
+    assert _preauthorized_application_root(
+        {"INSI_STAGED_APPLICATION_ROOT": str(application)}
+    ) is None
+
+
+def test_staged_application_access_is_granted_once_without_a_window(
+    tmp_path, monkeypatch
+):
+    calls = []
+    application = tmp_path / "staged-app"
+    application.mkdir()
+    monkeypatch.setattr(windows_staging.os, "name", "nt")
+    monkeypatch.setattr(windows_staging.subprocess, "CREATE_NO_WINDOW", 8, raising=False)
+
+    class Completed:
+        returncode = 0
+
+    monkeypatch.setattr(
+        windows_staging.subprocess,
+        "run",
+        lambda command, **options: calls.append((command, options)) or Completed(),
+    )
+
+    windows_staging._grant_staged_application_access(application)
+
+    command, options = calls[0]
+    assert command[:3] == ["icacls", str(application), "/grant:r"]
+    assert "*S-1-15-2-1:(OI)(CI)RX" in command
+    assert options["creationflags"] == 8
+    assert options["check"] is True
+    assert (application / ".insi-appcontainer-access").read_text(
+        encoding="ascii"
+    ) == "S-1-15-2-1"
 
 
 def test_packaged_network_python_runner_waits_for_local_child(tmp_path, monkeypatch):

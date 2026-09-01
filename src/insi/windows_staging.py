@@ -18,8 +18,11 @@ from .windows_paths import is_windows_network_path
 
 
 STAGED_SOURCE_ENV = "INSI_STAGED_FROM_NETWORK"
+STAGED_APPLICATION_ENV = "INSI_STAGED_APPLICATION_ROOT"
 APPLICATION_IDENTITY_FILE = ".insi-build-id"
 _COMPLETE_MARKER = ".insi-stage-complete"
+_APPCONTAINER_ACCESS_MARKER = ".insi-appcontainer-access"
+_ALL_APPLICATION_PACKAGES_SID = "S-1-15-2-1"
 _SINGLE_PATH_ENVIRONMENT = frozenset(
     {
         "INSI_COURSE_FILES",
@@ -323,12 +326,43 @@ def _application_fingerprint(executable: Path) -> str:
 def _valid_application_stage(directory: Path, executable_name: str, key: str) -> bool:
     try:
         marker = (directory / _COMPLETE_MARKER).read_text(encoding="ascii").strip()
+        access = (directory / _APPCONTAINER_ACCESS_MARKER).read_text(
+            encoding="ascii"
+        ).strip()
     except (FileNotFoundError, OSError, UnicodeError):
         return False
     return (
         marker == key
+        and access == _ALL_APPLICATION_PACKAGES_SID
         and (directory / executable_name).is_file()
         and (directory / "_internal").is_dir()
+    )
+
+
+def _grant_staged_application_access(directory: Path) -> None:
+    """Erlaube AppContainern einmalig nur Lesen/Ausführen des App-Builds."""
+
+    if os.name == "nt":
+        subprocess.run(
+            [
+                "icacls",
+                str(directory),
+                "/grant:r",
+                f"*{_ALL_APPLICATION_PACKAGES_SID}:(OI)(CI)RX",
+                "/T",
+                "/C",
+                "/Q",
+            ],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=180,
+            check=True,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    (directory / _APPCONTAINER_ACCESS_MARKER).write_text(
+        _ALL_APPLICATION_PACKAGES_SID,
+        encoding="ascii",
     )
 
 
@@ -373,6 +407,7 @@ def stage_application_directory(
         copied_executable = temporary / source_executable.name
         if _application_fingerprint(copied_executable) != key:
             raise OSError("Die lokal kopierte in:si-EXE ist unvollständig.")
+        _grant_staged_application_access(temporary)
         (temporary / _COMPLETE_MARKER).write_text(key, encoding="ascii")
         if target_directory.exists():
             shutil.rmtree(target_directory)
@@ -404,6 +439,7 @@ def relaunch_frozen_windows_application(
             environment=child_environment,
         )
         child_environment[STAGED_SOURCE_ENV] = source
+        child_environment[STAGED_APPLICATION_ENV] = str(local_executable.parent)
         child_environment["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
         command = [str(local_executable), *child_arguments]
         if child_arguments[:1] == ["--pykim-python"]:
