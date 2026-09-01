@@ -366,6 +366,10 @@ def _grant_staged_application_access(directory: Path) -> None:
 
 def prepare_onefile_runtime_for_appcontainer() -> None:
     """Gib die einmal entpackte Onefile-Runtime für interne Sandboxkinder frei."""
+    if os.environ.get("INSI_SANDBOX") == "windows-appcontainer":
+        # Das eingeschränkte Kind darf und muss seine eigene temporäre
+        # Entpackung nicht per icacls für weitere Prozesse freigeben.
+        return
     if (
         sys.platform != "win32"
         or not getattr(sys, "frozen", False)

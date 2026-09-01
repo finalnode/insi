@@ -943,6 +943,7 @@ def test_windows_broker_declares_fail_closed_kernel_controls():
     assert 'creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)' in source
     assert "is_windows_network_path(path)" in source
     assert 'bootstrap_continue.write_text("continue"' in source
+    assert "and not bootstrap_pending" in source
     assert "if recursive:" in source
 
 

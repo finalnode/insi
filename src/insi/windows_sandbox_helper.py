@@ -795,7 +795,14 @@ class _WindowsBroker:
             candidate = self._completion_violation()
             if candidate is not None:
                 violation = candidate
-            if violation is None and time.monotonic() - started > float(limits["timeout_seconds"]):
+            elapsed = time.monotonic() - started
+            if violation is None and bootstrap_pending and elapsed > 60:
+                violation = "Onefile-Runtime konnte nicht rechtzeitig gestartet werden."
+            elif (
+                violation is None
+                and not bootstrap_pending
+                and elapsed > float(limits["timeout_seconds"])
+            ):
                 violation = "Laufzeitgrenze überschritten."
             if (
                 violation is None
