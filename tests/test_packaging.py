@@ -114,8 +114,9 @@ def test_desktop_brand_uses_safe_technical_names_and_visible_display_name():
     )
 
     assert 'name="insi"' in desktop
-    assert 'if system != "Windows"' in desktop
-    assert "*executables" in desktop
+    assert 'if system == "Windows"' in desktop
+    assert "analysis.binaries" in desktop
+    assert "analysis.datas" in desktop
     assert 'name="insi.app"' in macos
     assert '"CFBundleDisplayName": "in:si"' in macos
     assert 'bundle_identifier="de.simplicissima.insi"' in macos
@@ -138,6 +139,11 @@ def test_windows_build_uses_one_executable_for_app_and_internal_python():
     )
     assert "tools/check_windows_network_sandbox.py" in network_check
     assert "New-SmbShare" in network_check
+    build_script = (PROJECT / "tools/build_desktop_app.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'onefile = destination / "insi.exe"' in build_script
+    assert "onefile.replace(application / onefile.name)" in build_script
 
 
 def test_desktop_build_identity_covers_the_complete_distribution(tmp_path):

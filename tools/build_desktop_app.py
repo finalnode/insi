@@ -117,6 +117,11 @@ def main(arguments: list[str] | None = None) -> int:
     subprocess.run(command, cwd=project, check=True)
 
     application = destination / "insi"
+    if system == "Windows" and not application.is_dir():
+        onefile = destination / "insi.exe"
+        if onefile.is_file():
+            application.mkdir()
+            onefile.replace(application / onefile.name)
     if not application.is_dir():
         raise RuntimeError("PyInstaller hat keinen App-Ordner erzeugt.")
     write_application_identity(application)

@@ -99,22 +99,36 @@ analysis = Analysis(
 pyz = PYZ(analysis.pure, analysis.zipped_data)
 icon = str(project / "packaging" / "macos" / "assets" / "app-icon-master.png")
 
-executable = EXE(
-    pyz,
-    analysis.scripts,
-    [],
-    exclude_binaries=True,
-    name="insi",
-    icon=icon if system == "Windows" else None,
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=False,
-    console=False,
-)
-
-executables = [executable]
-if system != "Windows":
+if system == "Windows":
+    # Nur ein echtes Onefile-Paket erreicht den Python-Einstieg zuverlässig,
+    # wenn der sichtbare Starter direkt auf einer langsamen SMB-Freigabe liegt.
+    executable = EXE(
+        pyz,
+        analysis.scripts,
+        analysis.binaries,
+        analysis.datas,
+        [],
+        name="insi",
+        icon=icon,
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=False,
+        console=False,
+    )
+else:
+    executable = EXE(
+        pyz,
+        analysis.scripts,
+        [],
+        exclude_binaries=True,
+        name="insi",
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=False,
+        console=False,
+    )
     python_runner = EXE(
         pyz,
         analysis.scripts,
@@ -127,14 +141,13 @@ if system != "Windows":
         upx=False,
         console=True,
     )
-    executables.append(python_runner)
-
-collection = COLLECT(
-    *executables,
-    analysis.binaries,
-    analysis.zipfiles,
-    analysis.datas,
-    strip=False,
-    upx=False,
-    name="insi",
-)
+    collection = COLLECT(
+        executable,
+        python_runner,
+        analysis.binaries,
+        analysis.zipfiles,
+        analysis.datas,
+        strip=False,
+        upx=False,
+        name="insi",
+    )

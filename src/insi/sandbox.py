@@ -470,6 +470,24 @@ class WindowsAppContainerAdapter:
         command: Sequence[str], environment: Mapping[str, str]
     ) -> tuple[Path, ...]:
         roots = list(BubblewrapAdapter._runtime_roots(command, environment))
+        executable_path = Path(sys.executable)
+        if (
+            sys.platform == "win32"
+            and getattr(sys, "frozen", False)
+            and hasattr(sys, "_MEIPASS")
+            and not (executable_path.parent / "_internal").is_dir()
+        ):
+            # Ein Onefile-Kind entpackt seine eigene Runtime im AppContainer.
+            # Das temporäre Bundle des vertrauenswürdigen Elternprozesses darf
+            # deshalb weder rekursiv freigegeben noch an das Kind gekoppelt
+            # werden.
+            bundle = Path(sys._MEIPASS).resolve()
+            roots = [
+                root
+                for root in roots
+                if root.resolve() != bundle
+                and not root.resolve().is_relative_to(bundle)
+            ]
         if command:
             executable = Path(
                 shutil.which(str(command[0])) or command[0]

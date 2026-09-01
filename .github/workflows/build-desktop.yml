@@ -69,15 +69,9 @@ jobs:
           }
       - name: Kompatible pythonnet-Runtime prüfen
         shell: pwsh
-        run: |
-          $runtime = 'dist/windows/insi/_internal/pythonnet/runtime'
-          if (-not (Test-Path "$runtime/Python.Runtime.dll")) {
-            throw 'Python.Runtime.dll fehlt im Windows-Build.'
-          }
-          $facades = @(Get-ChildItem $runtime -Filter 'System.*.dll')
-          if ($facades.Count -ne 0) {
-            throw "Unerwartete pythonnet-3.1-Fassaden im Build: $($facades.Name -join ', ')"
-          }
+        run: >-
+          python tools/run_packaged_python.py dist/windows/insi/insi.exe -- -c
+          "import importlib.metadata as m; assert m.version('pythonnet') == '3.0.5'; print(m.version('pythonnet'))"
       - name: Echtes Windows-Fenster prüfen
         shell: pwsh
         run: ./tools/check_windows_desktop.ps1

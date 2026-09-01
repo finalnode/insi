@@ -335,7 +335,6 @@ def _valid_application_stage(directory: Path, executable_name: str, key: str) ->
         marker == key
         and access == _ALL_APPLICATION_PACKAGES_SID
         and (directory / executable_name).is_file()
-        and (directory / "_internal").is_dir()
     )
 
 

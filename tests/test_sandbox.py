@@ -288,6 +288,35 @@ def test_windows_probe_cleanup_retries_transient_file_lock(tmp_path, monkeypatch
     assert not path.exists()
 
 
+def test_windows_onefile_child_does_not_mount_parent_extraction(
+    tmp_path, monkeypatch
+):
+    bundle = tmp_path / "onefile-extraction"
+    bundle_library = bundle / "library"
+    system_root = tmp_path / "system"
+    executable = tmp_path / "application" / "insi.exe"
+    bundle_library.mkdir(parents=True)
+    system_root.mkdir()
+    executable.parent.mkdir()
+    executable.touch()
+    monkeypatch.setattr(sandbox.sys, "platform", "win32")
+    monkeypatch.setattr(sandbox.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sandbox.sys, "_MEIPASS", str(bundle), raising=False)
+    monkeypatch.setattr(sandbox.sys, "executable", str(executable))
+    monkeypatch.setattr(
+        BubblewrapAdapter,
+        "_runtime_roots",
+        staticmethod(lambda _command, _environment: (bundle, bundle_library, system_root)),
+    )
+
+    roots = WindowsAppContainerAdapter._runtime_roots([str(executable)], {})
+
+    assert bundle not in roots
+    assert bundle_library not in roots
+    assert system_root in roots
+    assert executable.resolve() in roots
+
+
 def test_windows_adapter_refuses_network_capability(tmp_path, monkeypatch):
     adapter = WindowsAppContainerAdapter()
     monkeypatch.setattr(
@@ -393,6 +422,29 @@ def test_packaged_windows_cache_changes_with_distribution_identity(tmp_path):
 
     assert first.parent != second.parent
     assert first.read_bytes() == second.read_bytes() == b"unchanged-launcher"
+
+
+def test_packaged_windows_onefile_cache_is_reused_without_internal_directory(
+    tmp_path,
+):
+    source = tmp_path / "network" / "insi"
+    source.mkdir(parents=True)
+    executable = source / "insi.exe"
+    executable.write_bytes(b"onefile-build")
+    local_app_data = tmp_path / "local"
+
+    first = windows_staging.stage_application_directory(
+        executable,
+        environment={"LOCALAPPDATA": str(local_app_data)},
+    )
+    second = windows_staging.stage_application_directory(
+        executable,
+        environment={"LOCALAPPDATA": str(local_app_data)},
+    )
+
+    assert first == second
+    assert first.read_bytes() == b"onefile-build"
+    assert not (first.parent / "_internal").exists()
 
 
 def test_staged_application_root_skips_only_validated_read_grants(tmp_path):
