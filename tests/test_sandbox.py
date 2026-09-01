@@ -922,6 +922,8 @@ def test_windows_broker_declares_fail_closed_kernel_controls():
     assert 'if not self.payload["allow_gui"]:' in source
     assert 'creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)' in source
     assert "is_windows_network_path(path)" in source
+    assert 'bootstrap_continue.write_text("continue"' in source
+    assert "if recursive:" in source
 
 
 @pytest.mark.parametrize(

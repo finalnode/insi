@@ -553,6 +553,14 @@ class WindowsAppContainerAdapter:
             "readable_roots": [str(path) for path in readable],
             "writable_roots": [str(path) for path in writable],
             "allow_gui": policy.allow_gui,
+            "onefile_bootstrap": (
+                sys.platform == "win32"
+                and getattr(sys, "frozen", False)
+                and hasattr(sys, "_MEIPASS")
+                and not (Path(sys.executable).parent / "_internal").is_dir()
+                and bool(command)
+                and Path(str(command[0])).resolve() == Path(sys.executable).resolve()
+            ),
             "limits": {
                 "timeout_seconds": policy.timeout_seconds,
                 "max_cpu_seconds": policy.max_cpu_seconds,

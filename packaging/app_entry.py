@@ -8,6 +8,7 @@ import os
 import platform
 import runpy
 import sys
+import time
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -16,6 +17,8 @@ from insi.windows_staging import relaunch_frozen_windows_application
 
 
 _DESKTOP_LOG = None
+_ONEFILE_READY_ENV = "INSI_ONEFILE_BOOTSTRAP_READY"
+_ONEFILE_CONTINUE_ENV = "INSI_ONEFILE_BOOTSTRAP_CONTINUE"
 
 
 def restore_standard_streams() -> None:
@@ -24,6 +27,24 @@ def restore_standard_streams() -> None:
         sys.stdout = os.fdopen(os.dup(1), "w", encoding="utf-8", buffering=1)
     if sys.stderr is None:
         sys.stderr = os.fdopen(os.dup(2), "w", encoding="utf-8", buffering=1)
+
+
+def complete_onefile_bootstrap() -> None:
+    """Melde dem Sandboxbroker das Ende der vertrauenswürdigen Entpackphase."""
+    ready_value = os.environ.pop(_ONEFILE_READY_ENV, "")
+    continue_value = os.environ.pop(_ONEFILE_CONTINUE_ENV, "")
+    if not ready_value and not continue_value:
+        return
+    if not ready_value or not continue_value:
+        raise RuntimeError("Der Windows-Onefile-Start-Handshake ist unvollständig.")
+    ready = Path(ready_value)
+    continuation = Path(continue_value)
+    ready.write_text("ready", encoding="ascii")
+    deadline = time.monotonic() + 45
+    while not continuation.is_file():
+        if time.monotonic() >= deadline:
+            raise RuntimeError("Der Windows-Sandboxbroker hat den Start nicht freigegeben.")
+        time.sleep(0.02)
 
 
 def configure_desktop_logging() -> Path:
@@ -93,6 +114,7 @@ if __name__ == "__main__":
     multiprocessing.freeze_support()
     if len(sys.argv) > 1 and sys.argv[1] == "--pykim-python":
         restore_standard_streams()
+        complete_onefile_bootstrap()
         status = run_python(sys.argv[2:])
         sys.stdout.flush()
         sys.stderr.flush()
