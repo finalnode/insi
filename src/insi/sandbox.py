@@ -25,6 +25,7 @@ from .windows_sandbox_helper import PAYLOAD_VERSION, encode_payload, windows_api
 from .windows_paths import is_windows_network_path
 from .windows_staging import (
     NetworkWriteback,
+    STAGED_APPLICATION_ENV,
     WindowsNetworkRunStage,
     environment_has_network_path,
     sync_network_writebacks,
@@ -585,7 +586,13 @@ class WindowsAppContainerAdapter:
                 command = [*python_command(), "-c", probe_code]
                 probe_environment = _independent_frozen_environment({
                     name: os.environ[name]
-                    for name in ("PATH", "PATHEXT", "SYSTEMROOT", "WINDIR")
+                    for name in (
+                        "PATH",
+                        "PATHEXT",
+                        "SYSTEMROOT",
+                        "WINDIR",
+                        STAGED_APPLICATION_ENV,
+                    )
                     if name in os.environ
                 })
                 probe_environment["PYTHONUNBUFFERED"] = "1"

@@ -844,6 +844,12 @@ def test_frozen_windows_children_reset_the_pyinstaller_environment(monkeypatch):
     }
 
 
+def test_windows_probe_preserves_staged_application_root():
+    source = Path(sandbox.__file__).read_text(encoding="utf-8")
+
+    assert "STAGED_APPLICATION_ENV," in source
+
+
 def test_windows_broker_declares_fail_closed_kernel_controls():
     source = (
         Path(__file__).parents[1] / "src/insi/windows_sandbox_helper.py"
