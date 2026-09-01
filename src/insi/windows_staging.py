@@ -340,7 +340,7 @@ def _valid_application_stage(directory: Path, executable_name: str, key: str) ->
 
 
 def _grant_staged_application_access(directory: Path) -> None:
-    """Erlaube AppContainern einmalig nur Lesen/Ausführen des App-Builds."""
+    """Setze Vererbung, bevor Dateien in den leeren App-Cache kopiert werden."""
 
     if os.name == "nt":
         subprocess.run(
@@ -349,8 +349,6 @@ def _grant_staged_application_access(directory: Path) -> None:
                 str(directory),
                 "/grant:r",
                 f"*{_ALL_APPLICATION_PACKAGES_SID}:(OI)(CI)RX",
-                "/T",
-                "/C",
                 "/Q",
             ],
             stdin=subprocess.DEVNULL,
@@ -403,11 +401,14 @@ def stage_application_directory(
 
     temporary = Path(tempfile.mkdtemp(prefix=f".{key}-", dir=cache_root))
     try:
+        # Die ACL am noch leeren Ordner zu setzen ist konstant schnell. Alle
+        # danach kopierten Unterordner und Dateien erben ausschließlich RX;
+        # ein minutenlanger rekursiver icacls-Durchlauf entfällt.
+        _grant_staged_application_access(temporary)
         shutil.copytree(source_directory, temporary, dirs_exist_ok=True)
         copied_executable = temporary / source_executable.name
         if _application_fingerprint(copied_executable) != key:
             raise OSError("Die lokal kopierte in:si-EXE ist unvollständig.")
-        _grant_staged_application_access(temporary)
         (temporary / _COMPLETE_MARKER).write_text(key, encoding="ascii")
         if target_directory.exists():
             shutil.rmtree(target_directory)

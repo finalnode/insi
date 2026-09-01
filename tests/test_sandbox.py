@@ -442,11 +442,41 @@ def test_staged_application_access_is_granted_once_without_a_window(
     command, options = calls[0]
     assert command[:3] == ["icacls", str(application), "/grant:r"]
     assert "*S-1-15-2-1:(OI)(CI)RX" in command
+    assert "/T" not in command
     assert options["creationflags"] == 8
     assert options["check"] is True
     assert (application / ".insi-appcontainer-access").read_text(
         encoding="ascii"
     ) == "S-1-15-2-1"
+
+
+def test_staged_application_sets_inherited_access_before_copy(tmp_path, monkeypatch):
+    source = tmp_path / "network" / "insi"
+    source.mkdir(parents=True)
+    executable = source / "insi.exe"
+    executable.write_bytes(b"portable-build")
+    (source / "_internal").mkdir()
+    events = []
+    real_copytree = windows_staging.shutil.copytree
+    real_grant = windows_staging._grant_staged_application_access
+
+    def grant(directory):
+        events.append("grant")
+        real_grant(directory)
+
+    def copytree(*args, **kwargs):
+        events.append("copy")
+        return real_copytree(*args, **kwargs)
+
+    monkeypatch.setattr(windows_staging, "_grant_staged_application_access", grant)
+    monkeypatch.setattr(windows_staging.shutil, "copytree", copytree)
+
+    windows_staging.stage_application_directory(
+        executable,
+        environment={"LOCALAPPDATA": str(tmp_path / "local")},
+    )
+
+    assert events[:2] == ["grant", "copy"]
 
 
 def test_packaged_network_python_runner_waits_for_local_child(tmp_path, monkeypatch):
