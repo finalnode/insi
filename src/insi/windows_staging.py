@@ -19,6 +19,7 @@ from .windows_paths import is_windows_network_path
 
 STAGED_SOURCE_ENV = "INSI_STAGED_FROM_NETWORK"
 STAGED_APPLICATION_ENV = "INSI_STAGED_APPLICATION_ROOT"
+PREAUTHORIZED_RUNTIME_ENV = "INSI_PREAUTHORIZED_RUNTIME_ROOT"
 APPLICATION_IDENTITY_FILE = ".insi-build-id"
 _COMPLETE_MARKER = ".insi-stage-complete"
 _APPCONTAINER_ACCESS_MARKER = ".insi-appcontainer-access"
@@ -361,6 +362,42 @@ def _grant_staged_application_access(directory: Path) -> None:
         _ALL_APPLICATION_PACKAGES_SID,
         encoding="ascii",
     )
+
+
+def prepare_onefile_runtime_for_appcontainer() -> None:
+    """Gib die einmal entpackte Onefile-Runtime für interne Sandboxkinder frei."""
+    if (
+        sys.platform != "win32"
+        or not getattr(sys, "frozen", False)
+        or not hasattr(sys, "_MEIPASS")
+        or (Path(sys.executable).parent / "_internal").is_dir()
+    ):
+        return
+    runtime = Path(sys._MEIPASS).resolve()
+    if os.environ.get(PREAUTHORIZED_RUNTIME_ENV) == str(runtime):
+        return
+    subprocess.run(
+        [
+            "icacls",
+            str(runtime),
+            "/grant:r",
+            f"*{_ALL_APPLICATION_PACKAGES_SID}:(OI)(CI)RX",
+            "/T",
+            "/C",
+            "/Q",
+        ],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        timeout=180,
+        check=True,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    (runtime / _APPCONTAINER_ACCESS_MARKER).write_text(
+        _ALL_APPLICATION_PACKAGES_SID,
+        encoding="ascii",
+    )
+    os.environ[PREAUTHORIZED_RUNTIME_ENV] = str(runtime)
 
 
 def _show_windows_error(message: str) -> None:

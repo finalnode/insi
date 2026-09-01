@@ -288,7 +288,7 @@ def test_windows_probe_cleanup_retries_transient_file_lock(tmp_path, monkeypatch
     assert not path.exists()
 
 
-def test_windows_onefile_child_does_not_mount_parent_extraction(
+def test_windows_onefile_child_reuses_parent_extraction(
     tmp_path, monkeypatch
 ):
     bundle = tmp_path / "onefile-extraction"
@@ -311,8 +311,8 @@ def test_windows_onefile_child_does_not_mount_parent_extraction(
 
     roots = WindowsAppContainerAdapter._runtime_roots([str(executable)], {})
 
-    assert bundle not in roots
-    assert bundle_library not in roots
+    assert bundle in roots
+    assert bundle_library in roots
     assert system_root in roots
     assert executable.resolve() in roots
 
@@ -893,6 +893,26 @@ def test_frozen_windows_children_reset_the_pyinstaller_environment(monkeypatch):
     assert environment == {
         "PATH": "runtime",
         "PYINSTALLER_RESET_ENVIRONMENT": "1",
+    }
+
+
+def test_internal_windows_onefile_children_reuse_the_extracted_runtime(monkeypatch):
+    monkeypatch.setattr(sandbox.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sandbox.sys, "platform", "win32")
+    monkeypatch.setenv("_PYI_ARCHIVE_FILE", "insi.exe")
+    monkeypatch.setenv("_PYI_APPLICATION_HOME_DIR", "runtime")
+    monkeypatch.setenv("INSI_PREAUTHORIZED_RUNTIME_ROOT", "runtime")
+
+    environment = sandbox._reused_frozen_environment({
+        "PATH": "runtime",
+        "PYINSTALLER_RESET_ENVIRONMENT": "1",
+    })
+
+    assert environment == {
+        "PATH": "runtime",
+        "_PYI_ARCHIVE_FILE": "insi.exe",
+        "_PYI_APPLICATION_HOME_DIR": "runtime",
+        "INSI_PREAUTHORIZED_RUNTIME_ROOT": "runtime",
     }
 
 

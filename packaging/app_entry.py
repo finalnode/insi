@@ -13,7 +13,10 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
-from insi.windows_staging import relaunch_frozen_windows_application
+from insi.windows_staging import (
+    prepare_onefile_runtime_for_appcontainer,
+    relaunch_frozen_windows_application,
+)
 
 
 _DESKTOP_LOG = None
@@ -107,6 +110,7 @@ if __name__ == "__main__":
     # bleibt netzwerklos: Die portable Distribution wird einmalig lokal
     # gespiegelt und mit unveränderten Argumenten transparent fortgesetzt.
     relaunch_frozen_windows_application()
+    prepare_onefile_runtime_for_appcontainer()
     # multiprocessing.freeze_support() übernimmt den nativen Fensterprozess,
     # bevor run_app() erreicht wird. Das Log muss deshalb bereits hier stehen.
     if "--pykim-python" not in sys.argv:

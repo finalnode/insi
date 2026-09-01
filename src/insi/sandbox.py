@@ -24,6 +24,7 @@ from .interpreter import python_command
 from .windows_sandbox_helper import PAYLOAD_VERSION, encode_payload, windows_api_available
 from .windows_paths import is_windows_network_path
 from .windows_staging import (
+    PREAUTHORIZED_RUNTIME_ENV,
     NetworkWriteback,
     STAGED_APPLICATION_ENV,
     WindowsNetworkRunStage,
@@ -103,6 +104,20 @@ def _independent_frozen_environment(
     child = dict(environment)
     if getattr(sys, "frozen", False) and sys.platform == "win32":
         child["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    return child
+
+
+def _reused_frozen_environment(environment: Mapping[str, str]) -> dict[str, str]:
+    """Verwende für interne Onefile-Kinder die bereits entpackte Runtime."""
+    child = dict(environment)
+    if getattr(sys, "frozen", False) and sys.platform == "win32":
+        for name, value in os.environ.items():
+            if name.startswith("_PYI_"):
+                child[name] = value
+        child.pop("PYINSTALLER_RESET_ENVIRONMENT", None)
+        runtime = os.environ.get(PREAUTHORIZED_RUNTIME_ENV)
+        if runtime:
+            child[PREAUTHORIZED_RUNTIME_ENV] = runtime
     return child
 
 
@@ -471,23 +486,6 @@ class WindowsAppContainerAdapter:
     ) -> tuple[Path, ...]:
         roots = list(BubblewrapAdapter._runtime_roots(command, environment))
         executable_path = Path(sys.executable)
-        if (
-            sys.platform == "win32"
-            and getattr(sys, "frozen", False)
-            and hasattr(sys, "_MEIPASS")
-            and not (executable_path.parent / "_internal").is_dir()
-        ):
-            # Ein Onefile-Kind entpackt seine eigene Runtime im AppContainer.
-            # Das temporäre Bundle des vertrauenswürdigen Elternprozesses darf
-            # deshalb weder rekursiv freigegeben noch an das Kind gekoppelt
-            # werden.
-            bundle = Path(sys._MEIPASS).resolve()
-            roots = [
-                root
-                for root in roots
-                if root.resolve() != bundle
-                and not root.resolve().is_relative_to(bundle)
-            ]
         if command:
             executable = Path(
                 shutil.which(str(command[0])) or command[0]
@@ -542,7 +540,7 @@ class WindowsAppContainerAdapter:
         writable = _existing_roots(policy.writable_roots)
         if len(writable) != len(policy.writable_roots):
             raise ValueError("Alle freigegebenen Schreibbereiche müssen vorhanden sein.")
-        child_environment = _independent_frozen_environment(environment)
+        child_environment = _reused_frozen_environment(environment)
         child_environment["INSI_SANDBOX"] = "windows-appcontainer"
         payload: dict[str, Any] = {
             "version": PAYLOAD_VERSION,
@@ -753,7 +751,7 @@ class WindowsAppContainerAdapter:
             if stage is not None:
                 shutil.rmtree(stage.root, ignore_errors=True)
             raise
-        broker_environment = _independent_frozen_environment(mapped_environment)
+        broker_environment = _reused_frozen_environment(mapped_environment)
         broker_environment["INSI_SANDBOX"] = "windows-appcontainer-broker"
         return PreparedLaunch(
             self._broker_command(payload),

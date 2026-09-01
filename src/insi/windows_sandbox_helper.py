@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .windows_paths import is_windows_network_path, windows_network_path_message
-from .windows_staging import STAGED_APPLICATION_ENV
+from .windows_staging import PREAUTHORIZED_RUNTIME_ENV, STAGED_APPLICATION_ENV
 
 
 PAYLOAD_VERSION = 1
@@ -50,15 +50,33 @@ def _preauthorized_application_root(environment: Mapping[str, str]) -> Path | No
         return None
 
 
+def _preauthorized_runtime_root(environment: Mapping[str, str]) -> Path | None:
+    value = environment.get(PREAUTHORIZED_RUNTIME_ENV, "").strip()
+    if not value or is_windows_network_path(value):
+        return None
+    root = Path(value)
+    try:
+        marker = (root / _APPCONTAINER_ACCESS_MARKER).read_text(
+            encoding="ascii"
+        ).strip()
+        if marker != _ALL_APPLICATION_PACKAGES_SID or not root.is_dir():
+            return None
+        return root.resolve(strict=True)
+    except (FileNotFoundError, OSError, RuntimeError, UnicodeError):
+        return None
+
+
 def _is_preauthorized_read(
     path: Path,
-    application_root: Path | None,
+    *roots: Path | None,
 ) -> bool:
-    if application_root is None:
-        return False
     try:
         resolved = path.resolve(strict=True)
-        return resolved == application_root or resolved.is_relative_to(application_root)
+        return any(
+            root is not None
+            and (resolved == root or resolved.is_relative_to(root))
+            for root in roots
+        )
     except (FileNotFoundError, OSError, RuntimeError):
         return False
 
@@ -528,8 +546,9 @@ class _WindowsBroker:
         application_root = _preauthorized_application_root(
             self.payload["environment"]
         )
+        runtime_root = _preauthorized_runtime_root(self.payload["environment"])
         for root in readable:
-            if not _is_preauthorized_read(root, application_root):
+            if not _is_preauthorized_read(root, application_root, runtime_root):
                 self._grant_path(root, writable=False)
         for root in writable:
             self._grant_path(root, writable=True)

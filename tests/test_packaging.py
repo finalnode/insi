@@ -135,6 +135,7 @@ def test_windows_build_uses_one_executable_for_app_and_internal_python():
     entrypoint = (PROJECT / "packaging/app_entry.py").read_text(encoding="utf-8")
     assert "relaunch_frozen_windows_application()" in entrypoint
     assert "complete_onefile_bootstrap()" in entrypoint
+    assert "prepare_onefile_runtime_for_appcontainer()" in entrypoint
     network_check = (PROJECT / "tools/check_windows_network_start.ps1").read_text(
         encoding="utf-8"
     )
