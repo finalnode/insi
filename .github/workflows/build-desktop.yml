@@ -58,6 +58,9 @@ jobs:
         run: >-
           python tools/run_packaged_python.py dist/windows/insi/insi.exe --
           tools/check_windows_sandbox.py
+      - name: Windows-Netzlaufwerk, Staging und Rücksynchronisierung prüfen
+        shell: pwsh
+        run: ./tools/check_windows_network_start.ps1
       - name: Einzelnen Windows-Starter prüfen
         shell: pwsh
         run: |

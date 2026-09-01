@@ -41,6 +41,7 @@ def test_desktop_workflow_covers_all_release_targets():
         "tools/build_desktop_app.py",
         "tools/check_windows_desktop.ps1",
         "tools/check_windows_sandbox.py",
+        "tools/check_windows_network_start.ps1",
         "tools/check_linux_sandbox.py",
         "tools/check_macos_sandbox.py",
         "tools/build_macos_dmg.py --rebuild-app",
@@ -128,9 +129,33 @@ def test_windows_build_uses_one_executable_for_app_and_internal_python():
     assert "tools/run_packaged_python.py dist/windows/insi/insi.exe" in workflow
     assert "run_packaged_python.py dist/windows/insi/insi-python.exe" not in workflow
     assert "Einzelnen Windows-Starter prüfen" in workflow
+    assert "Windows-Netzlaufwerk, Staging und Rücksynchronisierung prüfen" in workflow
 
     entrypoint = (PROJECT / "packaging/app_entry.py").read_text(encoding="utf-8")
-    assert "reject_frozen_windows_network_launch()" in entrypoint
+    assert "relaunch_frozen_windows_application()" in entrypoint
+    network_check = (PROJECT / "tools/check_windows_network_start.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert "tools/check_windows_network_sandbox.py" in network_check
+    assert "New-SmbShare" in network_check
+
+
+def test_desktop_build_identity_covers_the_complete_distribution(tmp_path):
+    from tools.build_desktop_app import write_application_identity
+
+    application = tmp_path / "insi"
+    internal = application / "_internal"
+    internal.mkdir(parents=True)
+    (application / "insi.exe").write_bytes(b"unchanged-launcher")
+    library = internal / "library.zip"
+    library.write_bytes(b"first-runtime")
+
+    first = write_application_identity(application)
+    library.write_bytes(b"second-runtime")
+    second = write_application_identity(application)
+
+    assert first != second
+    assert (application / ".insi-build-id").read_text(encoding="ascii") == second
 
 
 def test_packaged_python_checker_waits_and_returns_child_status(

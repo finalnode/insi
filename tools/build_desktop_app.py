@@ -3,12 +3,35 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import platform
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+
+APPLICATION_IDENTITY_FILE = ".insi-build-id"
+
+
+def write_application_identity(application: Path) -> str:
+    """Schreibe eine Inhalts-ID für den vollständigen portablen App-Build."""
+
+    digest = hashlib.sha256()
+    for path in sorted(application.rglob("*")):
+        if not path.is_file() or path.name == APPLICATION_IDENTITY_FILE:
+            continue
+        relative = path.relative_to(application).as_posix().encode("utf-8")
+        digest.update(relative)
+        digest.update(b"\0")
+        with path.open("rb") as source:
+            while chunk := source.read(1024 * 1024):
+                digest.update(chunk)
+        digest.update(b"\0")
+    identity = digest.hexdigest()
+    (application / APPLICATION_IDENTITY_FILE).write_text(identity, encoding="ascii")
+    return identity
 
 
 def environment_python(environment: Path) -> Path:
@@ -96,6 +119,7 @@ def main(arguments: list[str] | None = None) -> int:
     application = destination / "insi"
     if not application.is_dir():
         raise RuntimeError("PyInstaller hat keinen App-Ordner erzeugt.")
+    write_application_identity(application)
     print(f"{system}-App erstellt: {application}")
     return 0
 

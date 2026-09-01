@@ -14,14 +14,16 @@ eigentliche Datei- und Netzwerkprüfung bleibt unverändert fail-closed.
 
 Ein realer iServ-Test zeigte außerdem, dass ein direkter Start aus einer
 UNC-Ablage mehrere sichtbare `icacls.exe`-Prozesse, langsames Laden und einen
-45-Sekunden-Timeout auslöste. Der Kandidat erkennt Netzwerkpfade nun vor jedem
-teuren Probezugriff, erklärt den notwendigen lokalen NTFS-Start und startet die
-ACL-Helfer fensterlos. iServ und USB bleiben unter Windows unterstützte
-Transportwege; App und integrierter Kurslauf werden lokal ausgeführt.
+45-Sekunden-Timeout auslöste. Der Kandidat cached den direkt im Netz gestarteten
+Build nun inhaltsgebunden im lokalen Benutzerbereich und setzt den Start
+automatisch fort. AppContainer-Läufe spiegeln ausschließlich die freigegebenen
+Netzwerkpfade lokal; erlaubte Projektänderungen werden nach Prozessende mit
+Konflikterkennung zurückgeschrieben. Der Lernprozess selbst behält seine
+Netzwerksperre. Die ACL-Helfer laufen fensterlos.
 
 Die vorherige automatisierte Desktopmatrix war erfolgreich. Vor einer
 Veröffentlichung müssen der korrigierte Build und die [reale Abnahme für
-lokalen Start sowie iServ-/UNC-/USB-Transport](windows-test-0.7.2.md) auf den
+direkten iServ-/UNC-, lokalen und USB-Start](windows-test-0.7.2.md) auf den
 betroffenen Schulrechnern erneut erfolgreich sein.
 
 ## Hotfix 0.7.1
@@ -89,12 +91,13 @@ candidate passed the complete automated desktop matrix.
 
 A real iServ test subsequently showed visible `icacls.exe` windows, slow
 loading and a 45-second timeout when the package was executed directly from a
-UNC share. The candidate now rejects network execution before any expensive
-sandbox probe, explains the required local NTFS copy, and launches ACL helpers
-without a visible console. iServ and USB remain supported transport paths;
-the app and integrated course execution run from local NTFS storage. The
-corrected build still requires a fresh desktop matrix and real-device checks of
-local execution plus transport from the affected iServ share and USB.
+UNC share. The corrected candidate caches the build in the local user profile
+and continues the network launch automatically. Each AppContainer run mirrors
+only the explicitly allowed network paths locally and synchronizes permitted
+project changes back with conflict detection, while student code remains
+network-isolated. ACL helpers run without a visible console. The corrected
+build still requires a fresh desktop matrix and real-device checks from the
+affected iServ share, local storage and USB.
 
 ## Hotfix 0.7.1
 

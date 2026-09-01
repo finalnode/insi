@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from insi import sandbox, windows_paths
+from insi import sandbox, windows_staging
 from insi.execution_security import builtin_policy, execution_environment, student_policy
 from insi.sandbox import (
     BubblewrapAdapter,
@@ -25,8 +25,11 @@ from insi.sandbox import (
 from insi.windows_sandbox_helper import decode_payload, encode_payload
 from insi.windows_paths import (
     is_windows_network_path,
-    reject_frozen_windows_network_launch,
-    windows_network_path_message,
+)
+from insi.windows_staging import (
+    WindowsNetworkRunStage,
+    relaunch_frozen_windows_application,
+    sync_network_writebacks,
 )
 
 
@@ -310,7 +313,6 @@ def test_windows_adapter_refuses_network_capability(tmp_path, monkeypatch):
 )
 def test_windows_network_paths_are_detected_without_touching_the_share(path):
     assert is_windows_network_path(path)
-    assert "lokales NTFS-Laufwerk" in windows_network_path_message(path)
 
 
 @pytest.mark.parametrize("path", (r"C:\insi\insi.exe", r"D:\PyKIM-Kurs"))
@@ -318,52 +320,216 @@ def test_local_windows_paths_are_not_mistaken_for_unc_paths(path):
     assert not is_windows_network_path(path)
 
 
-def test_packaged_windows_network_launch_shows_local_copy_message(monkeypatch):
+def test_packaged_windows_network_launch_is_staged_and_relaunched(tmp_path, monkeypatch):
+    calls = []
+    source = tmp_path / "network" / "insi"
+    source.mkdir(parents=True)
+    (source / "insi.exe").write_bytes(b"portable-build")
+    (source / "_internal").mkdir()
+    (source / "_internal" / "library.zip").write_bytes(b"runtime")
+    local_app_data = tmp_path / "local"
+
+    class Process:
+        pass
+
+    monkeypatch.setattr(windows_staging.sys, "platform", "win32")
+    monkeypatch.setattr(
+        windows_staging,
+        "is_windows_network_path",
+        lambda path: str(path) == str(source / "insi.exe"),
+    )
+    monkeypatch.setattr(
+        windows_staging.subprocess,
+        "Popen",
+        lambda command, **options: calls.append((command, options)) or Process(),
+    )
+
+    with pytest.raises(SystemExit) as exit_info:
+        relaunch_frozen_windows_application(
+            source / "insi.exe",
+            arguments=("--test",),
+            environment={"LOCALAPPDATA": str(local_app_data)},
+        )
+
+    assert exit_info.value.code == 0
+    assert len(calls) == 1
+    command, options = calls[0]
+    assert command[1:] == ["--test"]
+    assert Path(command[0]).is_file()
+    assert Path(command[0]).parent.is_relative_to(local_app_data)
+    assert (Path(command[0]).parent / "_internal" / "library.zip").is_file()
+    assert options["cwd"] == Path(command[0]).parent
+    assert options["env"]["INSI_STAGED_FROM_NETWORK"] == str(source / "insi.exe")
+    assert options["env"]["PYINSTALLER_RESET_ENVIRONMENT"] == "1"
+
+
+def test_packaged_windows_cache_changes_with_distribution_identity(tmp_path):
+    source = tmp_path / "network" / "insi"
+    source.mkdir(parents=True)
+    executable = source / "insi.exe"
+    executable.write_bytes(b"unchanged-launcher")
+    (source / "_internal").mkdir()
+    identity = source / windows_staging.APPLICATION_IDENTITY_FILE
+    local_app_data = tmp_path / "local"
+
+    identity.write_text("1" * 64, encoding="ascii")
+    first = windows_staging.stage_application_directory(
+        executable,
+        environment={"LOCALAPPDATA": str(local_app_data)},
+    )
+    identity.write_text("2" * 64, encoding="ascii")
+    second = windows_staging.stage_application_directory(
+        executable,
+        environment={"LOCALAPPDATA": str(local_app_data)},
+    )
+
+    assert first.parent != second.parent
+    assert first.read_bytes() == second.read_bytes() == b"unchanged-launcher"
+
+
+def test_packaged_network_python_runner_waits_for_local_child(tmp_path, monkeypatch):
+    source = tmp_path / "network" / "insi"
+    source.mkdir(parents=True)
+    (source / "insi.exe").write_bytes(b"portable-build")
+    (source / "_internal").mkdir()
     calls = []
 
-    class MessageBox:
-        argtypes = None
-        restype = None
+    class Completed:
+        returncode = 7
 
-        def __call__(self, window, message, title, flags):
-            calls.append((window, message, title, flags))
-
-    class User32:
-        MessageBoxW = MessageBox()
-
-    monkeypatch.setattr(windows_paths.sys, "platform", "win32")
+    monkeypatch.setattr(windows_staging.sys, "platform", "win32")
     monkeypatch.setattr(
-        windows_paths.ctypes,
-        "WinDLL",
-        lambda *args, **kwargs: User32(),
-        raising=False,
+        windows_staging,
+        "is_windows_network_path",
+        lambda path: str(path) == str(source / "insi.exe"),
+    )
+    monkeypatch.setattr(
+        windows_staging.subprocess,
+        "run",
+        lambda command, **options: calls.append((command, options)) or Completed(),
     )
 
-    with pytest.raises(SystemExit, match="lokales NTFS-Laufwerk"):
-        reject_frozen_windows_network_launch(r"\\server\share\insi\insi.exe")
-
-    assert len(calls) == 1
-    assert "Netzwerkpfad" in calls[0][1]
-    assert calls[0][2] == "in:si – lokaler Start erforderlich"
-    assert calls[0][3] == 0x10
-
-
-def test_windows_adapter_rejects_unc_course_before_running_probe(tmp_path, monkeypatch):
-    adapter = WindowsAppContainerAdapter()
-    monkeypatch.setattr(
-        adapter,
-        "status",
-        lambda: pytest.fail("Der AppContainer-Probelauf darf nicht beginnen."),
-    )
-    policy = student_policy(tmp_path, readable_roots=(tmp_path,))
-
-    with pytest.raises(SandboxUnavailableError, match="Netzwerkpfad"):
-        adapter.prepare(
-            [r"C:\Python\python.exe", "-c", "pass"],
-            cwd=Path(r"\\server\share\course"),
-            environment={},
-            policy=policy,
+    with pytest.raises(SystemExit) as exit_info:
+        relaunch_frozen_windows_application(
+            source / "insi.exe",
+            arguments=("--pykim-python", "-c", "print('ok')"),
+            environment={"LOCALAPPDATA": str(tmp_path / "local")},
         )
+
+    assert exit_info.value.code == 7
+    assert calls[0][0][1:] == ["--pykim-python", "-c", "print('ok')"]
+    assert calls[0][1]["check"] is False
+
+
+def test_windows_network_run_stage_copies_and_syncs_writable_files(tmp_path, monkeypatch):
+    source = tmp_path / "network-project"
+    source.mkdir()
+    (source / "main.py").write_text("print('before')", encoding="utf-8")
+    local_app_data = tmp_path / "local"
+    monkeypatch.setattr(
+        windows_staging,
+        "is_windows_network_path",
+        lambda value: Path(value).is_relative_to(source),
+    )
+    stage = WindowsNetworkRunStage({"LOCALAPPDATA": str(local_app_data)})
+
+    staged = stage.stage_path(source, writable=True)
+    (staged / "main.py").write_text("print('after')", encoding="utf-8")
+    (staged / "removed.py").write_text("remove me", encoding="utf-8")
+    sync_network_writebacks(stage.writebacks)
+    stage = WindowsNetworkRunStage({"LOCALAPPDATA": str(local_app_data)})
+    staged = stage.stage_path(source, writable=True)
+    (staged / "removed.py").unlink()
+    (staged / "result.txt").write_text("ok", encoding="utf-8")
+    sync_network_writebacks(stage.writebacks)
+
+    assert (source / "main.py").read_text(encoding="utf-8") == "print('after')"
+    assert (source / "result.txt").read_text(encoding="utf-8") == "ok"
+    assert not (source / "removed.py").exists()
+
+
+def test_windows_network_stage_preserves_path_relationships_and_environment(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(windows_staging.os, "pathsep", ";")
+    stage = WindowsNetworkRunStage({"LOCALAPPDATA": str(tmp_path)})
+    course = r"\\server\share\courses\pykim"
+    target = course + r"\Aufgaben\quadrat.py"
+
+    assert stage.local_path(target).is_relative_to(stage.local_path(course))
+    mapped = stage.map_environment(
+        {
+            "PYKIM_COURSE_DIR": course,
+            "PYTHONPATH": course + r";C:\Python\Lib",
+        }
+    )
+
+    assert mapped["PYKIM_COURSE_DIR"] == str(stage.local_path(course))
+    assert mapped["PYTHONPATH"].split(";") == [
+        str(stage.local_path(course)),
+        r"C:\Python\Lib",
+    ]
+
+
+def test_windows_network_sync_does_not_overwrite_concurrent_change(tmp_path, monkeypatch):
+    source = tmp_path / "network-project"
+    source.mkdir()
+    target = source / "main.py"
+    target.write_text("before", encoding="utf-8")
+    other = source / "other.txt"
+    other.write_text("keep", encoding="utf-8")
+    monkeypatch.setattr(
+        windows_staging,
+        "is_windows_network_path",
+        lambda value: Path(value).is_relative_to(source),
+    )
+    stage = WindowsNetworkRunStage({"LOCALAPPDATA": str(tmp_path / "local")})
+    staged = stage.stage_path(source, writable=True)
+    (staged / "main.py").write_text("sandbox", encoding="utf-8")
+    (staged / "other.txt").unlink()
+    target.write_text("network", encoding="utf-8")
+
+    with pytest.raises(OSError, match="nicht überschrieben"):
+        sync_network_writebacks(stage.writebacks)
+
+    assert target.read_text(encoding="utf-8") == "network"
+    assert other.read_text(encoding="utf-8") == "keep"
+
+
+def test_sandboxed_process_syncs_staged_network_writes_before_cleanup(tmp_path):
+    source = tmp_path / "network"
+    staged_root = tmp_path / "stage"
+    staged = staged_root / "project"
+    source.mkdir()
+    staged.mkdir(parents=True)
+    (source / "result.txt").write_text("before", encoding="utf-8")
+    (staged / "result.txt").write_text("before", encoding="utf-8")
+    writeback = windows_staging.NetworkWriteback(
+        source,
+        staged,
+        {"result.txt": windows_staging._file_digest(staged / "result.txt")},
+    )
+    policy = student_policy(staged)
+    native = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            f"from pathlib import Path; Path({str(staged / 'result.txt')!r}).write_text('after')",
+        ]
+    )
+    process = SandboxedProcess(
+        native,
+        policy,
+        baseline_written_bytes=0,
+        cleanup_paths=(staged_root,),
+        monitored_writable_roots=(staged,),
+        writebacks=(writeback,),
+    )
+
+    process.wait(timeout=5)
+
+    assert (source / "result.txt").read_text(encoding="utf-8") == "after"
+    assert not staged_root.exists()
 
 
 def test_windows_broker_payload_rejects_tampering_and_invalid_limits(tmp_path):

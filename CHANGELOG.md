@@ -11,9 +11,11 @@
 - das Entfernen des ausschließlich für den Windows-Sandbox-Selbsttest
   verwendeten temporären Ordners gegen kurzzeitige Dateisperren gehärtet, ohne
   die eigentliche Isolationsprüfung abzuschwächen;
-- direkte Windows-Starts aus UNC-/Netzwerkpfaden vor dem langsamen App-Import
-  mit einem klaren lokalen Kopierhinweis beendet und Netzwerkkurse vor dem
-  AppContainer-Probelauf fail-closed erkannt;
+- direkte Windows-Starts aus UNC-/Netzwerkpfaden buildgebunden im lokalen
+  Benutzerbereich zwischengespeichert und danach automatisch fortgesetzt;
+- freigegebene Netzwerkpfade für AppContainer-Läufe lokal gespiegelt und
+  erlaubte Änderungen konfliktgeprüft ins Netzlaufwerk zurückgeschrieben, ohne
+  dem Lernprozess Netzwerkzugriff zu geben;
 - die nativen `icacls`-Hilfsprozesse des Windows-Brokers fensterlos gestartet,
   sodass keine kurz aufblinkenden Systemkonsolen mehr erscheinen.
 

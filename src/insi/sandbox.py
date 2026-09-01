@@ -15,14 +15,20 @@ import time
 import uuid
 import warnings
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import IO, Any, Mapping, Protocol, Sequence
 
 from .execution_security import CodeOrigin, ExecutionPolicy, popen_isolation_options
 from .interpreter import python_command
 from .windows_sandbox_helper import PAYLOAD_VERSION, encode_payload, windows_api_available
-from .windows_paths import is_windows_network_path, windows_network_path_message
+from .windows_paths import is_windows_network_path
+from .windows_staging import (
+    NetworkWriteback,
+    WindowsNetworkRunStage,
+    environment_has_network_path,
+    sync_network_writebacks,
+)
 
 
 class SandboxUnavailableError(RuntimeError):
@@ -58,6 +64,8 @@ class PreparedLaunch:
     adapter: str
     violation_file: Path | None = None
     cleanup_paths: tuple[Path, ...] = ()
+    writebacks: tuple[NetworkWriteback, ...] = ()
+    monitored_writable_roots: tuple[Path, ...] = ()
 
 
 class SandboxAdapter(Protocol):
@@ -550,15 +558,6 @@ class WindowsAppContainerAdapter:
                 "Windows AppContainer steht nur unter Windows zur Verfügung.",
             )
             return self._status
-        runner = python_command()
-        if runner and is_windows_network_path(runner[0]):
-            self._status = SandboxStatus(
-                False,
-                self.name,
-                system,
-                windows_network_path_message(runner[0]),
-            )
-            return self._status
         available, detail = windows_api_available()
         if not available:
             self._status = SandboxStatus(False, self.name, system, detail)
@@ -653,19 +652,6 @@ class WindowsAppContainerAdapter:
         environment: Mapping[str, str],
         policy: ExecutionPolicy,
     ) -> PreparedLaunch:
-        candidates: list[str | Path] = [
-            cwd,
-            *policy.readable_roots,
-            *policy.writable_roots,
-        ]
-        if command:
-            candidates.append(command[0])
-        network_path = next(
-            (path for path in candidates if is_windows_network_path(path)),
-            None,
-        )
-        if network_path is not None:
-            raise SandboxUnavailableError(windows_network_path_message(network_path))
         status = self.status()
         if not status.available:
             raise SandboxUnavailableError(status.detail)
@@ -673,28 +659,78 @@ class WindowsAppContainerAdapter:
             raise SandboxUnavailableError(
                 "Netzwerkfähigkeiten für den Windows-AppContainer sind nicht freigegeben."
             )
+        stage: WindowsNetworkRunStage | None = None
+        mapped_command = tuple(map(str, command))
+        mapped_cwd = cwd
+        mapped_environment = dict(environment)
+        mapped_policy = policy
+        network_values = (
+            cwd,
+            *policy.readable_roots,
+            *policy.writable_roots,
+            *(command[:1] if command else ()),
+        )
+        if (
+            any(is_windows_network_path(value) for value in network_values)
+            or environment_has_network_path(environment)
+        ):
+            stage = WindowsNetworkRunStage(environment)
+            try:
+                mapped_readable = tuple(
+                    stage.stage_path(path) for path in policy.readable_roots
+                )
+                mapped_writable = tuple(
+                    stage.stage_path(path, writable=True)
+                    for path in policy.writable_roots
+                )
+                if is_windows_network_path(cwd):
+                    stage.stage_path(cwd, writable=cwd in policy.writable_roots)
+                if command and is_windows_network_path(command[0]):
+                    stage.stage_path(Path(command[0]).parent)
+                mapped_command = tuple(
+                    str(stage.map_path(item))
+                    if is_windows_network_path(item)
+                    else str(item)
+                    for item in command
+                )
+                mapped_cwd = stage.map_path(cwd)
+                mapped_environment = stage.map_environment(environment)
+                mapped_policy = replace(
+                    policy,
+                    workspace=stage.map_path(policy.workspace),
+                    readable_roots=mapped_readable,
+                    writable_roots=mapped_writable,
+                )
+            except Exception:
+                shutil.rmtree(stage.root, ignore_errors=True)
+                raise
         descriptor, filename = tempfile.mkstemp(prefix="insi-win-sandbox-status-")
         os.close(descriptor)
         violation_file = Path(filename)
         try:
             payload = self._payload(
-                command,
-                cwd=cwd,
-                environment=environment,
-                policy=policy,
+                mapped_command,
+                cwd=mapped_cwd,
+                environment=mapped_environment,
+                policy=mapped_policy,
                 violation_file=violation_file,
             )
         except Exception:
             violation_file.unlink(missing_ok=True)
+            if stage is not None:
+                shutil.rmtree(stage.root, ignore_errors=True)
             raise
-        broker_environment = _independent_frozen_environment(environment)
+        broker_environment = _independent_frozen_environment(mapped_environment)
         broker_environment["INSI_SANDBOX"] = "windows-appcontainer-broker"
         return PreparedLaunch(
             self._broker_command(payload),
-            cwd,
+            mapped_cwd,
             broker_environment,
             self.name,
             violation_file,
+            (stage.root,) if stage is not None else (),
+            stage.writebacks if stage is not None else (),
+            mapped_policy.writable_roots,
         )
 
 
@@ -1181,6 +1217,7 @@ class SandboxedProcess:
         violation_file: Path | None = None,
         cleanup_paths: Sequence[Path] = (),
         monitored_writable_roots: Sequence[Path] | None = None,
+        writebacks: Sequence[NetworkWriteback] = (),
     ) -> None:
         self._process = process
         self.policy = policy
@@ -1191,6 +1228,8 @@ class SandboxedProcess:
         )
         self._violation_file = violation_file
         self._cleanup_paths = tuple(cleanup_paths)
+        self._writebacks = tuple(writebacks)
+        self._cleanup_lock = threading.Lock()
         self.output_truncated = False
         self._supervisor = threading.Thread(target=self._supervise, daemon=True)
         self._supervisor.start()
@@ -1238,10 +1277,21 @@ class SandboxedProcess:
     def _cleanup(self) -> None:
         if self._process.poll() is None:
             return
-        paths = self._cleanup_paths
-        self._cleanup_paths = ()
-        for path in paths:
-            shutil.rmtree(path, ignore_errors=True)
+        with self._cleanup_lock:
+            paths = self._cleanup_paths
+            writebacks = self._writebacks
+            self._cleanup_paths = ()
+            self._writebacks = ()
+            if not paths and not writebacks:
+                return
+            try:
+                sync_network_writebacks(writebacks)
+            except OSError as error:
+                if self.violation_reason is None:
+                    self.violation_reason = f"Netzwerk-Synchronisierung fehlgeschlagen: {error}"
+            finally:
+                for path in paths:
+                    shutil.rmtree(path, ignore_errors=True)
 
     def _refresh_violation(self) -> None:
         path = self._violation_file
@@ -1389,7 +1439,10 @@ def sandbox_popen(
     **kwargs: Any,
 ) -> SandboxedProcess:
     prepared = prepare_launch(command, cwd=cwd, environment=env, policy=policy)
-    monitored_writable_roots = (*policy.writable_roots, *prepared.cleanup_paths)
+    monitored_writable_roots = (
+        prepared.monitored_writable_roots
+        or (*policy.writable_roots, *prepared.cleanup_paths)
+    )
     baseline = _directory_size(monitored_writable_roots)
     options = popen_isolation_options()
     options.update(kwargs)
@@ -1417,6 +1470,7 @@ def sandbox_popen(
         violation_file=prepared.violation_file,
         cleanup_paths=prepared.cleanup_paths,
         monitored_writable_roots=monitored_writable_roots,
+        writebacks=prepared.writebacks,
     )
 
 

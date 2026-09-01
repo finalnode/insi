@@ -164,7 +164,7 @@ in:si ist noch eine Alpha-Version. Die wichtigsten aktuell offenen Punkte sind:
   WYSIWYG-Wechsel ist behoben;
 - manuelle Tests auf echten Windows-, macOS- und Linux-Schulgeräten sind für
   den Abschluss von 0.7 noch offen; für den 0.7.2-Windows-Kandidaten gibt es
-  eine [konkrete Abnahme für lokalen Start sowie iServ-/UNC-/USB-Transport](docs/windows-test-0.7.2.md);
+  eine [konkrete Abnahme für direkten iServ-/UNC-, lokalen und USB-Start](docs/windows-test-0.7.2.md);
 - die Desktop-Pakete sind nicht produktionssigniert; unter Linux benötigt die
   integrierte Sandbox Bubblewrap und für grafische Starts Wayland.
 
