@@ -916,6 +916,27 @@ def test_internal_windows_onefile_children_reuse_the_extracted_runtime(monkeypat
     }
 
 
+def test_windows_appcontainer_target_resets_onefile_environment(tmp_path, monkeypatch):
+    adapter = WindowsAppContainerAdapter()
+    executable = tmp_path / "insi.exe"
+    executable.touch()
+    monkeypatch.setattr(sandbox.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sandbox.sys, "platform", "win32")
+    monkeypatch.setattr(sandbox.sys, "executable", str(executable))
+    monkeypatch.setattr(sandbox.sys, "_MEIPASS", str(tmp_path), raising=False)
+
+    policy = student_policy(tmp_path)
+    payload = adapter._payload(
+        [str(executable), "--pykim-python", "-c", "print('ok')"],
+        cwd=tmp_path,
+        environment={"PATH": "runtime"},
+        policy=policy,
+    )
+
+    assert payload["environment"]["PYINSTALLER_RESET_ENVIRONMENT"] == "1"
+    assert payload["onefile_bootstrap"] is True
+
+
 def test_windows_probe_preserves_staged_application_root():
     source = Path(sandbox.__file__).read_text(encoding="utf-8")
 
