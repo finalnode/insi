@@ -341,6 +341,10 @@ class _WindowsBroker:
         self.process_handle: int | None = None
         self.thread_handle: int | None = None
         self.attribute_buffer: Any = None
+
+    def _diagnostic(self, message: str) -> None:
+        if self.payload["environment"].get("INSI_WINDOWS_SANDBOX_DIAGNOSTICS") == "1":
+            print(f"windows-broker:{message}", file=sys.stderr, flush=True)
         self._configure_signatures()
 
     def _configure_signatures(self) -> None:
@@ -790,6 +794,7 @@ class _WindowsBroker:
             if bootstrap_pending and self.profile_folder is not None
             else None
         )
+        self._diagnostic(f"wait-start:bootstrap={bootstrap_pending}")
         while True:
             result = self.kernel32.WaitForSingleObject(self.process_handle, 100)
             candidate = self._completion_violation()
@@ -818,6 +823,7 @@ class _WindowsBroker:
                 bootstrap_continue.write_text("continue", encoding="ascii")
                 bootstrap_pending = False
                 started = time.monotonic()
+                self._diagnostic("bootstrap-ready")
             if violation is None and not bootstrap_pending:
                 current = _directory_size(
                     writable,
@@ -830,6 +836,7 @@ class _WindowsBroker:
                 self.kernel32.WaitForSingleObject(self.process_handle, 3000)
                 break
             if result == self.WAIT_OBJECT_0:
+                self._diagnostic("target-exited")
                 break
             if result != self.WAIT_TIMEOUT:
                 raise ctypes.WinError(ctypes.get_last_error(), "WaitForSingleObject")
@@ -876,10 +883,15 @@ class _WindowsBroker:
 
     def run(self) -> int:
         try:
+            self._diagnostic("profile-start")
             self._create_profile()
+            self._diagnostic("filesystem-start")
             self._grant_filesystem()
+            self._diagnostic("job-start")
             self._create_job()
+            self._diagnostic("launch-start")
             self._launch()
+            self._diagnostic("launch-done")
             exit_code, violation = self._wait()
             if violation:
                 status_file = self.payload.get("violation_file")
@@ -894,7 +906,9 @@ class _WindowsBroker:
                 return 1
             return int(exit_code)
         finally:
+            self._diagnostic("cleanup-start")
             self._cleanup()
+            self._diagnostic("cleanup-done")
 
 
 def run_payload(payload: Mapping[str, Any]) -> int:

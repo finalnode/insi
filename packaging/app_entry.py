@@ -42,12 +42,17 @@ def complete_onefile_bootstrap() -> None:
         raise RuntimeError("Der Windows-Onefile-Start-Handshake ist unvollständig.")
     ready = Path(ready_value)
     continuation = Path(continue_value)
+    diagnostics = os.environ.get("INSI_WINDOWS_SANDBOX_DIAGNOSTICS") == "1"
+    if diagnostics:
+        print(f"onefile-bootstrap:ready-write:{ready}", file=sys.stderr, flush=True)
     ready.write_text("ready", encoding="ascii")
     deadline = time.monotonic() + 45
     while not continuation.is_file():
         if time.monotonic() >= deadline:
             raise RuntimeError("Der Windows-Sandboxbroker hat den Start nicht freigegeben.")
         time.sleep(0.02)
+    if diagnostics:
+        print("onefile-bootstrap:continued", file=sys.stderr, flush=True)
 
 
 def configure_desktop_logging() -> Path:

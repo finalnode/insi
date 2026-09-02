@@ -620,6 +620,7 @@ class WindowsAppContainerAdapter:
                     if name in os.environ
                 })
                 probe_environment["PYTHONUNBUFFERED"] = "1"
+                probe_environment["INSI_WINDOWS_SANDBOX_DIAGNOSTICS"] = "1"
                 probe_policy = ExecutionPolicy(
                     CodeOrigin.STUDENT,
                     writable,
@@ -637,14 +638,25 @@ class WindowsAppContainerAdapter:
                     environment=probe_environment,
                     policy=probe_policy,
                 )
-                probe = subprocess.run(
-                    self._broker_command(payload),
-                    cwd=writable,
-                    env=_independent_frozen_environment(os.environ),
-                    capture_output=True,
-                    text=True,
-                    timeout=45,
-                )
+                try:
+                    probe = subprocess.run(
+                        self._broker_command(payload),
+                        cwd=writable,
+                        env=_reused_frozen_environment(os.environ),
+                        capture_output=True,
+                        text=True,
+                        timeout=75,
+                    )
+                except subprocess.TimeoutExpired as error:
+                    output = "\n".join(
+                        str(value).strip()
+                        for value in (error.stdout, error.stderr)
+                        if value
+                    )
+                    raise RuntimeError(
+                        "Windows-Sandboxbroker antwortete nicht rechtzeitig."
+                        + (f"\n{output}" if output else "")
+                    ) from error
                 lines = [line for line in probe.stdout.splitlines() if line.strip()]
                 result = __import__("json").loads(lines[-1]) if lines else {}
                 passed = (
