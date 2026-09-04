@@ -102,6 +102,10 @@ icon = str(project / "packaging" / "macos" / "assets" / "app-icon-master.png")
 if system == "Windows":
     # Nur ein echtes Onefile-Paket erreicht den Python-Einstieg zuverlässig,
     # wenn der sichtbare Starter direkt auf einer langsamen SMB-Freigabe liegt.
+    # Der Konsolen-Bootloader schreibt frühe Fehler auf die geerbten Pipes,
+    # statt in einem AppContainer einen unsichtbaren MessageBox-Dialog zu öffnen.
+    # Bei einem normalen Desktop-Start wird sein eigenes Konsolenfenster sofort
+    # verborgen; CREATE_NO_WINDOW des Brokers verhindert es dort vollständig.
     executable = EXE(
         pyz,
         analysis.scripts,
@@ -114,7 +118,8 @@ if system == "Windows":
         bootloader_ignore_signals=False,
         strip=False,
         upx=False,
-        console=False,
+        console=True,
+        hide_console="hide-early",
     )
 else:
     executable = EXE(

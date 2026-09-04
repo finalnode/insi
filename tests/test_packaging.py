@@ -146,6 +146,10 @@ def test_windows_build_uses_one_executable_for_app_and_internal_python():
     )
     assert 'onefile = destination / "insi.exe"' in build_script
     assert "onefile.replace(application / onefile.name)" in build_script
+    spec = (PROJECT / "packaging/desktop/PyKIM.spec").read_text(encoding="utf-8")
+    windows_spec = spec.split('if system == "Windows":', 1)[1].split("else:", 1)[0]
+    assert "console=True" in windows_spec
+    assert 'hide_console="hide-early"' in windows_spec
 
 
 def test_desktop_build_identity_covers_the_complete_distribution(tmp_path):
