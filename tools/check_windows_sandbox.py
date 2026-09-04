@@ -6,13 +6,16 @@ import json
 import os
 import platform
 import subprocess
-import tempfile
 from pathlib import Path
 
 from insi import sandbox
 from insi.execution_security import execution_environment, student_policy
 from insi.interpreter import python_command
 from insi.sandbox import WindowsAppContainerAdapter, sandbox_run
+
+
+def _progress(message: str) -> None:
+    print(f"windows-sandbox-progress:{message}", flush=True)
 
 
 def _run_isolation_probe(root: Path) -> None:
@@ -159,7 +162,7 @@ def _run_gui_probe(root: Path) -> None:
         env=execution_environment(policy),
         capture_output=True,
         text=True,
-        timeout=20,
+        timeout=45,
     )
     if completed.returncode != 0:
         hosted_runner_without_opengl = (
@@ -176,16 +179,22 @@ def main() -> int:
     if platform.system() != "Windows":
         raise SystemExit("Dieser Test muss unter Windows laufen.")
     adapter = WindowsAppContainerAdapter()
+    _progress("status-start")
     status = adapter.status()
+    _progress("status-done")
     if not status.available:
         raise RuntimeError(status.detail)
     sandbox._adapter_override = adapter
-    with tempfile.TemporaryDirectory(prefix="insi-windows-sandbox-ci-") as temporary:
-        root = Path(temporary)
+    with sandbox._temporary_windows_probe() as root:
+        _progress("isolation-start")
         _run_isolation_probe(root)
+        _progress("isolation-done:process-limit-start")
         _run_process_limit_probe(root)
+        _progress("process-limit-done:write-limit-start")
         _run_write_limit_probe(root)
+        _progress("write-limit-done:gui-start")
         _run_gui_probe(root)
+        _progress("gui-done")
     print("Windows-AppContainer-Isolation und Job-Object-Grenzen sind funktionsfähig.")
     return 0
 

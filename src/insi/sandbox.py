@@ -13,13 +13,24 @@ import tempfile
 import threading
 import time
 import uuid
-from dataclasses import dataclass
+import warnings
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import IO, Any, Mapping, Protocol, Sequence
 
 from .execution_security import CodeOrigin, ExecutionPolicy, popen_isolation_options
 from .interpreter import python_command
 from .windows_sandbox_helper import PAYLOAD_VERSION, encode_payload, windows_api_available
+from .windows_paths import is_windows_network_path
+from .windows_staging import (
+    PREAUTHORIZED_RUNTIME_ENV,
+    NetworkWriteback,
+    STAGED_APPLICATION_ENV,
+    WindowsNetworkRunStage,
+    environment_has_network_path,
+    sync_network_writebacks,
+)
 
 
 class SandboxUnavailableError(RuntimeError):
@@ -55,6 +66,8 @@ class PreparedLaunch:
     adapter: str
     violation_file: Path | None = None
     cleanup_paths: tuple[Path, ...] = ()
+    writebacks: tuple[NetworkWriteback, ...] = ()
+    monitored_writable_roots: tuple[Path, ...] = ()
 
 
 class SandboxAdapter(Protocol):
@@ -82,6 +95,71 @@ def _existing_roots(paths: Sequence[str | Path]) -> tuple[Path, ...]:
         if path.exists() and path not in result:
             result.append(path)
     return tuple(result)
+
+
+def _independent_frozen_environment(
+    environment: Mapping[str, str],
+) -> dict[str, str]:
+    """Starte dieselbe PyInstaller-EXE als eigenständige neue Instanz."""
+    child = dict(environment)
+    if getattr(sys, "frozen", False) and sys.platform == "win32":
+        child["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    return child
+
+
+def _reused_frozen_environment(environment: Mapping[str, str]) -> dict[str, str]:
+    """Verwende für interne Onefile-Kinder die bereits entpackte Runtime."""
+    child = dict(environment)
+    if getattr(sys, "frozen", False) and sys.platform == "win32":
+        for name, value in os.environ.items():
+            if name.startswith("_PYI_"):
+                child[name] = value
+        child.pop("PYINSTALLER_RESET_ENVIRONMENT", None)
+        runtime = os.environ.get(PREAUTHORIZED_RUNTIME_ENV)
+        if runtime:
+            child[PREAUTHORIZED_RUNTIME_ENV] = runtime
+    return child
+
+
+def _remove_tree_with_retries(
+    path: Path,
+    *,
+    attempts: int = 6,
+    delay_seconds: float = 0.1,
+) -> bool:
+    """Entferne einen unter Windows kurzzeitig belegten temporären Baum."""
+    for attempt in range(attempts):
+        try:
+            shutil.rmtree(path)
+            return True
+        except FileNotFoundError:
+            return True
+        except OSError:
+            if attempt + 1 < attempts:
+                time.sleep(delay_seconds)
+    return False
+
+
+@contextmanager
+def _temporary_windows_probe():
+    """Räume den AppContainer-Probeordner trotz kurzer Fremdsperren auf."""
+    path = Path(tempfile.mkdtemp(prefix="insi-win-sandbox-probe-"))
+    try:
+        yield path
+    finally:
+        if not _remove_tree_with_retries(path):
+            warnings.warn(
+                f"Temporärer Windows-Sandbox-Probeordner bleibt vorläufig bestehen: {path}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            threading.Thread(
+                target=_remove_tree_with_retries,
+                args=(path,),
+                kwargs={"attempts": 20, "delay_seconds": 0.5},
+                name="insi-windows-probe-cleanup",
+                daemon=True,
+            ).start()
 
 
 class BubblewrapAdapter:
@@ -407,12 +485,20 @@ class WindowsAppContainerAdapter:
         command: Sequence[str], environment: Mapping[str, str]
     ) -> tuple[Path, ...]:
         roots = list(BubblewrapAdapter._runtime_roots(command, environment))
+        executable_path = Path(sys.executable)
         if command:
-            executable = Path(command[0]).expanduser()
+            executable = Path(
+                shutil.which(str(command[0])) or command[0]
+            ).expanduser()
             try:
                 executable = executable.resolve()
             except (OSError, RuntimeError):
                 pass
+            # Der PyInstaller-Starter öffnet sein eingebettetes Archiv nach dem
+            # Prozessstart erneut. Dafür braucht auch die einzelne EXE selbst
+            # eine explizite Lesefreigabe und nicht nur ihr Elternverzeichnis.
+            if executable.is_file():
+                roots.append(executable)
             for candidate in (executable.parent.parent, executable.parent):
                 configuration = candidate / "pyvenv.cfg"
                 if not configuration.is_file():
@@ -454,7 +540,12 @@ class WindowsAppContainerAdapter:
         writable = _existing_roots(policy.writable_roots)
         if len(writable) != len(policy.writable_roots):
             raise ValueError("Alle freigegebenen Schreibbereiche müssen vorhanden sein.")
-        child_environment = dict(environment)
+        # Das AppContainer-Kind darf die PyInstaller-Runtime des Brokers
+        # nicht wiederverwenden: Die Bootloader-Sicherheitsprüfung kann den
+        # weniger privilegierten Prozess nicht gegen seinen Elternprozess
+        # validieren. Eine unabhängige Onefile-Instanz wird stattdessen per
+        # Bootstrap-Handshake von den Lerncode-Limits getrennt.
+        child_environment = _independent_frozen_environment(environment)
         child_environment["INSI_SANDBOX"] = "windows-appcontainer"
         payload: dict[str, Any] = {
             "version": PAYLOAD_VERSION,
@@ -465,6 +556,14 @@ class WindowsAppContainerAdapter:
             "readable_roots": [str(path) for path in readable],
             "writable_roots": [str(path) for path in writable],
             "allow_gui": policy.allow_gui,
+            "onefile_bootstrap": (
+                sys.platform == "win32"
+                and getattr(sys, "frozen", False)
+                and hasattr(sys, "_MEIPASS")
+                and not (Path(sys.executable).parent / "_internal").is_dir()
+                and bool(command)
+                and Path(str(command[0])).resolve() == Path(sys.executable).resolve()
+            ),
             "limits": {
                 "timeout_seconds": policy.timeout_seconds,
                 "max_cpu_seconds": policy.max_cpu_seconds,
@@ -494,8 +593,7 @@ class WindowsAppContainerAdapter:
             self._status = SandboxStatus(False, self.name, system, detail)
             return self._status
         try:
-            with tempfile.TemporaryDirectory(prefix="insi-win-sandbox-probe-") as temporary:
-                root = Path(temporary)
+            with _temporary_windows_probe() as root:
                 writable = root / "writable"
                 private = root / "private"
                 writable.mkdir()
@@ -515,12 +613,19 @@ class WindowsAppContainerAdapter:
                     "print(json.dumps(result))\n"
                 )
                 command = [*python_command(), "-c", probe_code]
-                probe_environment = {
+                probe_environment = _independent_frozen_environment({
                     name: os.environ[name]
-                    for name in ("PATH", "PATHEXT", "SYSTEMROOT", "WINDIR")
+                    for name in (
+                        "PATH",
+                        "PATHEXT",
+                        "SYSTEMROOT",
+                        "WINDIR",
+                        STAGED_APPLICATION_ENV,
+                    )
                     if name in os.environ
-                }
+                })
                 probe_environment["PYTHONUNBUFFERED"] = "1"
+                probe_environment["INSI_WINDOWS_SANDBOX_DIAGNOSTICS"] = "1"
                 probe_policy = ExecutionPolicy(
                     CodeOrigin.STUDENT,
                     writable,
@@ -538,14 +643,25 @@ class WindowsAppContainerAdapter:
                     environment=probe_environment,
                     policy=probe_policy,
                 )
-                probe = subprocess.run(
-                    self._broker_command(payload),
-                    cwd=writable,
-                    env=os.environ.copy(),
-                    capture_output=True,
-                    text=True,
-                    timeout=45,
-                )
+                try:
+                    probe = subprocess.run(
+                        self._broker_command(payload),
+                        cwd=writable,
+                        env=_reused_frozen_environment(os.environ),
+                        capture_output=True,
+                        text=True,
+                        timeout=75,
+                    )
+                except subprocess.TimeoutExpired as error:
+                    output = "\n".join(
+                        str(value).strip()
+                        for value in (error.stdout, error.stderr)
+                        if value
+                    )
+                    raise RuntimeError(
+                        "Windows-Sandboxbroker antwortete nicht rechtzeitig."
+                        + (f"\n{output}" if output else "")
+                    ) from error
                 lines = [line for line in probe.stdout.splitlines() if line.strip()]
                 result = __import__("json").loads(lines[-1]) if lines else {}
                 passed = (
@@ -591,28 +707,78 @@ class WindowsAppContainerAdapter:
             raise SandboxUnavailableError(
                 "Netzwerkfähigkeiten für den Windows-AppContainer sind nicht freigegeben."
             )
+        stage: WindowsNetworkRunStage | None = None
+        mapped_command = tuple(map(str, command))
+        mapped_cwd = cwd
+        mapped_environment = dict(environment)
+        mapped_policy = policy
+        network_values = (
+            cwd,
+            *policy.readable_roots,
+            *policy.writable_roots,
+            *(command[:1] if command else ()),
+        )
+        if (
+            any(is_windows_network_path(value) for value in network_values)
+            or environment_has_network_path(environment)
+        ):
+            stage = WindowsNetworkRunStage(environment)
+            try:
+                mapped_readable = tuple(
+                    stage.stage_path(path) for path in policy.readable_roots
+                )
+                mapped_writable = tuple(
+                    stage.stage_path(path, writable=True)
+                    for path in policy.writable_roots
+                )
+                if is_windows_network_path(cwd):
+                    stage.stage_path(cwd, writable=cwd in policy.writable_roots)
+                if command and is_windows_network_path(command[0]):
+                    stage.stage_path(Path(command[0]).parent)
+                mapped_command = tuple(
+                    str(stage.map_path(item))
+                    if is_windows_network_path(item)
+                    else str(item)
+                    for item in command
+                )
+                mapped_cwd = stage.map_path(cwd)
+                mapped_environment = stage.map_environment(environment)
+                mapped_policy = replace(
+                    policy,
+                    workspace=stage.map_path(policy.workspace),
+                    readable_roots=mapped_readable,
+                    writable_roots=mapped_writable,
+                )
+            except Exception:
+                shutil.rmtree(stage.root, ignore_errors=True)
+                raise
         descriptor, filename = tempfile.mkstemp(prefix="insi-win-sandbox-status-")
         os.close(descriptor)
         violation_file = Path(filename)
         try:
             payload = self._payload(
-                command,
-                cwd=cwd,
-                environment=environment,
-                policy=policy,
+                mapped_command,
+                cwd=mapped_cwd,
+                environment=mapped_environment,
+                policy=mapped_policy,
                 violation_file=violation_file,
             )
         except Exception:
             violation_file.unlink(missing_ok=True)
+            if stage is not None:
+                shutil.rmtree(stage.root, ignore_errors=True)
             raise
-        broker_environment = dict(environment)
+        broker_environment = _reused_frozen_environment(mapped_environment)
         broker_environment["INSI_SANDBOX"] = "windows-appcontainer-broker"
         return PreparedLaunch(
             self._broker_command(payload),
-            cwd,
+            mapped_cwd,
             broker_environment,
             self.name,
             violation_file,
+            (stage.root,) if stage is not None else (),
+            stage.writebacks if stage is not None else (),
+            mapped_policy.writable_roots,
         )
 
 
@@ -1099,6 +1265,7 @@ class SandboxedProcess:
         violation_file: Path | None = None,
         cleanup_paths: Sequence[Path] = (),
         monitored_writable_roots: Sequence[Path] | None = None,
+        writebacks: Sequence[NetworkWriteback] = (),
     ) -> None:
         self._process = process
         self.policy = policy
@@ -1109,6 +1276,8 @@ class SandboxedProcess:
         )
         self._violation_file = violation_file
         self._cleanup_paths = tuple(cleanup_paths)
+        self._writebacks = tuple(writebacks)
+        self._cleanup_lock = threading.Lock()
         self.output_truncated = False
         self._supervisor = threading.Thread(target=self._supervise, daemon=True)
         self._supervisor.start()
@@ -1156,10 +1325,21 @@ class SandboxedProcess:
     def _cleanup(self) -> None:
         if self._process.poll() is None:
             return
-        paths = self._cleanup_paths
-        self._cleanup_paths = ()
-        for path in paths:
-            shutil.rmtree(path, ignore_errors=True)
+        with self._cleanup_lock:
+            paths = self._cleanup_paths
+            writebacks = self._writebacks
+            self._cleanup_paths = ()
+            self._writebacks = ()
+            if not paths and not writebacks:
+                return
+            try:
+                sync_network_writebacks(writebacks)
+            except OSError as error:
+                if self.violation_reason is None:
+                    self.violation_reason = f"Netzwerk-Synchronisierung fehlgeschlagen: {error}"
+            finally:
+                for path in paths:
+                    shutil.rmtree(path, ignore_errors=True)
 
     def _refresh_violation(self) -> None:
         path = self._violation_file
@@ -1293,7 +1473,7 @@ class SandboxedProcess:
             try:
                 self._process.send_signal(signal.CTRL_BREAK_EVENT)
                 return
-            except (OSError, ValueError):
+            except (OSError, SystemError, ValueError):
                 pass
         self._process.kill() if force else self._process.terminate()
 
@@ -1307,7 +1487,10 @@ def sandbox_popen(
     **kwargs: Any,
 ) -> SandboxedProcess:
     prepared = prepare_launch(command, cwd=cwd, environment=env, policy=policy)
-    monitored_writable_roots = (*policy.writable_roots, *prepared.cleanup_paths)
+    monitored_writable_roots = (
+        prepared.monitored_writable_roots
+        or (*policy.writable_roots, *prepared.cleanup_paths)
+    )
     baseline = _directory_size(monitored_writable_roots)
     options = popen_isolation_options()
     options.update(kwargs)
@@ -1335,6 +1518,7 @@ def sandbox_popen(
         violation_file=prepared.violation_file,
         cleanup_paths=prepared.cleanup_paths,
         monitored_writable_roots=monitored_writable_roots,
+        writebacks=prepared.writebacks,
     )
 
 

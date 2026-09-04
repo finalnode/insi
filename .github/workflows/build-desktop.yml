@@ -50,21 +50,28 @@ jobs:
       - run: python tools/build_desktop_app.py
       - name: Eingebettetes Python prüfen
         shell: pwsh
-        run: '& "dist/windows/insi/insi-python.exe" --pykim-python -c "import clr, pykim; clr.AddReference(''System.Windows.Forms''); print(pykim.__version__)"'
+        run: >-
+          python tools/run_packaged_python.py dist/windows/insi/insi.exe -- -c
+          "import clr, pykim; clr.AddReference('System.Windows.Forms'); print(pykim.__version__)"
       - name: Windows-AppContainer und Job Object prüfen
         shell: pwsh
-        run: '& "dist/windows/insi/insi-python.exe" --pykim-python tools/check_windows_sandbox.py'
-      - name: Kompatible pythonnet-Runtime prüfen
+        run: >-
+          python tools/run_packaged_python.py dist/windows/insi/insi.exe --
+          tools/check_windows_sandbox.py
+      - name: Windows-Netzlaufwerk, Staging und Rücksynchronisierung prüfen
+        shell: pwsh
+        run: ./tools/check_windows_network_start.ps1
+      - name: Einzelnen Windows-Starter prüfen
         shell: pwsh
         run: |
-          $runtime = 'dist/windows/insi/_internal/pythonnet/runtime'
-          if (-not (Test-Path "$runtime/Python.Runtime.dll")) {
-            throw 'Python.Runtime.dll fehlt im Windows-Build.'
+          if (Test-Path "dist/windows/insi/insi-python.exe") {
+            throw 'Der interne zweite Windows-Starter wurde weiterhin gebaut.'
           }
-          $facades = @(Get-ChildItem $runtime -Filter 'System.*.dll')
-          if ($facades.Count -ne 0) {
-            throw "Unerwartete pythonnet-3.1-Fassaden im Build: $($facades.Name -join ', ')"
-          }
+      - name: Kompatible pythonnet-Runtime prüfen
+        shell: pwsh
+        run: >-
+          python tools/run_packaged_python.py dist/windows/insi/insi.exe -- -c
+          "import importlib.metadata as m; assert m.version('pythonnet') == '3.0.5'; print(m.version('pythonnet'))"
       - name: Echtes Windows-Fenster prüfen
         shell: pwsh
         run: ./tools/check_windows_desktop.ps1

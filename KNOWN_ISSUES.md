@@ -1,6 +1,6 @@
 # Bekannte Probleme und Einschränkungen
 
-Stand: 21. August 2026, Entwicklungsstand 0.7.0
+Stand: 31. August 2026, Testkandidat 0.7.2
 
 Diese Liste nennt bekannte, reproduzierbare Probleme und bewusst noch nicht
 erfüllte Produktzusagen. Sie ist keine vollständige Sammlung zukünftiger
@@ -11,6 +11,7 @@ entfernt oder im [Changelog](CHANGELOG.md) als erledigt dokumentiert.
 
 | Problem | Auswirkung | Derzeitiger Umgang | Ziel |
 |---|---|---|---|
+| Der transparente Windows-Netzwerkstart und das lokale AppContainer-Staging des 0.7.2-Kandidaten sind auf den betroffenen iServ-Schulrechnern noch nicht abgenommen. | Der vorherige Kandidat öffnete direkt aus UNC mehrfach `icacls.exe`, lud langsam und endete beim PyKIM-Start nach 45 Sekunden. | Der neue Kandidat cached den unveränderten App-Build im lokalen Benutzerbereich, spiegelt nur freigegebene Laufpfade und schreibt erlaubte Projektänderungen konfliktgeprüft zurück. `icacls` läuft fensterlos. | Direkten UNC-Start, PyKIM, Grafik und Rücksynchronisierung nach der [Windows-Abnahme](docs/windows-test-0.7.2.md) auf demselben Schulgerät prüfen. |
 | Die überarbeitete TOAST-UI-Toolbar ist bei den vorgesehenen schmalen Browser- und nativen Fensterbreiten noch nicht vollständig manuell abgenommen. | Die Toolbar bleibt nun innerhalb des Editorrahmens und kann horizontal scrollen; bei unbekannten WebView-Größen sind optische Abweichungen weiterhin möglich. Bearbeitung und Speicherung funktionieren. | Bei Bedarf innerhalb der Toolbar horizontal scrollen. | Browser- und native Breiten in der manuellen 0.7-Matrix abschließend prüfen. |
 | Die manuelle Schulgeräte-Matrix ist noch offen. | Automatisierte Builds prüfen viele technische Eigenschaften, ersetzen aber keinen vollständigen Test auf realen Windows-, macOS- und Linux-Geräten. | Entwicklungstests und CI-Builds verwenden; Alpha-Status beachten. | Dokumentierte Smoke-Tests vor der Freigabe von 0.7. |
 
@@ -18,6 +19,7 @@ entfernt oder im [Changelog](CHANGELOG.md) als erledigt dokumentiert.
 
 | Einschränkung | Bedeutung und sicherer Umgang | Geplante Einordnung |
 |---|---|---|
+| Windows-Netzwerkstarts benötigen freien lokalen Cacheplatz im Benutzerprofil. | Die sichtbare App und der Kurs dürfen auf SMB-/UNC- oder WebDAV-Pfaden liegen; für die netzwerkisolierte Ausführung wird der vollständige Build inhaltsgebunden und jeder freigegebene Laufbereich temporär lokal gespiegelt. Der erste Start ist deshalb langsamer. | Dauerhafte technische Umsetzung des AppContainer-Netzwerkbetriebs; Cacheverwaltung und sichtbare Diagnose werden nach 0.7 weiter ausgebaut. |
 | Die Desktop-Pakete sind noch nicht produktionssigniert; der macOS-Build ist nur ad-hoc signiert und nicht notarisiert. | Betriebssysteme können Warnungen anzeigen oder den Start blockieren. Pakete nur aus den offiziellen GitHub Releases beziehungsweise den zugehörigen dokumentierten Builds beziehen. | Produktionsverteilung spätestens für 1.0. |
 | Ein unter einem synchronisierten macOS-`Documents`-Ordner erzeugter loser `.app`-Ordner kann nach dem Signieren erneut Finder-/File-Provider-Metadaten erhalten. | `codesign --verify` kann für den losen lokalen Build fehlschlagen, obwohl der Buildinhalt korrekt ist. | Für die Verteilung `build_macos_dmg.py` verwenden; es bereinigt und signiert den tatsächlichen Payload im privaten Tempordner. Der erzeugte 0.7-DMG-Payload wurde lokal erfolgreich verifiziert. | Dauerhafte Buildumgebungen außerhalb synchronisierter Ordner verwenden; der CI- und Releaseweg bleibt der DMG. |
 | Der macOS-Runner verwendet derzeit `/usr/bin/sandbox-exec` und eine von Apple nicht als stabile öffentliche API zugesagte Profilsprache. | Nach einem macOS-Update kann der Selbsttest scheitern. in:si startet Fremdcode dann nicht ungeschützt, sondern sperrt den integrierten Start. | Signierter und notarisierter Sandbox-Helper für 1.0. |

@@ -41,12 +41,13 @@ def test_desktop_workflow_covers_all_release_targets():
         "tools/build_desktop_app.py",
         "tools/check_windows_desktop.ps1",
         "tools/check_windows_sandbox.py",
+        "tools/check_windows_network_start.ps1",
         "tools/check_linux_sandbox.py",
         "tools/check_macos_sandbox.py",
         "tools/build_macos_dmg.py --rebuild-app",
         "tools/check_release_version.py",
         "gh release upload",
-        'dist/windows/insi/insi-python.exe',
+        'dist/windows/insi/insi.exe',
         'dist/macos/insi.app/Contents/MacOS/insi-python',
         "bubblewrap",
     ):
@@ -113,10 +114,89 @@ def test_desktop_brand_uses_safe_technical_names_and_visible_display_name():
     )
 
     assert 'name="insi"' in desktop
-    assert 'name="insi-python"' in desktop
+    assert 'if system == "Windows"' in desktop
+    assert "analysis.binaries" in desktop
+    assert "analysis.datas" in desktop
     assert 'name="insi.app"' in macos
     assert '"CFBundleDisplayName": "in:si"' in macos
     assert 'bundle_identifier="de.simplicissima.insi"' in macos
+
+
+def test_windows_build_uses_one_executable_for_app_and_internal_python():
+    workflow = (PROJECT / ".github/workflows/build-desktop.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "tools/run_packaged_python.py dist/windows/insi/insi.exe" in workflow
+    assert "run_packaged_python.py dist/windows/insi/insi-python.exe" not in workflow
+    assert "Einzelnen Windows-Starter prüfen" in workflow
+    assert "Windows-Netzlaufwerk, Staging und Rücksynchronisierung prüfen" in workflow
+
+    entrypoint = (PROJECT / "packaging/app_entry.py").read_text(encoding="utf-8")
+    assert "relaunch_frozen_windows_application()" in entrypoint
+    assert "complete_onefile_bootstrap()" in entrypoint
+    assert "prepare_onefile_runtime_for_appcontainer()" in entrypoint
+    network_check = (PROJECT / "tools/check_windows_network_start.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert "tools/check_windows_network_sandbox.py" in network_check
+    assert "New-SmbShare" in network_check
+    build_script = (PROJECT / "tools/build_desktop_app.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'onefile = destination / "insi.exe"' in build_script
+    assert "onefile.replace(application / onefile.name)" in build_script
+    spec = (PROJECT / "packaging/desktop/PyKIM.spec").read_text(encoding="utf-8")
+    windows_spec = spec.split('if system == "Windows":', 1)[1].split("else:", 1)[0]
+    assert "console=True" in windows_spec
+    assert 'hide_console="hide-early"' in windows_spec
+
+
+def test_desktop_build_identity_covers_the_complete_distribution(tmp_path):
+    from tools.build_desktop_app import write_application_identity
+
+    application = tmp_path / "insi"
+    internal = application / "_internal"
+    internal.mkdir(parents=True)
+    (application / "insi.exe").write_bytes(b"unchanged-launcher")
+    library = internal / "library.zip"
+    library.write_bytes(b"first-runtime")
+
+    first = write_application_identity(application)
+    library.write_bytes(b"second-runtime")
+    second = write_application_identity(application)
+
+    assert first != second
+    assert (application / ".insi-build-id").read_text(encoding="ascii") == second
+
+
+def test_packaged_python_checker_waits_and_returns_child_status(
+    monkeypatch, tmp_path, capsys
+):
+    from tools import run_packaged_python
+
+    runner = tmp_path / "insi.exe"
+    runner.touch()
+    calls = []
+
+    class Completed:
+        returncode = 7
+
+    def run(command, **options):
+        options["stdout"].write(b"ok\ninvalid:\xfc\n")
+        options["stderr"].write(b"warn\n")
+        calls.append((command, options))
+        return Completed()
+
+    monkeypatch.setattr(run_packaged_python.subprocess, "run", run)
+
+    assert run_packaged_python.run(runner, ["-c", "print('ok')"]) == 7
+    command, options = calls[0]
+    assert command == [str(runner), "--pykim-python", "-c", "print('ok')"]
+    assert options["check"] is False
+    assert options["timeout"] == 180
+    assert options["stdout"] is not options["stderr"]
+    assert capsys.readouterr() == ("ok\ninvalid:\\xfc\n", "warn\n")
 
 
 def test_macos_build_removes_extended_attributes_and_verifies_adhoc_signature():

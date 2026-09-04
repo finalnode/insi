@@ -20,9 +20,65 @@ from ctypes import wintypes
 from pathlib import Path
 from typing import Any, Mapping
 
+from .windows_paths import is_windows_network_path, windows_network_path_message
+from .windows_staging import PREAUTHORIZED_RUNTIME_ENV, STAGED_APPLICATION_ENV
+
 
 PAYLOAD_VERSION = 1
 MAX_PAYLOAD_BYTES = 64 * 1024
+_APPCONTAINER_ACCESS_MARKER = ".insi-appcontainer-access"
+_ALL_APPLICATION_PACKAGES_SID = "S-1-15-2-1"
+_ONEFILE_READY_ENV = "INSI_ONEFILE_BOOTSTRAP_READY"
+_ONEFILE_CONTINUE_ENV = "INSI_ONEFILE_BOOTSTRAP_CONTINUE"
+
+
+def _preauthorized_application_root(environment: Mapping[str, str]) -> Path | None:
+    """Validiere einen einmalig lesbar gemachten lokalen App-Build."""
+
+    value = environment.get(STAGED_APPLICATION_ENV, "").strip()
+    if not value or is_windows_network_path(value):
+        return None
+    root = Path(value)
+    try:
+        marker = (root / _APPCONTAINER_ACCESS_MARKER).read_text(
+            encoding="ascii"
+        ).strip()
+        if marker != _ALL_APPLICATION_PACKAGES_SID or not root.is_dir():
+            return None
+        return root.resolve(strict=True)
+    except (FileNotFoundError, OSError, RuntimeError, UnicodeError):
+        return None
+
+
+def _preauthorized_runtime_root(environment: Mapping[str, str]) -> Path | None:
+    value = environment.get(PREAUTHORIZED_RUNTIME_ENV, "").strip()
+    if not value or is_windows_network_path(value):
+        return None
+    root = Path(value)
+    try:
+        marker = (root / _APPCONTAINER_ACCESS_MARKER).read_text(
+            encoding="ascii"
+        ).strip()
+        if marker != _ALL_APPLICATION_PACKAGES_SID or not root.is_dir():
+            return None
+        return root.resolve(strict=True)
+    except (FileNotFoundError, OSError, RuntimeError, UnicodeError):
+        return None
+
+
+def _is_preauthorized_read(
+    path: Path,
+    *roots: Path | None,
+) -> bool:
+    try:
+        resolved = path.resolve(strict=True)
+        return any(
+            root is not None
+            and (resolved == root or resolved.is_relative_to(root))
+            for root in roots
+        )
+    except (FileNotFoundError, OSError, RuntimeError):
+        return False
 
 
 def encode_payload(payload: Mapping[str, Any]) -> str:
@@ -68,6 +124,8 @@ def decode_payload(value: str) -> dict[str, Any]:
         raise ValueError("Die Windows-Sandboxumgebung ist ungültig.")
     if not isinstance(data.get("allow_gui"), bool):
         raise ValueError("Die Windows-Sandbox-GUI-Richtlinie ist ungültig.")
+    if not isinstance(data.get("onefile_bootstrap", False), bool):
+        raise ValueError("Die Windows-Onefile-Bootstrapangabe ist ungültig.")
     violation_file = data.get("violation_file")
     if violation_file is not None and (
         not isinstance(violation_file, str) or not violation_file
@@ -277,12 +335,16 @@ class _WindowsBroker:
         self.sid = wintypes.LPVOID()
         self.sid_string = ""
         self.profile_folder: Path | None = None
-        self.granted: list[Path] = []
+        self.granted: list[tuple[Path, bool]] = []
         self.job: int | None = None
         self.completion_port: int | None = None
         self.process_handle: int | None = None
         self.thread_handle: int | None = None
         self.attribute_buffer: Any = None
+
+    def _diagnostic(self, message: str) -> None:
+        if self.payload["environment"].get("INSI_WINDOWS_SANDBOX_DIAGNOSTICS") == "1":
+            print(f"windows-broker:{message}", file=sys.stderr, flush=True)
         self._configure_signatures()
 
     def _configure_signatures(self) -> None:
@@ -458,17 +520,20 @@ class _WindowsBroker:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             timeout=120,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         if check and completed.returncode:
             raise OSError(f"Dateifreigabe für den AppContainer fehlgeschlagen: {path}")
 
     def _grant_path(self, path: Path, *, writable: bool) -> None:
+        if is_windows_network_path(path):
+            raise OSError(windows_network_path_message(path))
         resolved = path.resolve(strict=True)
         if resolved.is_file():
             # Windows checks the containing directory as libraries inspect
             # sys.path[0]. Do not propagate this grant to sibling files.
             parent = resolved.parent
-            self.granted.append(parent)
+            self.granted.append((parent, False))
             self._icacls(parent, ["/grant:r", f"*{self.sid_string}:RX"])
         rights = "(OI)(CI)M" if writable and resolved.is_dir() else (
             "M" if writable else "(OI)(CI)RX" if resolved.is_dir() else "RX"
@@ -476,14 +541,19 @@ class _WindowsBroker:
         arguments = ["/grant:r", f"*{self.sid_string}:{rights}"]
         if resolved.is_dir():
             arguments.append("/T")
-        self.granted.append(resolved)
+        self.granted.append((resolved, resolved.is_dir()))
         self._icacls(resolved, arguments)
 
     def _grant_filesystem(self) -> None:
         readable = [Path(item) for item in self.payload["readable_roots"]]
         writable = [Path(item) for item in self.payload["writable_roots"]]
+        application_root = _preauthorized_application_root(
+            self.payload["environment"]
+        )
+        runtime_root = _preauthorized_runtime_root(self.payload["environment"])
         for root in readable:
-            self._grant_path(root, writable=False)
+            if not _is_preauthorized_read(root, application_root, runtime_root):
+                self._grant_path(root, writable=False)
         for root in writable:
             self._grant_path(root, writable=True)
 
@@ -557,6 +627,11 @@ class _WindowsBroker:
                     "INSI_SANDBOX": "windows-appcontainer",
                 }
             )
+            if self.payload.get("onefile_bootstrap", False):
+                handshake = self.profile_folder / ".insi-onefile-bootstrap"
+                handshake.mkdir(parents=True, exist_ok=True)
+                environment[_ONEFILE_READY_ENV] = str(handshake / "ready")
+                environment[_ONEFILE_CONTINUE_ENV] = str(handshake / "continue")
         block = "\0".join(
             f"{key}={value}" for key, value in sorted(environment.items(), key=lambda item: item[0].upper())
         ) + "\0\0"
@@ -708,14 +783,48 @@ class _WindowsBroker:
         max_written = int(limits["max_written_bytes"])
         started = time.monotonic()
         violation: str | None = None
+        bootstrap_pending = bool(self.payload.get("onefile_bootstrap", False))
+        bootstrap_ready = (
+            self.profile_folder / ".insi-onefile-bootstrap" / "ready"
+            if bootstrap_pending and self.profile_folder is not None
+            else None
+        )
+        bootstrap_continue = (
+            self.profile_folder / ".insi-onefile-bootstrap" / "continue"
+            if bootstrap_pending and self.profile_folder is not None
+            else None
+        )
+        self._diagnostic(f"wait-start:bootstrap={bootstrap_pending}")
         while True:
             result = self.kernel32.WaitForSingleObject(self.process_handle, 100)
             candidate = self._completion_violation()
             if candidate is not None:
                 violation = candidate
-            if violation is None and time.monotonic() - started > float(limits["timeout_seconds"]):
+            elapsed = time.monotonic() - started
+            if violation is None and bootstrap_pending and elapsed > 60:
+                violation = "Onefile-Runtime konnte nicht rechtzeitig gestartet werden."
+            elif (
+                violation is None
+                and not bootstrap_pending
+                and elapsed > float(limits["timeout_seconds"])
+            ):
                 violation = "Laufzeitgrenze überschritten."
-            if violation is None:
+            if (
+                violation is None
+                and bootstrap_pending
+                and bootstrap_ready is not None
+                and bootstrap_ready.is_file()
+            ):
+                # Die PyInstaller-Onefile-Runtime ist vertrauenswürdiger
+                # Anwendungsinhalt. Erst nach ihrer vollständigen Entpackung
+                # beginnt das Schreibbudget des Schülerprogramms.
+                baseline = _directory_size(writable, stop_after=2**63 - 1)
+                assert bootstrap_continue is not None
+                bootstrap_continue.write_text("continue", encoding="ascii")
+                bootstrap_pending = False
+                started = time.monotonic()
+                self._diagnostic("bootstrap-ready")
+            if violation is None and not bootstrap_pending:
                 current = _directory_size(
                     writable,
                     stop_after=baseline + max_written,
@@ -727,6 +836,7 @@ class _WindowsBroker:
                 self.kernel32.WaitForSingleObject(self.process_handle, 3000)
                 break
             if result == self.WAIT_OBJECT_0:
+                self._diagnostic("target-exited")
                 break
             if result != self.WAIT_TIMEOUT:
                 raise ctypes.WinError(ctypes.get_last_error(), "WaitForSingleObject")
@@ -752,9 +862,12 @@ class _WindowsBroker:
         for handle in (self.thread_handle, self.process_handle, self.completion_port, self.job):
             if handle:
                 self.kernel32.CloseHandle(handle)
-        for path in reversed(self.granted):
+        for path, recursive in reversed(self.granted):
             try:
-                self._icacls(path, ["/remove:g", f"*{self.sid_string}", "/T"] if path.is_dir() else ["/remove:g", f"*{self.sid_string}"], check=False)
+                arguments = ["/remove:g", f"*{self.sid_string}"]
+                if recursive:
+                    arguments.append("/T")
+                self._icacls(path, arguments, check=False)
             except (OSError, subprocess.SubprocessError):
                 pass
         if self.payload.get("profile"):
@@ -770,10 +883,15 @@ class _WindowsBroker:
 
     def run(self) -> int:
         try:
+            self._diagnostic("profile-start")
             self._create_profile()
+            self._diagnostic("filesystem-start")
             self._grant_filesystem()
+            self._diagnostic("job-start")
             self._create_job()
+            self._diagnostic("launch-start")
             self._launch()
+            self._diagnostic("launch-done")
             exit_code, violation = self._wait()
             if violation:
                 status_file = self.payload.get("violation_file")
@@ -788,7 +906,9 @@ class _WindowsBroker:
                 return 1
             return int(exit_code)
         finally:
+            self._diagnostic("cleanup-start")
             self._cleanup()
+            self._diagnostic("cleanup-done")
 
 
 def run_payload(payload: Mapping[str, Any]) -> int:
