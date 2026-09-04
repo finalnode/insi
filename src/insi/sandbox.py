@@ -540,12 +540,11 @@ class WindowsAppContainerAdapter:
         writable = _existing_roots(policy.writable_roots)
         if len(writable) != len(policy.writable_roots):
             raise ValueError("Alle freigegebenen Schreibbereiche müssen vorhanden sein.")
-        # Das AppContainer-Kind darf die PyInstaller-Runtime des Brokers
-        # nicht wiederverwenden: Die Bootloader-Sicherheitsprüfung kann den
-        # weniger privilegierten Prozess nicht gegen seinen Elternprozess
-        # validieren. Eine unabhängige Onefile-Instanz wird stattdessen per
-        # Bootstrap-Handshake von den Lerncode-Limits getrennt.
-        child_environment = _independent_frozen_environment(environment)
+        # Das AppContainer-Kind verwendet die bereits entpackte und explizit
+        # lesbar gemachte Onefile-Runtime. Der Broker gibt seinem einmaligen
+        # AppContainer-SID dafür zusätzlich nur die von PyInstaller benötigten
+        # Abfragerechte auf den Brokerprozess.
+        child_environment = _reused_frozen_environment(environment)
         child_environment["INSI_SANDBOX"] = "windows-appcontainer"
         payload: dict[str, Any] = {
             "version": PAYLOAD_VERSION,

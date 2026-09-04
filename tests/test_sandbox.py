@@ -916,7 +916,7 @@ def test_internal_windows_onefile_children_reuse_the_extracted_runtime(monkeypat
     }
 
 
-def test_windows_appcontainer_target_resets_onefile_environment(tmp_path, monkeypatch):
+def test_windows_appcontainer_target_reuses_onefile_environment(tmp_path, monkeypatch):
     adapter = WindowsAppContainerAdapter()
     executable = tmp_path / "insi.exe"
     executable.touch()
@@ -924,6 +924,8 @@ def test_windows_appcontainer_target_resets_onefile_environment(tmp_path, monkey
     monkeypatch.setattr(sandbox.sys, "platform", "win32")
     monkeypatch.setattr(sandbox.sys, "executable", str(executable))
     monkeypatch.setattr(sandbox.sys, "_MEIPASS", str(tmp_path), raising=False)
+    monkeypatch.setenv("_PYI_ARCHIVE_FILE", str(executable))
+    monkeypatch.setenv("_PYI_APPLICATION_HOME_DIR", str(tmp_path))
 
     policy = student_policy(tmp_path)
     payload = adapter._payload(
@@ -933,7 +935,9 @@ def test_windows_appcontainer_target_resets_onefile_environment(tmp_path, monkey
         policy=policy,
     )
 
-    assert payload["environment"]["PYINSTALLER_RESET_ENVIRONMENT"] == "1"
+    assert "PYINSTALLER_RESET_ENVIRONMENT" not in payload["environment"]
+    assert payload["environment"]["_PYI_ARCHIVE_FILE"] == str(executable)
+    assert payload["environment"]["_PYI_APPLICATION_HOME_DIR"] == str(tmp_path)
     assert payload["onefile_bootstrap"] is True
 
 
@@ -956,6 +960,8 @@ def test_windows_broker_declares_fail_closed_kernel_controls():
         "JOB_OBJECT_LIMIT_JOB_MEMORY",
         "CreateAppContainerProfile",
         "AssignProcessToJobObject",
+        "SetEntriesInAclW",
+        "PROCESS_QUERY_INFORMATION | self.PROCESS_VM_READ",
     ):
         assert expected in source
     assert "GetAppContainerFolderPath(\n            self.sid_string" in source
