@@ -99,41 +99,60 @@ analysis = Analysis(
 pyz = PYZ(analysis.pure, analysis.zipped_data)
 icon = str(project / "packaging" / "macos" / "assets" / "app-icon-master.png")
 
-executable = EXE(
-    pyz,
-    analysis.scripts,
-    [],
-    exclude_binaries=True,
-    name="insi",
-    icon=icon if system == "Windows" else None,
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=False,
-    console=False,
-)
-
-python_runner = EXE(
-    pyz,
-    analysis.scripts,
-    [],
-    exclude_binaries=True,
-    name="insi-python",
-    icon=icon if system == "Windows" else None,
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=False,
-    console=True,
-)
-
-collection = COLLECT(
-    executable,
-    python_runner,
-    analysis.binaries,
-    analysis.zipfiles,
-    analysis.datas,
-    strip=False,
-    upx=False,
-    name="insi",
-)
+if system == "Windows":
+    # Nur ein echtes Onefile-Paket erreicht den Python-Einstieg zuverlässig,
+    # wenn der sichtbare Starter direkt auf einer langsamen SMB-Freigabe liegt.
+    # Der Konsolen-Bootloader schreibt frühe Fehler auf die geerbten Pipes,
+    # statt in einem AppContainer einen unsichtbaren MessageBox-Dialog zu öffnen.
+    # Bei einem normalen Desktop-Start wird sein eigenes Konsolenfenster sofort
+    # verborgen; CREATE_NO_WINDOW des Brokers verhindert es dort vollständig.
+    executable = EXE(
+        pyz,
+        analysis.scripts,
+        analysis.binaries,
+        analysis.datas,
+        [],
+        name="insi",
+        icon=icon,
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=False,
+        console=True,
+        hide_console="hide-early",
+    )
+else:
+    executable = EXE(
+        pyz,
+        analysis.scripts,
+        [],
+        exclude_binaries=True,
+        name="insi",
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=False,
+        console=False,
+    )
+    python_runner = EXE(
+        pyz,
+        analysis.scripts,
+        [],
+        exclude_binaries=True,
+        name="insi-python",
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=False,
+        console=True,
+    )
+    collection = COLLECT(
+        executable,
+        python_runner,
+        analysis.binaries,
+        analysis.zipfiles,
+        analysis.datas,
+        strip=False,
+        upx=False,
+        name="insi",
+    )

@@ -1933,12 +1933,11 @@ def test_frozen_python_runner_keeps_windows_executable_suffix(tmp_path, monkeypa
     from insi.interpreter import command_for
 
     suite = tmp_path / "insi.exe"
-    runner = tmp_path / "insi-python.exe"
-    runner.touch()
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.setattr(sys, "executable", str(suite))
+    monkeypatch.setattr(sys, "platform", "win32")
 
-    assert command_for(str(suite)) == [str(runner), "--pykim-python"]
+    assert command_for(str(suite)) == [str(suite), "--pykim-python"]
 
 
 def test_list_and_launch_installed_pyxel_example(tmp_path, monkeypatch):

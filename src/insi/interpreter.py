@@ -16,18 +16,23 @@ def command_for(executable: str) -> list[str]:
         and executable == sys.executable
     ):
         executable_path = Path(sys.executable)
-        runner = executable_path.with_name(
-            f"{EMBEDDED_PYTHON_NAME}{executable_path.suffix}"
-        )
-        # Alte PyKIM-Suite-Bundles bleiben startbar, bis sie durch einen
-        # in:si-Build ersetzt wurden.
-        legacy_runner = executable_path.with_name(
-            f"PyKIM Python{executable_path.suffix}"
-        )
-        selected = runner if runner.is_file() else legacy_runner
-        command = [
-            str(selected if selected.is_file() else Path(sys.executable))
-        ]
+        if sys.platform == "win32":
+            # Der fensterlose Windows-Starter dient mit internem Schalter auch
+            # als Runner. So gibt es im portablen Ordner nur eine sichtbare EXE.
+            selected = executable_path
+        else:
+            runner = executable_path.with_name(
+                f"{EMBEDDED_PYTHON_NAME}{executable_path.suffix}"
+            )
+            # Alte PyKIM-Suite-Bundles bleiben startbar, bis sie durch einen
+            # in:si-Build ersetzt wurden.
+            legacy_runner = executable_path.with_name(
+                f"PyKIM Python{executable_path.suffix}"
+            )
+            selected = runner if runner.is_file() else legacy_runner
+            if not selected.is_file():
+                selected = executable_path
+        command = [str(selected)]
         command.append("--pykim-python")
     return command
 

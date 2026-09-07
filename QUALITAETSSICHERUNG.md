@@ -132,6 +132,19 @@ Der vollständige native Test kann in einer Wayland-Sitzung mit
 
 ### Windows-Sandbox
 
+Für den 0.7.2-Testkandidaten wird zusätzlich auf dem betroffenen
+iServ-Schulgerät protokolliert:
+
+1. Der portable Windows-Ordner enthält genau eine ausführbare `insi.exe` und
+   keine `insi-python.exe`.
+2. `insi.exe` startet vom lokalen Ordner, aus dem umgeleiteten iServ-Pfad sowie
+   von einem USB-Stick; NTFS und exFAT werden getrennt festgehalten.
+3. Der native NiceGUI-Prozess startet ohne Multiprocessing-Trace und bleibt
+   verbunden.
+4. Der AppContainer-Selbsttest besteht wiederholt, ohne dass eine kurzzeitige
+   Sperre seines Probeordners die Isolation fälschlich als fehlgeschlagen
+   meldet.
+
 1. Der Systemcheck erzeugt einen AppContainer und gibt den integrierten Start
    nur nach bestandenem Datei- und Netzwerkprobelauf frei.
 2. Ein Aufgabenlauf kann ausschließlich seine private Laufablage beschreiben.

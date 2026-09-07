@@ -1,4 +1,30 @@
-# in:si 0.7.1 – Release Notes
+# in:si 0.7.2 – Release Notes (Testkandidat)
+
+## Testkandidat 0.7.2
+
+Unter Windows enthält der portable App-Ordner nur noch eine `insi.exe`. Dieselbe
+Datei startet ohne internen Schalter die Desktop-App und führt mit dem internen
+Runner-Schalter kontrollierte Schüler-, Sandbox- und Prüfläufe aus. Eine
+verwechselbare `insi-python.exe` liegt nicht mehr daneben.
+
+Der AppContainer erhält eine explizite Lesefreigabe für diese EXE. Kurzzeitige
+Fremdsperren beim anschließenden Entfernen des Probeordners werden begrenzt
+wiederholt und nicht mehr mit einer fehlgeschlagenen Isolation verwechselt. Die
+eigentliche Datei- und Netzwerkprüfung bleibt unverändert fail-closed.
+
+Ein realer iServ-Test zeigte außerdem, dass ein direkter Start aus einer
+UNC-Ablage mehrere sichtbare `icacls.exe`-Prozesse, langsames Laden und einen
+45-Sekunden-Timeout auslöste. Der Kandidat cached den direkt im Netz gestarteten
+Build nun inhaltsgebunden im lokalen Benutzerbereich und setzt den Start
+automatisch fort. AppContainer-Läufe spiegeln ausschließlich die freigegebenen
+Netzwerkpfade lokal; erlaubte Projektänderungen werden nach Prozessende mit
+Konflikterkennung zurückgeschrieben. Der Lernprozess selbst behält seine
+Netzwerksperre. Die ACL-Helfer laufen fensterlos.
+
+Die vorherige automatisierte Desktopmatrix war erfolgreich. Vor einer
+Veröffentlichung müssen der korrigierte Build und die [reale Abnahme für
+direkten iServ-/UNC-, lokalen und USB-Start](windows-test-0.7.2.md) auf den
+betroffenen Schulrechnern erneut erfolgreich sein.
 
 ## Hotfix 0.7.1
 
@@ -52,7 +78,26 @@ in [SECURITY.md](../SECURITY.md) und die weitere Planung in
 
 ---
 
-# in:si 0.7.1 – Release notes
+# in:si 0.7.2 – Draft release notes
+
+## 0.7.2 release candidate
+
+The portable Windows folder now contains a single `insi.exe` which serves as
+both the desktop entry point and, with an internal switch, the controlled
+Python and sandbox runner. Explicit AppContainer access to this executable and
+bounded retries for transient probe-directory cleanup address the two observed
+school-device failure paths without weakening the isolation test. The previous
+candidate passed the complete automated desktop matrix.
+
+A real iServ test subsequently showed visible `icacls.exe` windows, slow
+loading and a 45-second timeout when the package was executed directly from a
+UNC share. The corrected candidate caches the build in the local user profile
+and continues the network launch automatically. Each AppContainer run mirrors
+only the explicitly allowed network paths locally and synchronizes permitted
+project changes back with conflict detection, while student code remains
+network-isolated. ACL helpers run without a visible console. The corrected
+build still requires a fresh desktop matrix and real-device checks from the
+affected iServ share, local storage and USB.
 
 ## Hotfix 0.7.1
 

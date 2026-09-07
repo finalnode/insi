@@ -8,12 +8,20 @@ import os
 import platform
 import runpy
 import sys
+import time
 import traceback
 from datetime import datetime
 from pathlib import Path
 
+from insi.windows_staging import (
+    prepare_onefile_runtime_for_appcontainer,
+    relaunch_frozen_windows_application,
+)
+
 
 _DESKTOP_LOG = None
+_ONEFILE_READY_ENV = "INSI_ONEFILE_BOOTSTRAP_READY"
+_ONEFILE_CONTINUE_ENV = "INSI_ONEFILE_BOOTSTRAP_CONTINUE"
 
 
 def restore_standard_streams() -> None:
@@ -22,6 +30,29 @@ def restore_standard_streams() -> None:
         sys.stdout = os.fdopen(os.dup(1), "w", encoding="utf-8", buffering=1)
     if sys.stderr is None:
         sys.stderr = os.fdopen(os.dup(2), "w", encoding="utf-8", buffering=1)
+
+
+def complete_onefile_bootstrap() -> None:
+    """Melde dem Sandboxbroker das Ende der vertrauenswürdigen Entpackphase."""
+    ready_value = os.environ.pop(_ONEFILE_READY_ENV, "")
+    continue_value = os.environ.pop(_ONEFILE_CONTINUE_ENV, "")
+    if not ready_value and not continue_value:
+        return
+    if not ready_value or not continue_value:
+        raise RuntimeError("Der Windows-Onefile-Start-Handshake ist unvollständig.")
+    ready = Path(ready_value)
+    continuation = Path(continue_value)
+    diagnostics = os.environ.get("INSI_WINDOWS_SANDBOX_DIAGNOSTICS") == "1"
+    if diagnostics:
+        print(f"onefile-bootstrap:ready-write:{ready}", file=sys.stderr, flush=True)
+    ready.write_text("ready", encoding="ascii")
+    deadline = time.monotonic() + 45
+    while not continuation.is_file():
+        if time.monotonic() >= deadline:
+            raise RuntimeError("Der Windows-Sandboxbroker hat den Start nicht freigegeben.")
+        time.sleep(0.02)
+    if diagnostics:
+        print("onefile-bootstrap:continued", file=sys.stderr, flush=True)
 
 
 def configure_desktop_logging() -> Path:
@@ -80,6 +111,11 @@ def run_app() -> None:
 
 
 if __name__ == "__main__":
+    # Der sichtbare Start darf auf SMB/WebDAV liegen. Der AppContainer selbst
+    # bleibt netzwerklos: Die portable Distribution wird einmalig lokal
+    # gespiegelt und mit unveränderten Argumenten transparent fortgesetzt.
+    relaunch_frozen_windows_application()
+    prepare_onefile_runtime_for_appcontainer()
     # multiprocessing.freeze_support() übernimmt den nativen Fensterprozess,
     # bevor run_app() erreicht wird. Das Log muss deshalb bereits hier stehen.
     if "--pykim-python" not in sys.argv:
@@ -87,6 +123,7 @@ if __name__ == "__main__":
     multiprocessing.freeze_support()
     if len(sys.argv) > 1 and sys.argv[1] == "--pykim-python":
         restore_standard_streams()
+        complete_onefile_bootstrap()
         status = run_python(sys.argv[2:])
         sys.stdout.flush()
         sys.stderr.flush()

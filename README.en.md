@@ -6,10 +6,14 @@
 
 **Language:** [Deutsch](README.md) · English
 
-**in:si 0.7.1** is a local desktop learning environment for
+**in:si 0.7.2 (release candidate)** is a local desktop learning environment for
 modular computer science courses. It combines course installation, learning
 texts, interactive assignments, automated feedback, progress, projects and
 authoring tools in one application that remains largely offline after setup.
+
+> The 0.7.2 branch tests a single portable Windows `insi.exe` for both the app
+> and its internal sandbox runner. Version 0.7.1 remains the published stable
+> download until build and real school-device verification have passed.
 
 > **Project status: alpha.** Interfaces and local formats may still change.
 > Desktop builds are not production-signed. The macOS build is ad-hoc signed
