@@ -1,6 +1,7 @@
 """Auswahl des privaten Windows-Runners aus dem Onefile-Paket."""
 
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -27,14 +28,23 @@ def test_windows_uses_packaged_runtime_without_onefile_bootstrap(
 
     command = command_for(str(executable))
     assert command == [str(runner), "--pykim-python"]
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    private = tmp_path / "private"
+    private.mkdir()
     payload = WindowsAppContainerAdapter()._payload(
         [*command, "-c", "print('ok')"],
-        cwd=tmp_path,
+        cwd=workspace,
         environment={},
-        policy=student_policy(tmp_path),
+        policy=student_policy(workspace),
     )
     assert payload["onefile_bootstrap"] is False
     assert str(runner) in payload["readable_roots"]
+    assert str(runtime) in payload["readable_roots"]
+    assert all(
+        not private.is_relative_to(Path(root))
+        for root in payload["readable_roots"]
+    )
     external = tmp_path / "python.exe"
     assert command_for(str(external)) == [str(external)]
 

@@ -303,18 +303,11 @@ def test_windows_onefile_child_reuses_parent_extraction(
     monkeypatch.setattr(sandbox.sys, "frozen", True, raising=False)
     monkeypatch.setattr(sandbox.sys, "_MEIPASS", str(bundle), raising=False)
     monkeypatch.setattr(sandbox.sys, "executable", str(executable))
-    monkeypatch.setattr(
-        BubblewrapAdapter,
-        "_runtime_roots",
-        staticmethod(lambda _command, _environment: (bundle, bundle_library, system_root)),
-    )
-
     roots = WindowsAppContainerAdapter._runtime_roots([str(executable)], {})
 
     assert bundle in roots
-    assert bundle_library in roots
-    assert system_root in roots
     assert executable.resolve() in roots
+    assert all(not system_root.is_relative_to(root) for root in roots)
 
 
 def test_windows_adapter_refuses_network_capability(tmp_path, monkeypatch):

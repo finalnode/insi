@@ -484,8 +484,12 @@ class WindowsAppContainerAdapter:
     def _runtime_roots(
         command: Sequence[str], environment: Mapping[str, str]
     ) -> tuple[Path, ...]:
-        roots = list(BubblewrapAdapter._runtime_roots(command, environment))
-        executable_path = Path(sys.executable)
+        if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+            # Der Runner liegt direkt in _MEIPASS. Dessen Elternordner ist
+            # das Benutzer-Tempverzeichnis und darf nie rekursiv lesbar werden.
+            roots = [Path(sys._MEIPASS)]
+        else:
+            roots = list(BubblewrapAdapter._runtime_roots(command, environment))
         if command:
             executable = Path(
                 shutil.which(str(command[0])) or command[0]
