@@ -669,8 +669,12 @@ class WindowsAppContainerAdapter:
                     and (writable / "inside.txt").read_text(encoding="utf-8") == "ok"
                 )
                 if not passed:
-                    message = (probe.stderr or probe.stdout).strip()
-                    raise RuntimeError(message or "Der Isolationstest lieferte ein falsches Ergebnis.")
+                    message = "\n".join(
+                        output.strip() for output in (probe.stdout, probe.stderr) if output.strip()
+                    )
+                    raise RuntimeError(
+                        f"Broker-Exitcode: {probe.returncode}; Ergebnis: {result!r}\n{message}"
+                    )
         except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
             self._status = SandboxStatus(
                 False,

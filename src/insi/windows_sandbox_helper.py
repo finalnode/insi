@@ -845,6 +845,7 @@ class _WindowsBroker:
             self.kernel32.GetExitCodeProcess(self.process_handle, ctypes.byref(exit_code)),
             "GetExitCodeProcess",
         )
+        self._diagnostic(f"target-exit-code:0x{exit_code.value:08X}")
         return exit_code.value, violation
 
     def _cleanup(self) -> None:
