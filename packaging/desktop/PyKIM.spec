@@ -106,11 +106,27 @@ if system == "Windows":
     # statt in einem AppContainer einen unsichtbaren MessageBox-Dialog zu öffnen.
     # Bei einem normalen Desktop-Start wird sein eigenes Konsolenfenster sofort
     # verborgen; CREATE_NO_WINDOW des Brokers verhindert es dort vollständig.
+    # Der private Onedir-Runner liegt ausschließlich im Onefile-Archiv.
+    # Er nutzt die daneben entpackten Bibliotheken, ohne aus dem AppContainer
+    # den privilegierteren Onefile-Elternprozess abfragen zu müssen.
+    sandbox_runner = EXE(
+        pyz,
+        analysis.scripts,
+        [],
+        exclude_binaries=True,
+        name="insi-runtime",
+        contents_directory=".",
+        debug=False,
+        strip=False,
+        upx=False,
+        console=True,
+    )
     executable = EXE(
         pyz,
         analysis.scripts,
         analysis.binaries,
         analysis.datas,
+        [("insi-runtime.exe", sandbox_runner.name, "EXECUTABLE")],
         [],
         name="insi",
         icon=icon,

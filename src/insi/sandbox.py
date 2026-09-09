@@ -540,10 +540,8 @@ class WindowsAppContainerAdapter:
         writable = _existing_roots(policy.writable_roots)
         if len(writable) != len(policy.writable_roots):
             raise ValueError("Alle freigegebenen Schreibbereiche müssen vorhanden sein.")
-        # Das AppContainer-Kind verwendet die bereits entpackte und explizit
-        # lesbar gemachte Onefile-Runtime. Der Broker gibt seinem einmaligen
-        # AppContainer-SID dafür zusätzlich nur die von PyInstaller benötigten
-        # Abfragerechte auf den Brokerprozess.
+        # Der eingebettete Onedir-Runner nutzt die explizit lesbare Runtime,
+        # ohne Zugriff auf den übergeordneten Brokerprozess zu benötigen.
         child_environment = _reused_frozen_environment(environment)
         child_environment["INSI_SANDBOX"] = "windows-appcontainer"
         payload: dict[str, Any] = {
@@ -559,6 +557,7 @@ class WindowsAppContainerAdapter:
                 sys.platform == "win32"
                 and getattr(sys, "frozen", False)
                 and hasattr(sys, "_MEIPASS")
+                and Path(sys._MEIPASS).resolve() != Path(sys.executable).resolve().parent
                 and not (Path(sys.executable).parent / "_internal").is_dir()
                 and bool(command)
                 and Path(str(command[0])).resolve() == Path(sys.executable).resolve()

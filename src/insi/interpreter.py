@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 EMBEDDED_PYTHON_NAME = "insi-python"
+WINDOWS_RUNTIME_NAME = "insi-runtime.exe"
 
 
 def command_for(executable: str) -> list[str]:
@@ -17,9 +18,11 @@ def command_for(executable: str) -> list[str]:
     ):
         executable_path = Path(sys.executable)
         if sys.platform == "win32":
-            # Der fensterlose Windows-Starter dient mit internem Schalter auch
-            # als Runner. So gibt es im portablen Ordner nur eine sichtbare EXE.
-            selected = executable_path
+            # Der Onedir-Runner wird aus dem sichtbaren Onefile-Starter in
+            # dessen private Runtime entpackt. Alte Bundles bleiben startbar.
+            runtime = Path(getattr(sys, "_MEIPASS", executable_path.parent))
+            runner = runtime / WINDOWS_RUNTIME_NAME
+            selected = runner if runner.is_file() else executable_path
         else:
             runner = executable_path.with_name(
                 f"{EMBEDDED_PYTHON_NAME}{executable_path.suffix}"

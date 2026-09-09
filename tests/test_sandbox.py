@@ -923,7 +923,7 @@ def test_windows_appcontainer_target_reuses_onefile_environment(tmp_path, monkey
     monkeypatch.setattr(sandbox.sys, "frozen", True, raising=False)
     monkeypatch.setattr(sandbox.sys, "platform", "win32")
     monkeypatch.setattr(sandbox.sys, "executable", str(executable))
-    monkeypatch.setattr(sandbox.sys, "_MEIPASS", str(tmp_path), raising=False)
+    monkeypatch.setattr(sandbox.sys, "_MEIPASS", str(tmp_path / "_MEI12345"), raising=False)
     monkeypatch.setenv("_PYI_ARCHIVE_FILE", str(executable))
     monkeypatch.setenv("_PYI_APPLICATION_HOME_DIR", str(tmp_path))
 
@@ -960,8 +960,6 @@ def test_windows_broker_declares_fail_closed_kernel_controls():
         "JOB_OBJECT_LIMIT_JOB_MEMORY",
         "CreateAppContainerProfile",
         "AssignProcessToJobObject",
-        "SetEntriesInAclW",
-        "PROCESS_QUERY_INFORMATION | self.PROCESS_VM_READ",
     ):
         assert expected in source
     assert "GetAppContainerFolderPath(\n            self.sid_string" in source
@@ -973,6 +971,8 @@ def test_windows_broker_declares_fail_closed_kernel_controls():
     assert "and not bootstrap_pending" in source
     assert 'self._diagnostic("launch-done")' in source
     assert "if recursive:" in source
+    assert "_grant_parent_process_query" not in source
+    assert "PROCESS_VM_READ" not in source
 
 
 @pytest.mark.parametrize(

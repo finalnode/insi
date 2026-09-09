@@ -2,6 +2,10 @@
 
 ## 0.7.2 – Testkandidat
 
+- den Sandbox-Runner als privaten Onedir-Starter in das Windows-Onefile-Paket
+  eingebettet; er verwendet die bereits entpackten Bibliotheken und benötigt
+  keine Leserechte auf den übergeordneten Brokerprozess. Im portablen Ordner
+  bleibt ausschließlich `insi.exe` sichtbar;
 - unter Windows App und internen Python-/Sandbox-Runner in einer einzigen
   `insi.exe` zusammengeführt; der portable Ordner enthält dadurch keine
   verwechselbare `insi-python.exe` mehr;

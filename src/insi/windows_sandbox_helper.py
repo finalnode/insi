@@ -258,23 +258,6 @@ if os.name == "nt":
             ("Reserved", wintypes.DWORD),
         ]
 
-    class TRUSTEE_W(ctypes.Structure):
-        _fields_ = [
-            ("pMultipleTrustee", wintypes.LPVOID),
-            ("MultipleTrusteeOperation", wintypes.DWORD),
-            ("TrusteeForm", wintypes.DWORD),
-            ("TrusteeType", wintypes.DWORD),
-            ("ptstrName", wintypes.LPWSTR),
-        ]
-
-    class EXPLICIT_ACCESS_W(ctypes.Structure):
-        _fields_ = [
-            ("grfAccessPermissions", wintypes.DWORD),
-            ("grfAccessMode", wintypes.DWORD),
-            ("grfInheritance", wintypes.DWORD),
-            ("Trustee", TRUSTEE_W),
-        ]
-
     class IO_COUNTERS(ctypes.Structure):
         _fields_ = [(name, ctypes.c_ulonglong) for name in (
             "ReadOperationCount",
@@ -340,13 +323,6 @@ class _WindowsBroker:
     JOB_OBJECT_MSG_ACTIVE_PROCESS_LIMIT = 3
     JOB_OBJECT_MSG_PROCESS_MEMORY_LIMIT = 9
     JOB_OBJECT_MSG_JOB_MEMORY_LIMIT = 10
-    SE_KERNEL_OBJECT = 6
-    DACL_SECURITY_INFORMATION = 0x00000004
-    GRANT_ACCESS = 1
-    TRUSTEE_IS_SID = 0
-    TRUSTEE_IS_UNKNOWN = 0
-    PROCESS_VM_READ = 0x0010
-    PROCESS_QUERY_INFORMATION = 0x0400
 
     def __init__(self, payload: Mapping[str, Any]) -> None:
         if os.name != "nt":
@@ -400,34 +376,6 @@ class _WindowsBroker:
         self.advapi32.ConvertSidToStringSidW.restype = wintypes.BOOL
         self.advapi32.FreeSid.argtypes = [wintypes.LPVOID]
         self.advapi32.FreeSid.restype = wintypes.LPVOID
-        self.advapi32.GetSecurityInfo.argtypes = [
-            wintypes.HANDLE,
-            wintypes.DWORD,
-            wintypes.DWORD,
-            ctypes.POINTER(wintypes.LPVOID),
-            ctypes.POINTER(wintypes.LPVOID),
-            ctypes.POINTER(wintypes.LPVOID),
-            ctypes.POINTER(wintypes.LPVOID),
-            ctypes.POINTER(wintypes.LPVOID),
-        ]
-        self.advapi32.GetSecurityInfo.restype = wintypes.DWORD
-        self.advapi32.SetEntriesInAclW.argtypes = [
-            wintypes.ULONG,
-            ctypes.POINTER(EXPLICIT_ACCESS_W),
-            wintypes.LPVOID,
-            ctypes.POINTER(wintypes.LPVOID),
-        ]
-        self.advapi32.SetEntriesInAclW.restype = wintypes.DWORD
-        self.advapi32.SetSecurityInfo.argtypes = [
-            wintypes.HANDLE,
-            wintypes.DWORD,
-            wintypes.DWORD,
-            wintypes.LPVOID,
-            wintypes.LPVOID,
-            wintypes.LPVOID,
-            wintypes.LPVOID,
-        ]
-        self.advapi32.SetSecurityInfo.restype = wintypes.DWORD
         self.kernel32.CreateJobObjectW.argtypes = [wintypes.LPVOID, wintypes.LPCWSTR]
         self.kernel32.CreateJobObjectW.restype = wintypes.HANDLE
         self.kernel32.SetInformationJobObject.argtypes = [
@@ -495,8 +443,6 @@ class _WindowsBroker:
         self.kernel32.CreateProcessW.restype = wintypes.BOOL
         self.kernel32.GetStdHandle.argtypes = [wintypes.DWORD]
         self.kernel32.GetStdHandle.restype = wintypes.HANDLE
-        self.kernel32.GetCurrentProcess.argtypes = []
-        self.kernel32.GetCurrentProcess.restype = wintypes.HANDLE
         self.kernel32.SetHandleInformation.argtypes = [
             wintypes.HANDLE,
             wintypes.DWORD,
@@ -610,64 +556,6 @@ class _WindowsBroker:
                 self._grant_path(root, writable=False)
         for root in writable:
             self._grant_path(root, writable=True)
-
-    def _grant_parent_process_query(self) -> None:
-        """Erlaube PyInstallers einmalige Prüfung des Onefile-Elternprozesses."""
-
-        descriptor = wintypes.LPVOID()
-        old_dacl = wintypes.LPVOID()
-        new_dacl = wintypes.LPVOID()
-        process = self.kernel32.GetCurrentProcess()
-        result = self.advapi32.GetSecurityInfo(
-            process,
-            self.SE_KERNEL_OBJECT,
-            self.DACL_SECURITY_INFORMATION,
-            None,
-            None,
-            ctypes.byref(old_dacl),
-            None,
-            ctypes.byref(descriptor),
-        )
-        if result:
-            raise ctypes.WinError(result, "GetSecurityInfo(Broker)")
-        try:
-            trustee = TRUSTEE_W(
-                None,
-                0,
-                self.TRUSTEE_IS_SID,
-                self.TRUSTEE_IS_UNKNOWN,
-                ctypes.cast(self.sid, wintypes.LPWSTR),
-            )
-            access = EXPLICIT_ACCESS_W(
-                self.PROCESS_QUERY_INFORMATION | self.PROCESS_VM_READ,
-                self.GRANT_ACCESS,
-                0,
-                trustee,
-            )
-            result = self.advapi32.SetEntriesInAclW(
-                1,
-                ctypes.byref(access),
-                old_dacl,
-                ctypes.byref(new_dacl),
-            )
-            if result:
-                raise ctypes.WinError(result, "SetEntriesInAclW(Broker)")
-            result = self.advapi32.SetSecurityInfo(
-                process,
-                self.SE_KERNEL_OBJECT,
-                self.DACL_SECURITY_INFORMATION,
-                None,
-                None,
-                new_dacl,
-                None,
-            )
-            if result:
-                raise ctypes.WinError(result, "SetSecurityInfo(Broker)")
-        finally:
-            if new_dacl:
-                self.kernel32.LocalFree(new_dacl)
-            if descriptor:
-                self.kernel32.LocalFree(descriptor)
 
     def _create_job(self) -> None:
         limits = self.payload["limits"]
@@ -999,8 +887,6 @@ class _WindowsBroker:
             self._create_profile()
             self._diagnostic("filesystem-start")
             self._grant_filesystem()
-            self._diagnostic("process-access-start")
-            self._grant_parent_process_query()
             self._diagnostic("job-start")
             self._create_job()
             self._diagnostic("launch-start")

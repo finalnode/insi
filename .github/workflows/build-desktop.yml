@@ -52,7 +52,7 @@ jobs:
         shell: pwsh
         run: >-
           python tools/run_packaged_python.py dist/windows/insi/insi.exe -- -c
-          "import clr, pykim; clr.AddReference('System.Windows.Forms'); print(pykim.__version__)"
+          "import clr, pykim, sys; from pathlib import Path; from insi.interpreter import python_command; clr.AddReference('System.Windows.Forms'); runner = Path(python_command()[0]); assert runner.name == 'insi-runtime.exe' and runner.parent == Path(sys._MEIPASS); print(pykim.__version__, runner)"
       - name: Windows-AppContainer und Job Object prüfen
         shell: pwsh
         run: >-
@@ -64,8 +64,9 @@ jobs:
       - name: Einzelnen Windows-Starter prüfen
         shell: pwsh
         run: |
-          if (Test-Path "dist/windows/insi/insi-python.exe") {
-            throw 'Der interne zweite Windows-Starter wurde weiterhin gebaut.'
+          $launchers = @(Get-ChildItem "dist/windows/insi" -Filter '*.exe')
+          if ($launchers.Count -ne 1 -or $launchers[0].Name -ne 'insi.exe') {
+            throw 'Der portable Windows-Ordner muss genau eine insi.exe enthalten.'
           }
       - name: Kompatible pythonnet-Runtime prüfen
         shell: pwsh

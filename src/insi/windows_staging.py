@@ -374,6 +374,7 @@ def prepare_onefile_runtime_for_appcontainer() -> None:
         sys.platform != "win32"
         or not getattr(sys, "frozen", False)
         or not hasattr(sys, "_MEIPASS")
+        or Path(sys._MEIPASS).resolve() == Path(sys.executable).resolve().parent
         or (Path(sys.executable).parent / "_internal").is_dir()
     ):
         return
