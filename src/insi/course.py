@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 
 from .data_migrations import LOCAL_SETTINGS_FORMAT
+from .file_storage import atomic_write_json
 
 COURSE_ENV = "PYKIM_COURSE_DIR"
 CONFIG_DIR_ENV = "PYKIM_CONFIG_DIR"
@@ -38,13 +39,8 @@ def _load_config() -> dict[str, object]:
 
 
 def _save_config(data: dict[str, object]) -> None:
-    config_file = configuration_file()
-    config_file.parent.mkdir(parents=True, exist_ok=True)
     data.setdefault("format", LOCAL_SETTINGS_FORMAT)
-    config_file.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    atomic_write_json(configuration_file(), data)
 
 
 def get_course_directory() -> Path | None:
@@ -315,6 +311,7 @@ def provision_course_exercises(path: str | Path) -> dict[str, list[str]]:
 
     course = Path(path).expanduser().resolve()
     trainable = set(exercise_names())
+    legacy_files: dict[str, Path] | None = None
     created: list[str] = []
     existing: list[str] = []
     for paradigm in PARADIGMS:
@@ -333,13 +330,18 @@ def provision_course_exercises(path: str | Path) -> dict[str, list[str]]:
                     existing.append(str(target.relative_to(course)))
                     continue
                 target.parent.mkdir(parents=True, exist_ok=True)
-                legacy = next(
-                    (candidate for candidate in course.rglob(target.name) if candidate != target),
-                    None,
-                )
-                if legacy is not None and len(relative.parts) == 1:
+                legacy = None
+                if len(relative.parts) == 1:
+                    if legacy_files is None:
+                        legacy_files = {}
+                        for candidate in course.rglob("*"):
+                            legacy_files.setdefault(candidate.name, candidate)
+                    legacy = legacy_files.get(target.name)
+                if legacy is not None:
                     shutil.copy2(legacy, target)
                 else:
                     target.write_text(starter.content, encoding="utf-8")
+                if legacy_files is not None:
+                    legacy_files.setdefault(target.name, target)
                 created.append(str(target.relative_to(course)))
     return {"created": created, "existing": existing}

@@ -86,18 +86,19 @@ class PyKIMTrainerBackend:
         return audit_exercise(exercise)
 
     @staticmethod
-    def _documents(directory: Path) -> tuple[Path, ...]:
+    def _documents(directory: Path) -> tuple[tuple[Path, dict], ...]:
         result = []
-        for source in sorted(directory.glob("*.yml")):
+        for source in (
+            *sorted(directory.glob("*.yml")),
+            *sorted((directory / "pykim").glob("*.yml")),
+        ):
             data = yaml.safe_load(source.read_text(encoding="utf-8"))
             if not isinstance(data, dict):
                 raise ValueError(f"{source.name}: unbekanntes Trainingsformat.")
             engine = data.get("engine")
-            if engine in {None, "pykim"}:
-                result.append(source)
-        module_directory = directory / "pykim"
-        if module_directory.is_dir():
-            result.extend(sorted(module_directory.glob("*.yml")))
+            if source.parent == directory and engine not in {None, "pykim"}:
+                continue
+            result.append((source, normalize_pykim_document(data, source_name=source.name)))
         return tuple(result)
 
     def load_exercises(self, trainer_directory: Path) -> dict[str, ExerciseLike]:
@@ -106,9 +107,7 @@ class PyKIMTrainerBackend:
             return {}
         with TemporaryDirectory(prefix="insi-trainer-pykim-") as temporary:
             target = Path(temporary)
-            for index, source in enumerate(documents):
-                data = yaml.safe_load(source.read_text(encoding="utf-8"))
-                normalized = normalize_pykim_document(data, source_name=source.name)
+            for index, (source, normalized) in enumerate(documents):
                 (target / f"{index:04d}-{source.name}").write_text(
                     yaml.safe_dump(normalized, allow_unicode=True, sort_keys=False),
                     encoding="utf-8",

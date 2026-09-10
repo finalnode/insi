@@ -21,6 +21,7 @@ from urllib.parse import quote
 
 from . import __version__
 from .course import _config_directory
+from .file_storage import atomic_write_json
 from .network import urlopen
 from .course_runtime import RUNTIME_FILENAME, parse_runtime_manifest
 
@@ -322,15 +323,11 @@ def _download(url: str, timeout: float) -> bytes:
 def _activate_content_version(version: str, configuration=None) -> None:
     """Aktiviere einen vollständig geprüften Inhaltsstand über atomare Marker."""
     base = content_directory()
-    marker_data = json.dumps({"content_version": version}, indent=2)
     markers = [base / "active.json"]
     if configuration is not None:
         markers.append(_course_active_marker(configuration))
     for marker in markers:
-        marker.parent.mkdir(parents=True, exist_ok=True)
-        temporary_marker = marker.with_suffix(marker.suffix + ".tmp")
-        temporary_marker.write_text(marker_data, encoding="utf-8")
-        os.replace(temporary_marker, marker)
+        atomic_write_json(marker, {"content_version": version})
 
 
 def _hash_entries(data: object) -> dict[str, dict[str, object]]:

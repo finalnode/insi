@@ -191,7 +191,7 @@ def load_backend_exercises(path: str | Path) -> tuple[dict[str, ExerciseLike], d
     exercises: dict[str, ExerciseLike] = {}
     engines: dict[str, str] = {}
     for engine in sorted(available):
-        loaded = get_backend(engine).load_exercises(directory)
+        loaded = _BACKENDS[engine].load_exercises(directory)
         duplicate = sorted(set(exercises) & set(loaded))
         if duplicate:
             raise ValueError(f"Die Aufgabenkennung {duplicate[0]!r} ist doppelt.")

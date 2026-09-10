@@ -61,7 +61,6 @@ def test_build_bootstrap_uses_one_pinned_pip_version():
         ".github/workflows/tests.yml",
         ".github/workflows/build-desktop.yml",
         "tools/build_desktop_app.py",
-        "tools/build_macos_app.py",
     ):
         source = (PROJECT / relative).read_text(encoding="utf-8")
         assert "build-bootstrap.txt" in source
@@ -91,10 +90,9 @@ def test_desktop_builds_use_platform_dependency_locks():
             "insi", "pip", "setuptools", "wheel"
         }
 
-    for relative in ("tools/build_desktop_app.py", "tools/build_macos_app.py"):
-        source = (PROJECT / relative).read_text(encoding="utf-8")
-        assert "dependency_lock(" in source
-        assert '"--constraint", str(constraints)' in source
+    source = (PROJECT / "tools/build_desktop_app.py").read_text(encoding="utf-8")
+    assert "dependency_lock(" in source
+    assert '"--constraint", str(constraints)' in source
 
 
 def test_dependency_lock_generation_is_sorted_and_preserves_vcs_commit():
@@ -142,7 +140,6 @@ def test_pykim_version_is_pinned_across_install_and_build_paths():
         ".github/workflows/tests.yml",
         ".github/workflows/build-desktop.yml",
         "tools/build_desktop_app.py",
-        "tools/build_macos_app.py",
         "tools/build_wheelhouse.py",
     ):
         source = (PROJECT / relative).read_text(encoding="utf-8")
@@ -391,7 +388,7 @@ def test_packaging_infrastructure_uses_insi_names():
         assert "PYKIM_DESKTOP_BUILD_ENV" not in source
         assert "PYKIM_MACOS_BUILD_ENV" not in source
     assert "INSI_DESKTOP_BUILD_ENV" in sources["tools/build_desktop_app.py"]
-    assert "INSI_MACOS_BUILD_ENV" in sources["tools/build_macos_app.py"]
+    assert "INSI_MACOS_BUILD_ENV" in sources["tools/build_desktop_app.py"]
     assert "--insi-python" in sources["packaging/app_entry.py"]
 
 
@@ -471,7 +468,7 @@ def test_macos_build_removes_extended_attributes_and_verifies_adhoc_signature():
     assert '"codesign", "--verify", "--deep", "--strict"' in app_source
     assert "Der lokale .app-Ordner ist deshalb" in app_source
     assert "apply_adhoc_signature(staging / application.name)" in dmg_source
-    assert '"audit_runtime_licenses.py"' in app_source
+    assert "return build_desktop(arguments)" in app_source
 
 
 def test_windows_and_linux_builds_run_strict_license_audit():

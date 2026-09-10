@@ -28,6 +28,7 @@ setup = {
     json.dumps(setup), encoding="utf-8"
 )
 create_project(course, "Versionsprojekt", "pyxel")
+create_project(course, "Zweites Projekt", "empty")
 
 
 main(show=False, native=False, arguments=[])

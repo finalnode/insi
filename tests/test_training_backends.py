@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 
@@ -20,6 +21,30 @@ from insi.training.registry import (
     exercise_starter_files,
     get_exercise,
 )
+
+
+def test_pykim_loader_reads_each_source_once(tmp_path, monkeypatch):
+    from insi.training.pykim_backend import backend
+
+    module = tmp_path / "pykim"
+    module.mkdir()
+    sources = (tmp_path / "one.yml", module / "two.yml")
+    for source in sources:
+        source.write_text(
+            backend.generate_source(source.stem, source.stem, ("position",)),
+            encoding="utf-8",
+        )
+    reads = []
+    read_text = Path.read_text
+
+    def counted_read(path, *args, **kwargs):
+        if path in sources:
+            reads.append(path)
+        return read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", counted_read)
+    assert set(backend.load_exercises(tmp_path)) == {"one", "two"}
+    assert reads == list(sources)
 
 
 @dataclass(frozen=True)

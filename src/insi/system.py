@@ -7,24 +7,22 @@ import platform
 import shutil
 import subprocess
 import sys
-import os
 import tempfile
 import threading
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from tempfile import NamedTemporaryFile
+from urllib.request import Request
 
 from .interpreter import command_for, python_command
 from .execution_security import (
     course_code_policy,
     execution_environment,
     limited_output,
-    student_policy,
 )
-from .progress import merge_sandbox_progress, prepare_sandbox_progress
+from .execution import prepare_student_run, finish_student_run
 from .sandbox import sandbox_popen, sandbox_run
-from .workspace_files import sandbox_readable_roots
-from tempfile import NamedTemporaryFile
-from urllib.request import Request
+from .file_storage import atomic_write
 
 from . import __version__
 from .network import urlopen
@@ -73,6 +71,16 @@ class ProgramResult:
     stdout: str
     stderr: str
     output_truncated: bool = False
+
+    @classmethod
+    def from_completed(cls, completed, limit: int) -> "ProgramResult":
+        stdout, stdout_truncated = limited_output(completed.stdout, limit)
+        stderr, stderr_truncated = limited_output(completed.stderr, limit)
+        return cls(
+            completed.returncode, stdout, stderr,
+            bool(getattr(completed, "output_truncated", False))
+            or stdout_truncated or stderr_truncated,
+        )
 
 
 class SourceConflictError(RuntimeError):
@@ -254,34 +262,21 @@ def run_student_program(path: str | Path, course: str | Path) -> Path:
 
     python = selected_runtime(course).executable
     root = Path(course).expanduser().resolve()
-    run_root = Path(tempfile.mkdtemp(prefix="insi-task-"))
-    progress_path = run_root / "progress.json"
-    baseline = prepare_sandbox_progress(progress_path, root)
-    policy = student_policy(
-        run_root,
-        readable_roots=sandbox_readable_roots(root, target),
-        writable_roots=(run_root,),
-        allow_gui=True,
-    )
-    environment = execution_environment(
-        policy,
-        pythonpath=(root,),
-        overrides={
-            "INSI_PROGRESS_FILE": str(progress_path),
-            "INSI_RUN_FILES": str(run_root),
-        },
-    )
-    process = sandbox_popen(
-        [*command_for(python), str(target)],
-        policy=policy,
-        cwd=run_root,
-        env=environment,
-    )
+    policy, environment, baseline = prepare_student_run(target, root, allow_gui=True)
+    try:
+        process = sandbox_popen(
+            [*command_for(python), str(target)],
+            policy=policy, cwd=policy.workspace, env=environment,
+        )
+    except BaseException:
+        finish_student_run(policy, root, baseline)
+        raise
 
     def cleanup() -> None:
-        process.wait()
-        merge_sandbox_progress(progress_path, root, baseline_attempts=baseline)
-        shutil.rmtree(run_root, ignore_errors=True)
+        try:
+            process.wait()
+        finally:
+            finish_student_run(policy, root, baseline)
 
     threading.Thread(target=cleanup, daemon=True).start()
     return target
@@ -294,50 +289,22 @@ def execute_student_program(path: str | Path, course: str | Path) -> ProgramResu
         raise ValueError("Nur Python-Dateien mit der Endung .py können gestartet werden.")
     from .runtime import selected_runtime
 
+    python = selected_runtime(course).executable
     root = Path(course).expanduser().resolve()
-    run_root = Path(tempfile.mkdtemp(prefix="insi-task-"))
-    progress_path = run_root / "progress.json"
-    baseline = prepare_sandbox_progress(progress_path, root)
-    policy = student_policy(
-        run_root,
-        readable_roots=sandbox_readable_roots(root, target),
-        writable_roots=(run_root,),
-    )
-    environment = execution_environment(
-        policy,
-        pythonpath=(root,),
-        overrides={
-            "INSI_PROGRESS_FILE": str(progress_path),
-            "INSI_RUN_FILES": str(run_root),
-        },
-    )
+    policy, environment, baseline = prepare_student_run(target, root)
     try:
         completed = sandbox_run(
-            [*command_for(selected_runtime(course).executable), str(target)],
+            [*command_for(python), str(target)],
             policy=policy,
-            cwd=run_root,
+            cwd=policy.workspace,
             capture_output=True,
             text=True,
             env=environment,
             timeout=policy.timeout_seconds,
         )
     finally:
-        merge_sandbox_progress(progress_path, root, baseline_attempts=baseline)
-        shutil.rmtree(run_root, ignore_errors=True)
-    stdout, stdout_truncated = limited_output(
-        completed.stdout, policy.max_output_chars
-    )
-    stderr, stderr_truncated = limited_output(
-        completed.stderr, policy.max_output_chars
-    )
-    return ProgramResult(
-        completed.returncode,
-        stdout,
-        stderr,
-        bool(getattr(completed, "output_truncated", False))
-        or stdout_truncated
-        or stderr_truncated,
-    )
+        finish_student_run(policy, root, baseline)
+    return ProgramResult.from_completed(completed, policy.max_output_chars)
 
 
 def execute_script_example(source: str, timeout: int = 15) -> ProgramResult:
@@ -367,20 +334,7 @@ def execute_script_example(source: str, timeout: int = 15) -> ProgramResult:
                 timeout=timeout,
                 env=environment,
             )
-            stdout, stdout_truncated = limited_output(
-                completed.stdout, policy.max_output_chars
-            )
-            stderr, stderr_truncated = limited_output(
-                completed.stderr, policy.max_output_chars
-            )
-            return ProgramResult(
-                completed.returncode,
-                stdout,
-                stderr,
-                bool(getattr(completed, "output_truncated", False))
-                or stdout_truncated
-                or stderr_truncated,
-            )
+            return ProgramResult.from_completed(completed, policy.max_output_chars)
         except subprocess.TimeoutExpired as error:
             stdout = error.stdout.decode() if isinstance(error.stdout, bytes) else error.stdout or ""
             stderr = error.stderr.decode() if isinstance(error.stderr, bytes) else error.stderr or ""
@@ -415,22 +369,7 @@ def save_student_source(
         raise SourceConflictError(
             "Die Datei wurde außerhalb der Suite verändert. Lade sie neu, bevor du speicherst."
         )
-    temporary_path: Path | None = None
-    try:
-        with NamedTemporaryFile(
-            "w",
-            encoding="utf-8",
-            dir=target.parent,
-            prefix=f".{target.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as temporary:
-            temporary.write(source)
-            temporary_path = Path(temporary.name)
-        os.replace(temporary_path, target)
-    finally:
-        if temporary_path is not None and temporary_path.exists():
-            temporary_path.unlink()
+    atomic_write(target, source)
     return target
 
 

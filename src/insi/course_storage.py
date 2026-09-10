@@ -11,6 +11,8 @@ import tempfile
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 
+from .file_storage import atomic_write_json as _write_json
+
 from .course_runtime import (
     RUNTIME_FILENAME,
     RuntimeManifest,
@@ -26,15 +28,6 @@ if TYPE_CHECKING:
 
 ARCHIVE_SOURCE_FORMAT = "pykim-course-source-v1"
 ARCHIVE_SOURCE_FILENAME = "content-source.json"
-
-
-def _write_json(target: Path, document: dict[str, str]) -> None:
-    target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = target.with_suffix(target.suffix + ".tmp")
-    temporary.write_text(
-        json.dumps(document, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    os.replace(temporary, target)
 
 
 def install_course_archive_runtime(

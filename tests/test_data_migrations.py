@@ -209,7 +209,7 @@ def test_removed_drive_during_atomic_replace_keeps_original_and_backup(
     assert progress.read_text(encoding="utf-8") == original
     assert backup.read_text(encoding="utf-8") == original
     assert not (course / ".pykim" / COURSE_DATA_MARKER).exists()
-    assert not tuple(progress.parent.glob(".progress.json.*.tmp"))
+    assert not tuple(progress.parent.glob(".*.tmp"))
 
     monkeypatch.setattr(data_migrations.os, "replace", real_replace)
     assert migrate_course_data(course).version == 1

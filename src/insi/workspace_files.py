@@ -7,7 +7,8 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+
+from .file_storage import atomic_write
 
 from .course import CONFIG_DIR_ENV
 
@@ -30,8 +31,6 @@ class ImportedWorkspaceFile:
     path: Path
     size: int
     sha256: str
-
-
 
 
 def global_workspace_directory() -> Path:
@@ -161,19 +160,7 @@ def import_workspace_bytes(
         raise ValueError("Die Datei ist größer als die erlaubten 100 MB.")
     directory = _destination(selected_scope, course=course, project=project)
     target = _unused_target(directory, name)
-    temporary_path: Path | None = None
-    try:
-        with NamedTemporaryFile(
-            "wb", dir=directory, prefix=".insi-import-", delete=False
-        ) as temporary:
-            temporary.write(content)
-            temporary.flush()
-            os.fsync(temporary.fileno())
-            temporary_path = Path(temporary.name)
-        os.replace(temporary_path, target)
-    finally:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
+    atomic_write(target, content)
     return ImportedWorkspaceFile(
         selected_scope,
         target,
@@ -207,8 +194,6 @@ def import_workspace_file(
         course=course,
         project=project,
     )
-
-
 
 
 __all__ = [

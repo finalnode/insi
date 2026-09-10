@@ -4,7 +4,8 @@ from insi.training.backends import get_authoring_backend
 from insi.training.registry import exercise_names, get_exercise
 
 from .components import section_heading
-from .library import task_assignment, task_document
+from .assignments import get_assignment
+from .library import PARADIGMS, task_documents
 
 
 def render_authoring_view(ui) -> None:
@@ -21,10 +22,14 @@ def render_authoring_view(ui) -> None:
             level=3,
         )
 
+        documents = {}
+        for paradigm in PARADIGMS:
+            for document in task_documents(paradigm):
+                documents.setdefault(document.name, document)
         for name in exercise_names():
             exercise = get_exercise(name)
-            assignment = task_assignment(name)
-            document = task_document(name)
+            assignment = get_assignment(name)
+            document = documents.get(name)
             audit = authoring.audit(exercise)
             warnings = [issue for issue in audit.issues if issue.level == "warning"]
             with ui.expansion(

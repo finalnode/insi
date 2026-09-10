@@ -7,7 +7,8 @@ import os
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from tempfile import NamedTemporaryFile
+
+from .file_storage import atomic_write
 
 
 SETUP_FORMAT = "insi-course-setup-v1"
@@ -160,13 +161,7 @@ def course_setup_info(course: str | Path) -> CourseSetup | None:
 
 
 def _write_course_setup(data: bytes, course: str | Path) -> None:
-    target = course_setup_path(course)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    data = canonical_setup_data(data)
-    with NamedTemporaryFile("wb", dir=target.parent, delete=False) as temporary:
-        temporary.write(data)
-        temporary_path = Path(temporary.name)
-    os.replace(temporary_path, target)
+    atomic_write(course_setup_path(course), canonical_setup_data(data))
 
 
 def _managed_course_directory(

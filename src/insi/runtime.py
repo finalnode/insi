@@ -14,7 +14,9 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from functools import cache
 from pathlib import Path
-from tempfile import NamedTemporaryFile, mkdtemp
+from tempfile import mkdtemp
+
+from .file_storage import atomic_write_json
 
 from .interpreter import command_for
 
@@ -269,28 +271,10 @@ def _activate_managed_runtime(course: str | Path, executable: str | Path) -> Non
     environment = _runtime_environment(executable).resolve()
     if not environment.is_relative_to(root):
         raise ValueError("Die neue Laufzeit liegt außerhalb der Kursverwaltung.")
-    root.mkdir(parents=True, exist_ok=True)
-    marker = root / "active.json"
-    temporary_path = None
-    try:
-        with NamedTemporaryFile(
-            "w", encoding="utf-8", dir=root, prefix="active-", delete=False
-        ) as temporary:
-            json.dump(
-                {"environment": environment.relative_to(root).as_posix()},
-                temporary,
-                ensure_ascii=False,
-                indent=2,
-            )
-            temporary.write("\n")
-            temporary_path = Path(temporary.name)
-        os.replace(temporary_path, marker)
-    finally:
-        if temporary_path is not None:
-            try:
-                temporary_path.unlink()
-            except FileNotFoundError:
-                pass
+    atomic_write_json(
+        root / "active.json",
+        {"environment": environment.relative_to(root).as_posix()},
+    )
 
 
 def is_managed_runtime(executable: str | Path, course: str | Path) -> bool:

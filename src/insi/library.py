@@ -1,6 +1,7 @@
 """Dateibasierte Kapitel und Aufgabenstellungen des Lernstudios."""
 
 from dataclasses import dataclass
+from collections.abc import Iterator
 from pathlib import Path
 import re
 
@@ -75,19 +76,18 @@ def _title(content: str, fallback: str) -> str:
     return fallback.replace("_", " ").replace("-", " ").title()
 
 
-def _documents(
+def _document_paths(
     folder: str,
     paradigm: str,
     *,
     content_root: Path | None = None,
-) -> tuple[MarkdownDocument, ...]:
+) -> Iterator[Path]:
     if paradigm not in PARADIGMS:
         raise ValueError(f"Unbekanntes Programmierparadigma: {paradigm}")
     from .updates import active_content_root
 
     root = content_root or active_content_root(PACKAGED_CONTENT_ROOT)
     directory = root / folder / paradigm
-    documents = []
     for path in sorted(directory.rglob("*.md")):
         relative = path.relative_to(directory)
         if (
@@ -95,11 +95,24 @@ def _documents(
             or is_repository_document(relative)
         ):
             continue
-        content = path.read_text(encoding="utf-8")
-        documents.append(
-            MarkdownDocument(path.stem, _title(content, path.stem), paradigm, content, path)
-        )
-    return tuple(documents)
+        yield path
+
+
+def _read_document(path: Path, paradigm: str) -> MarkdownDocument:
+    content = path.read_text(encoding="utf-8")
+    return MarkdownDocument(path.stem, _title(content, path.stem), paradigm, content, path)
+
+
+def _documents(
+    folder: str,
+    paradigm: str,
+    *,
+    content_root: Path | None = None,
+) -> tuple[MarkdownDocument, ...]:
+    return tuple(
+        _read_document(path, paradigm)
+        for path in _document_paths(folder, paradigm, content_root=content_root)
+    )
 
 
 def script_chapters(paradigm: str) -> tuple[MarkdownDocument, ...]:
@@ -157,13 +170,11 @@ def task_document(
     assignments_path: str = "Aufgaben",
 ) -> MarkdownDocument | None:
     for paradigm in PARADIGMS:
-        for document in task_documents(
-            paradigm,
-            content_root=content_root,
-            assignments_path=assignments_path,
+        for path in _document_paths(
+            assignments_path, paradigm, content_root=content_root,
         ):
-            if document.name == name:
-                return document
+            if path.stem == name:
+                return _read_document(path, paradigm)
     return None
 
 
@@ -181,6 +192,11 @@ def task_assignment(
     )
     if document is None:
         raise ValueError(f"Für {name!r} fehlt die Aufgabenstellung.")
+    return assignment_from_document(document)
+
+
+def assignment_from_document(document: MarkdownDocument) -> TaskAssignment:
+    """Lese Aufgabenmetadaten aus einem bereits geladenen Dokument."""
     metadata_content = _TASK_TAGS.sub(
         "", _TASK_HINT.sub("", _ANNOTATED_TASK_BLOCK.sub("", document.content))
     )
@@ -223,11 +239,7 @@ def render_task_markdown(content: str) -> str:
     heading_hidden = False
     visible = []
     for line in lines:
-        if line.startswith("@difficulty:"):
-            continue
-        if line.startswith("@source:"):
-            continue
-        if line.startswith("@tags:"):
+        if line.startswith(("@difficulty:", "@source:", "@tags:")):
             continue
         if not heading_hidden and line.startswith("# "):
             heading_hidden = True
@@ -276,8 +288,8 @@ def task_names() -> tuple[str, ...]:
 
     trainable = set(trainable_names())
     return tuple(
-        document.name
+        path.stem
         for paradigm in PARADIGMS
-        for document in task_documents(paradigm)
-        if document.name in trainable
+        for path in _document_paths("Aufgaben", paradigm)
+        if path.stem in trainable
     )

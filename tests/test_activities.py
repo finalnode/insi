@@ -5,6 +5,18 @@ from insi.activity_view import parsons_html
 from insi.theme import configure_theme
 
 
+def test_saved_activity_uses_supplied_progress_without_reading_disk(monkeypatch):
+    from insi import activity_view
+
+    def unexpected_read():
+        pytest.fail("Der vorhandene Lernstand muss wiederverwendet werden.")
+
+    monkeypatch.setattr(activity_view, "load_progress", unexpected_read)
+    assert activity_view.saved_activity_value("task", progress={}) is None
+    progress = {"answers": {"task": {"text": '["first", "second"]'}}}
+    assert activity_view.saved_activity_value("task", progress=progress) == ["first", "second"]
+
+
 def test_matching_activity_checks_complete_pairs():
     activity = activity_from_data({
         "id": "zuordnung",

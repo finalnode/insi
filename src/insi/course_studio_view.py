@@ -304,21 +304,31 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                 f"{counts['scripts']} Skripte · {counts['assignments']} Aufgaben · "
                 f"{counts['trainers']} Trainer"
             )
-            with script_navigation:
-                for paradigm in ("imperativ", "oop"):
-                    names = course_documents(source.value, "Skripte", paradigm=paradigm)
-                    if names:
-                        ui.label("Imperativ" if paradigm == "imperativ" else "OOP").classes(
-                            "text-xs text-grey-6 mt-1 px-2"
-                        )
-                    for name in names:
-                        ui.button(
-                            document_label("Skripte", paradigm, name),
-                            icon="description",
-                            on_click=lambda p=paradigm, n=name: show_script(p, n),
-                        ).props("flat dense no-caps align=left").classes(
-                            "pykim-script-menu-button w-full"
-                        )
+            trainer_names = set(course_documents(source.value, "trainer"))
+            for container, kind in (
+                (script_navigation, "Skripte"),
+                (task_navigation, "Aufgaben"),
+            ):
+                with container:
+                    for paradigm in ("imperativ", "oop"):
+                        names = course_documents(source.value, kind, paradigm=paradigm)
+                        if names:
+                            ui.label("Imperativ" if paradigm == "imperativ" else "OOP").classes(
+                                "text-xs text-grey-6 mt-1 px-2"
+                            )
+                        for name in names:
+                            checked = kind == "Aufgaben" and name in trainer_names
+                            open_document = (
+                                show_script if kind == "Skripte"
+                                else show_task if checked else show_free_task
+                            )
+                            ui.button(
+                                document_label(kind, paradigm, name),
+                                icon="task_alt" if checked else "description",
+                                on_click=lambda p=paradigm, n=name, show=open_document: show(p, n),
+                            ).props("flat dense no-caps align=left").classes(
+                                "pykim-script-menu-button w-full"
+                            )
 
         def save_content(operation, success_message) -> None:
             try:
@@ -358,27 +368,6 @@ def register_course_studio_page(ui, nicegui_app, nicegui_run, *, desktop: bool) 
                 value="\n".join(parts.sources),
             ).props("outlined autogrow").classes("w-full")
             return difficulty, tags, hints, sources
-            with task_navigation:
-                trainer_names = set(course_documents(source.value, "trainer"))
-                for paradigm in ("imperativ", "oop"):
-                    names = course_documents(source.value, "Aufgaben", paradigm=paradigm)
-                    if names:
-                        ui.label("Imperativ" if paradigm == "imperativ" else "OOP").classes(
-                            "text-xs text-grey-6 mt-1 px-2"
-                        )
-                    for name in names:
-                        has_trainer = name in trainer_names
-                        ui.button(
-                            document_label("Aufgaben", paradigm, name),
-                            icon="task_alt" if has_trainer else "description",
-                            on_click=(
-                                (lambda p=paradigm, n=name: show_task(p, n))
-                                if has_trainer
-                                else (lambda p=paradigm, n=name: show_free_task(p, n))
-                            ),
-                        ).props("flat dense no-caps align=left").classes(
-                            "pykim-script-menu-button w-full"
-                        )
 
         def show_welcome() -> None:
             editor.clear()

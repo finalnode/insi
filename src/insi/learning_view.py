@@ -84,10 +84,11 @@ def render_test_results(
     exercise_name: str,
     *,
     progress: dict[str, object] | None = None,
+    latest: dict[str, dict[str, object]] | None = None,
 ) -> None:
-    attempt = latest_attempts(
-        load_progress() if progress is None else progress
-    ).get(exercise_name)
+    if latest is None:
+        latest = latest_attempts(load_progress() if progress is None else progress)
+    attempt = latest.get(exercise_name)
     if attempt is None:
         empty_state(
             ui,
@@ -133,12 +134,13 @@ def render_test_results(
 def render_overview(ui) -> None:
     progress = load_progress()
     latest = latest_attempts(progress)
+    names = task_names()
     completed = sum(bool(item.get("successful")) for item in latest.values())
     section_heading(ui, "Mein Lernstand")
-    ui.linear_progress(value=completed / max(1, len(task_names())))
-    ui.label(f"{completed} von {len(task_names())} Aufgaben vollständig gelöst")
+    ui.linear_progress(value=completed / max(1, len(names)))
+    ui.label(f"{completed} von {len(names)} Aufgaben vollständig gelöst")
     with ui.grid(columns=2).classes("w-full gap-4"):
-        for name in task_names():
+        for name in names:
             activity = get_activity(name)
             exercise = None if activity is not None else get_exercise(name)
             attempt = latest.get(name)

@@ -9,8 +9,9 @@ import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from uuid import uuid4
+
+from .file_storage import atomic_write_json
 
 
 SNAPSHOT_DIRECTORY = "project-snapshots"
@@ -82,14 +83,16 @@ def _state_files(directory: Path) -> tuple[ProjectStateFile, ...]:
         if not entry.is_file():
             raise ValueError("Projektstände dürfen nur reguläre Dateien enthalten.")
         try:
-            content = entry.read_bytes()
+            with entry.open("rb") as content:
+                size = os.fstat(content.fileno()).st_size
+                digest = hashlib.file_digest(content, "sha256").hexdigest()
         except OSError as error:
             raise ValueError(f"Projektstand konnte nicht gelesen werden: {error}") from error
         files.append(
             ProjectStateFile(
                 entry.relative_to(directory).as_posix(),
-                len(content),
-                hashlib.sha256(content).hexdigest(),
+                size,
+                digest,
             )
         )
     return tuple(files)
@@ -100,26 +103,7 @@ def _state_metadata_path(snapshot: Path) -> Path:
 
 
 def _write_state_metadata(snapshot: Path, document: dict[str, object]) -> None:
-    target = _state_metadata_path(snapshot)
-    temporary_path: Path | None = None
-    try:
-        with NamedTemporaryFile(
-            "w",
-            encoding="utf-8",
-            dir=target.parent,
-            prefix=".insi-project-state-",
-            suffix=".tmp",
-            delete=False,
-        ) as temporary:
-            json.dump(document, temporary, ensure_ascii=False, indent=2)
-            temporary.write("\n")
-            temporary.flush()
-            os.fsync(temporary.fileno())
-            temporary_path = Path(temporary.name)
-        os.replace(temporary_path, target)
-    finally:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
+    atomic_write_json(_state_metadata_path(snapshot), document)
 
 
 def _validate_state_text(value: str, label: str, maximum: int) -> str:
@@ -172,7 +156,7 @@ def snapshot_project(
         _state_metadata_path(target).unlink(missing_ok=True)
         raise
 
-    automatic = [state for state in project_states(project_root, course) if not state.named]
+    automatic = [state for state in _project_states(target_root) if not state.named]
     for expired in automatic[keep:]:
         if expired.path.parent == target_root and expired.path.is_relative_to(backup_root):
             shutil.rmtree(expired.path)
@@ -195,7 +179,7 @@ def save_project_state(
         comment=comment,
         named=True,
     )
-    return next(state for state in project_states(project, course) if state.path == snapshot)
+    return _state_from_snapshot(snapshot)
 
 
 def snapshot_project_if_changed(
@@ -208,9 +192,9 @@ def snapshot_project_if_changed(
 ) -> Path | None:
     """Sichere den aktuellen Inhalt nur, wenn er vom letzten intakten Stand abweicht."""
 
-    project_root, _target_root, _backup_root = _project_snapshot_roots(project, course)
+    project_root, target_root, _backup_root = _project_snapshot_roots(project, course)
     current_files = _state_files(project_root)
-    for state in project_states(project_root, course):
+    for state in _project_states(target_root):
         if not state.restorable:
             continue
         try:
@@ -299,20 +283,21 @@ def project_states(project: str | Path, course: str | Path) -> tuple[ProjectStat
     """Liefere Projektstände, neueste zuerst; beschädigte bleiben sichtbar."""
 
     _project_root, target_root, _backup_root = _project_snapshot_roots(project, course)
-    if not target_root.is_dir():
-        return ()
+    return tuple(_project_states(target_root))
+
+
+def _project_states(target_root: Path):
+    """Lese Metadaten erst dann, wenn der jeweilige Stand benötigt wird."""
     try:
-        snapshots = tuple(
-            item
-            for item in target_root.iterdir()
-            if item.is_dir() and not item.is_symlink()
+        snapshots = sorted(
+            (item for item in target_root.iterdir() if item.is_dir() and not item.is_symlink()),
+            key=lambda item: item.name,
+            reverse=True,
         )
     except OSError:
-        return ()
-    return tuple(
-        _state_from_snapshot(snapshot)
-        for snapshot in sorted(snapshots, key=lambda item: item.name, reverse=True)
-    )
+        return
+    for snapshot in snapshots:
+        yield _state_from_snapshot(snapshot)
 
 
 def restore_project_state(

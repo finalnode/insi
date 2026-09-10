@@ -5,8 +5,8 @@ import os
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
+from .file_storage import atomic_write_json
 from .training.contracts import CheckReportLike
 
 from .course import get_course_directory
@@ -59,16 +59,8 @@ def merge_sandbox_progress(
     sandbox_attempts = sandbox_data.get("attempts", []) if isinstance(sandbox_data, dict) else []
     if not isinstance(sandbox_attempts, list):
         return 0
-    additions = sandbox_attempts[max(0, baseline_attempts):][
-        :MAX_SANDBOX_ATTEMPTS_PER_RUN
-    ]
-    if not additions:
-        return 0
-    course_path = Path(course).expanduser().resolve()
-    current = load_progress(course_path)
-    attempts = current.setdefault("attempts", [])
-    if not isinstance(attempts, list):
-        attempts = current["attempts"] = []
+    start = max(0, baseline_attempts)
+    additions = sandbox_attempts[start:start + MAX_SANDBOX_ATTEMPTS_PER_RUN]
     valid_additions = []
     for item in additions:
         if not isinstance(item, dict):
@@ -92,6 +84,13 @@ def merge_sandbox_progress(
         if len(encoded) > MAX_SANDBOX_ATTEMPT_BYTES:
             continue
         valid_additions.append(item)
+    if not valid_additions:
+        return 0
+    course_path = Path(course).expanduser().resolve()
+    current = load_progress(course_path)
+    attempts = current.setdefault("attempts", [])
+    if not isinstance(attempts, list):
+        attempts = current["attempts"] = []
     attempts.extend(valid_additions)
     _save(current, course_path)
     return len(valid_additions)
@@ -110,16 +109,8 @@ def load_progress(course: Path | None = None) -> dict[str, object]:
 
 def _save(data: dict[str, object], course: Path | None = None) -> None:
     target = progress_file(course)
-    if target is None:
-        return
-    target.parent.mkdir(parents=True, exist_ok=True)
-    # Schreiben und Ersetzen verhindert halbe JSON-Dateien bei Abbruch oder Sync.
-    with NamedTemporaryFile(
-        "w", encoding="utf-8", dir=target.parent, delete=False
-    ) as temporary:
-        json.dump(data, temporary, ensure_ascii=False, indent=2)
-        temporary_path = Path(temporary.name)
-    os.replace(temporary_path, target)
+    if target is not None:
+        atomic_write_json(target, data)
 
 
 def record_attempt(
@@ -165,21 +156,27 @@ def record_attempt(
     return True
 
 
+def _save_text_entry(
+    section: str, key: str, text: str, course: Path | None,
+) -> None:
+    data = load_progress(course)
+    entries = data.setdefault(section, {})
+    if not isinstance(entries, dict):
+        entries = data[section] = {}
+    entries[key] = {
+        "text": text,
+        "updated": datetime.now(timezone.utc).isoformat(),
+    }
+    _save(data, course)
+
+
 def save_journal_entry(
     exercise: str,
     text: str,
     *,
     course: Path | None = None,
 ) -> None:
-    data = load_progress(course)
-    journal = data.setdefault("journal", {})
-    if not isinstance(journal, dict):
-        journal = data["journal"] = {}
-    journal[exercise] = {
-        "text": text,
-        "updated": datetime.now(timezone.utc).isoformat(),
-    }
-    _save(data, course)
+    _save_text_entry("journal", exercise, text, course)
 
 
 def save_task_answer(
@@ -189,15 +186,7 @@ def save_task_answer(
     course: Path | None = None,
 ) -> None:
     """Speichere eine freie Antwort auf eine Aufgabe ohne Trainer."""
-    data = load_progress(course)
-    answers = data.setdefault("answers", {})
-    if not isinstance(answers, dict):
-        answers = data["answers"] = {}
-    answers[task] = {
-        "text": text,
-        "updated": datetime.now(timezone.utc).isoformat(),
-    }
-    _save(data, course)
+    _save_text_entry("answers", task, text, course)
 
 
 def revealed_hint_count(

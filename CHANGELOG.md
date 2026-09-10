@@ -2,6 +2,40 @@
 
 ## 0.8.0 – in Entwicklung
 
+- Aufgaben bauen Editoren, Aktivitäten und Prüfergebnisse erst beim Aufklappen
+  auf; Inhalte und ungespeicherte Änderungen bleiben beim Zuklappen erhalten,
+  Laufaktionen und Statusanzeigen sind pro Aufgabe gebunden;
+- Projekteditoren und Projektstände werden erst beim ersten Öffnen des jeweiligen
+  Projekts aufgebaut; ungespeicherte Änderungen bleiben beim Wechsel erhalten;
+- Projektcode und Dokumentation teilen Speichern, Änderungsstatus und
+  Fehlerbehandlung bei weiterhin getrennter Konflikterkennung pro Editor;
+- Die Aufgaben-Einzelsuche liest nur das gefundene Markdown-Dokument;
+  Aufgabenkennungen werden ohne Einlesen der Dokumentinhalte gesammelt;
+- Dokubuch und freie Antworten verwenden einen gemeinsamen Speicherablauf;
+  Sandboxläufe ohne gültige neue Versuche greifen nicht mehr auf den Kurslernstand
+  zu und übernehmen höchstens 100 Kandidaten ohne Kopie des gesamten Listenrests;
+- Kursstarts, Aufgabenprüfungen und Vorschauen teilen die Vorbereitung ihrer
+  Ausführungsumgebung und das Aufräumen samt Lernstandsübernahme; die jeweilige
+  Interpreterwahl sowie GUI-, Headless- und Ausgabeeinstellungen bleiben erhalten;
+- Starterdateien nutzen einen bei Bedarf einmalig erstellten Kursdateiindex;
+  Aufgabenansichten werten ihren Lernstand einmal aus, die Übersicht lädt
+  ihre Aufgabenliste einmal pro Aufbau;
+- die letzten 20 abgeschlossenen Skriptjobs bleiben abrufbar, ältere
+  Ergebnisse werden freigegeben; laufende Jobs sind davon ausgenommen;
+- Aufgabenläufe und Vorschauen teilen Start, Zeitbegrenzung und Aufräumen;
+  Fehler beim Vorbereiten oder Übernehmen des Lernstands hinterlassen keine
+  Laufordner, ältere Läufe entfernen keine neu gestarteten Prozesse;
+- Projektstandsprüfungen lesen Metadaten bei Bedarf und bilden Prüfsummen
+  blockweise; die Konsolenausgabe von Skriptbeispielen wird auch bei sehr
+  langen Einzelzeilen in begrenzten Blöcken gelesen;
+- Desktop-Builds über einen gemeinsamen Ablauf geführt, atomare Datei- und
+  JSON-Schreibvorgänge vereinheitlicht und temporäre Dateien auch bei
+  Schreibabbrüchen zuverlässig aufgeräumt;
+- Aufgabenmetadaten und Autorenübersicht laden Markdown pro Aktualisierung
+  nur einmal; Aktivitätsansichten nutzen den vorhandenen Lernstand und
+  PyKIM-Trainer werden vor der Normalisierung nur einmal eingelesen;
+- die zuvor unerreichbare Aufgabennavigation der Kurswerkstatt repariert und
+  den gemeinsamen Aufbau von Skript- und Aufgabenmenüs vereinfacht;
 - den veröffentlichten `v0.7.1`-Stand in `develop/v0.8` übernommen und die
   stabile Downloadversion sowie die Plattformnachweise fortgeschrieben;
 - die Mindestversion für Quellinstallationen und erkannte Laufzeiten auf

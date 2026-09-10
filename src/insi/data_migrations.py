@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+from .file_storage import atomic_write_json
+
 
 LOCAL_SETTINGS_FORMAT = "insi-settings-v1"
 COURSE_DATA_FORMAT = "insi-course-data-v1"
@@ -52,31 +54,14 @@ def _read_object(path: Path, label: str) -> dict[str, object]:
 
 
 def _atomic_write_json(path: Path, document: dict[str, object]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path: Path | None = None
     try:
-        with NamedTemporaryFile(
-            "w",
-            encoding="utf-8",
-            dir=path.parent,
-            prefix=f".{path.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as temporary:
-            json.dump(document, temporary, ensure_ascii=False, indent=2)
-            temporary.write("\n")
-            temporary.flush()
-            os.fsync(temporary.fileno())
-            temporary_path = Path(temporary.name)
-        os.replace(temporary_path, path)
+        atomic_write_json(path, document)
     except OSError as error:
         raise MigrationStorageError(
             f"{path.name} konnte nicht sicher ersetzt werden. "
             "Der bisherige Stand bleibt maßgeblich; verbinde den Datenträger "
             "erneut und wiederhole die Migration."
         ) from error
-    finally:
-        _discard_temporary(temporary_path)
 
 
 def _backup_once(source: Path, target: Path) -> None:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import hashlib
-import os
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -21,7 +20,7 @@ from .workspace_files import (
     sandbox_readable_roots,
 )
 from .project_history import snapshot_project_if_changed
-from tempfile import NamedTemporaryFile
+from .file_storage import atomic_write, atomic_write_json as _write_json
 
 PROJECTS_DIRECTORY = "Projekte"
 METADATA_FILE = "projekt.json"
@@ -117,21 +116,6 @@ def _safe_child(directory: Path, value: str, label: str) -> Path:
     return path
 
 
-def _write_json(path: Path, data: dict[str, object]) -> None:
-    temporary_path: Path | None = None
-    try:
-        with NamedTemporaryFile(
-            "w", encoding="utf-8", dir=path.parent, prefix=".projekt-", delete=False
-        ) as temporary:
-            json.dump(data, temporary, ensure_ascii=False, indent=2)
-            temporary.write("\n")
-            temporary_path = Path(temporary.name)
-        os.replace(temporary_path, path)
-    finally:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
-
-
 def create_project(
     course: str | Path,
     name: str,
@@ -223,18 +207,7 @@ def save_project_text(
         raise RuntimeError(
             "Die Datei wurde außerhalb der Suite verändert. Lade das Projekt neu."
         )
-    temporary_path: Path | None = None
-    try:
-        with NamedTemporaryFile(
-            "w", encoding="utf-8", dir=target.parent,
-            prefix=f".{target.name}.", suffix=".tmp", delete=False,
-        ) as temporary:
-            temporary.write(value)
-            temporary_path = Path(temporary.name)
-        os.replace(temporary_path, target)
-    finally:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
+    atomic_write(target, value)
     return target
 
 
