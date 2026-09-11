@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import shutil
 import stat
 import zipfile
 from dataclasses import dataclass, field
@@ -243,7 +244,7 @@ def build_course_archive(
         raise FileNotFoundError("Kursordner oder Setupdatei wurde nicht gefunden.")
     setup_data = canonical_setup_data(setup_path)
     setup = setup_info(setup_data)
-    selected: dict[str, bytes] = {}
+    selected: dict[str, Path] = {}
     for directory, suffix in (
         (setup.scripts_path, ".md"),
         (setup.assignments_path, ".md"),
@@ -255,10 +256,10 @@ def build_course_archive(
         for path in root.rglob(f"*{suffix}"):
             relative = path.relative_to(source)
             if path.is_file() and not any(part.startswith("_") for part in relative.parts):
-                selected[relative.as_posix()] = path.read_bytes()
+                selected[relative.as_posix()] = path
     if len(selected) > MAX_CONTENT_FILES:
         raise ValueError("Der Kurs enthält zu viele sichtbare Dateien.")
-    if sum(len(data) for data in selected.values()) > MAX_CONTENT_SIZE:
+    if sum(path.stat().st_size for path in selected.values()) > MAX_CONTENT_SIZE:
         raise ValueError("Der Kurs ist für ein portables Archiv zu groß.")
 
     runtime_data: bytes | None
@@ -277,7 +278,6 @@ def build_course_archive(
         raise ValueError("Offline-Wheels benötigen ein Runtime-Manifest.")
     if set(wheel_paths) != set(runtime.hashes if runtime is not None else {}):
         raise ValueError("Runtime-Manifest und Offline-Wheels stimmen nicht überein.")
-    wheels: dict[str, bytes] = {}
     for name, path in wheel_paths.items():
         member = PurePosixPath(name)
         if (
@@ -289,20 +289,20 @@ def build_course_archive(
             or not Path(path).is_file()
         ):
             raise ValueError(f"Ungültiger Offline-Wheelpfad: {name!r}")
-        data = Path(path).read_bytes()
-        if hashlib.sha256(data).hexdigest() != runtime.hashes[name]:
+        with Path(path).open("rb") as wheel:
+            digest = hashlib.file_digest(wheel, "sha256").hexdigest()
+        if digest != runtime.hashes[name]:
             raise ValueError(f"Prüfsumme des Offline-Wheels stimmt nicht: {name}")
-        wheels[name] = data
 
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(setup.name, setup_data)
         if runtime_data is not None:
             archive.writestr(RUNTIME_FILENAME, runtime_manifest_bytes(runtime))
-        for name, data in sorted(selected.items()):
-            archive.writestr(name, data)
-        for name, data in sorted(wheels.items()):
-            archive.writestr(name, data)
+        for files in (selected, wheel_paths):
+            for name, path in sorted(files.items()):
+                with Path(path).open("rb") as source_file, archive.open(name, "w") as member:
+                    shutil.copyfileobj(source_file, member)
     data = output.getvalue()
     parse_course_archive(data)
     return data

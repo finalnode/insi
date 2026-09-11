@@ -407,7 +407,7 @@ def render_tasks_panel(
                 execution_output = ui.code(
                     "Noch keine Ausgabe in dieser Sitzung.",
                     language="text",
-                ).classes("w-full")
+                ).classes("w-full").mark(f"task-output-{name}")
 
             test_results_container = ui.column().classes("w-full gap-2")
 
@@ -598,7 +598,7 @@ def render_tasks_panel(
                     run_button.disable()
                 stop_button = ui.button(
                     "Stoppen", on_click=stop_task, icon="stop",
-                ).props("outline")
+                ).props("outline").mark(f"stop-task-{name}")
                 stop_button.disable()
                 ui.button(
                     "Kopieren",
@@ -631,7 +631,7 @@ def render_tasks_panel(
                 ui.button(
                     "Zurücksetzen", on_click=reset_dialog.open, icon="restart_alt",
                 ).props("flat color=negative")
-                run_status = ui.badge("BEREIT", color="grey")
+                run_status = ui.badge("BEREIT", color="grey").mark(f"task-status-{name}")
 
             source_editor.map_key("Mod-s", save_task)
             source_editor.map_key("F5", save_and_start_task)

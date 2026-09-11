@@ -299,3 +299,105 @@ async def test_tasks_load_on_open_and_preserve_editor_and_results(user, monkeypa
     assert len(reads) == 2
     assert results == [*names, names[0]]
     await user.should_see("Ausgabe der ersten Aufgabe")
+
+
+@pytest.mark.anyio
+@pytest.mark.e2e
+@pytest.mark.nicegui_main_file("tests/ui_main.py")
+async def test_parallel_task_actions_and_results_stay_with_their_task(user, monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+    from nicegui import ui, run
+    from insi import tasks_view
+    from insi.course import exercise_file, get_course_directory, provision_course_exercises
+    from insi.execution import ExecutionResult
+    from insi.file_storage import atomic_write_json
+    from insi.progress import progress_file
+    from insi.training.registry import exercise_names, get_activity, get_exercise
+
+    original_io = run.io_bound
+    pending, started, stopped = {}, asyncio.Queue(), []
+
+    async def controlled_io(function, *args, **kwargs):
+        if function == tasks_view.execution_manager.execute:
+            future = asyncio.get_running_loop().create_future()
+            pending[args[0]] = future
+            started.put_nowait(args[0])
+            return await future
+        return await original_io(function, *args, **kwargs)
+
+    def stop(path):
+        stopped.append(path)
+        return True
+
+    def element(marker):
+        result, = user.find(marker=marker).elements
+        return result
+
+    monkeypatch.setattr(run, "io_bound", controlled_io)
+    monkeypatch.setattr(tasks_view.execution_manager, "stop", stop)
+    monkeypatch.setattr(tasks_view, "sandbox_status", lambda: SimpleNamespace(available=True, gui_available=True))
+    await user.open("/")
+    user.find("Öffnen").click()
+    await user.should_see("Mein Lernstand", retries=50)
+    course = get_course_directory()
+    provision_course_exercises(course)
+    names = [name for name in exercise_names() if get_activity(name) is None][:2]
+    paths = [exercise_file(name, course) for name in names]
+    user.find("Aufgaben").click()
+    await user.should_see("Imperative Aufgaben", retries=50)
+    panels = []
+    for name in names:
+        panel, = user.find(kind=ui.expansion, content=get_exercise(name).title).elements
+        panels.append(panel)
+        with user.client:
+            panel.set_value(True)
+    buttons = [element(f"run-task-{name}") for name in names]
+    stops = [element(f"stop-task-{name}") for name in names]
+    statuses = [element(f"task-status-{name}") for name in names]
+    outputs = [element(f"task-output-{name}") for name in names]
+    try:
+        for index, name in enumerate(names):
+            user.find(marker=f"run-task-{name}").click()
+            assert await asyncio.wait_for(started.get(), timeout=5) == paths[index]
+            assert not buttons[index].enabled and stops[index].enabled
+        with user.client:
+            panels[0].set_value(False)
+            panels[0].set_value(True)
+        assert [status.text for status in statuses] == ["LÄUFT", "LÄUFT"]
+
+        # The second run finishes first; its progress must not refresh task one.
+        attempts = [{"exercise": names[1], "passed": True, "total": 1,
+                     "tests": [{"passed": True, "message": "Ergebnis zweite Aufgabe"}]}]
+        atomic_write_json(progress_file(course), {"attempts": attempts})
+        pending[paths[1]].set_result(ExecutionResult(0, "Ausgabe zwei", ""))
+        await user.should_see("Ergebnis zweite Aufgabe", retries=50)
+        assert outputs[1].content == "Ausgabe zwei"
+        assert outputs[0].content == "Programm läuft …"
+        assert buttons[1].enabled and not stops[1].enabled
+        assert not buttons[0].enabled and stops[0].enabled
+
+        user.find(marker=f"stop-task-{names[0]}").click()
+        assert stopped == paths[:1]
+        assert statuses[0].text == "WIRD BEENDET"
+        assert statuses[1].text == "BEREIT"
+        attempts.append({"exercise": names[0], "passed": False, "total": 1,
+                         "tests": [{"passed": False, "message": "Ergebnis erste Aufgabe"}]})
+        atomic_write_json(progress_file(course), {"attempts": attempts})
+        pending[paths[0]].set_result(ExecutionResult(-15, "Ausgabe eins", "", stopped=True))
+        await user.should_see("Ergebnis erste Aufgabe", retries=50)
+        assert [output.content for output in outputs] == ["Ausgabe eins", "Ausgabe zwei"]
+        assert all(button.enabled for button in buttons)
+        assert not any(button.enabled for button in stops)
+        assert [status.text for status in statuses] == ["BEREIT", "BEREIT"]
+        await user.should_see("Ergebnis zweite Aufgabe")
+        for index, panel in enumerate(panels):
+            labels = {child.text for child in panel.descendants() if isinstance(child, ui.label)}
+            messages = ("Ergebnis erste Aufgabe", "Ergebnis zweite Aufgabe")
+            assert messages[index] in labels
+            assert messages[1 - index] not in labels
+    finally:
+        for future in pending.values():
+            if not future.done():
+                future.cancel()
+        await asyncio.sleep(0)

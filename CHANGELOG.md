@@ -2,6 +2,10 @@
 
 ## 0.8.0 – in Entwicklung
 
+- Der Kursarchivexport schreibt Kursdateien und Offline-Wheels blockweise ins
+  ZIP, statt zusätzliche vollständige Dateikopien im Speicher zu halten;
+- Archivkurse und synchronisierte Inhalte verwenden dieselbe Prüfung ihres
+  aktiven Inhaltsverzeichnisses und Manifests;
 - Aufgaben bauen Editoren, Aktivitäten und Prüfergebnisse erst beim Aufklappen
   auf; Inhalte und ungespeicherte Änderungen bleiben beim Zuklappen erhalten,
   Laufaktionen und Statusanzeigen sind pro Aufgabe gebunden;

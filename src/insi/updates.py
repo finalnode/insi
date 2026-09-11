@@ -152,6 +152,18 @@ def _bundled_content_version(packaged_root: Path) -> str:
         return "0"
 
 
+def _validated_content_root(version: str) -> Path | None:
+    """Prüfe ein installiertes Inhaltsverzeichnis unabhängig von seiner Quelle."""
+    root = content_directory() / "versions" / version
+    manifest = json.loads((root / "content-manifest.json").read_text(encoding="utf-8"))
+    if not root.is_dir() or not isinstance(manifest, dict):
+        return None
+    if root not in _VALIDATED_CONTENT_ROOTS:
+        _validate_content(root, manifest)
+        _VALIDATED_CONTENT_ROOTS.add(root)
+    return root
+
+
 def active_content_root(packaged_root: Path) -> Path:
     """Liefere ein geprüft aktiviertes Overlay oder die eingebauten Inhalte."""
     configured = os.environ.get("PYKIM_CONTENT_DIR")
@@ -170,31 +182,15 @@ def active_content_root(packaged_root: Path) -> Path:
             source = course_content_source(course)
             archive_version = source.get("content_version")
             if source.get("type") == "archive" and archive_version:
-                version = str(archive_version)
-                root = content_directory() / "versions" / version
-                manifest = json.loads(
-                    (root / "content-manifest.json").read_text(encoding="utf-8")
-                )
-                if root.is_dir() and isinstance(manifest, dict):
-                    if root not in _VALIDATED_CONTENT_ROOTS:
-                        _validate_content(root, manifest)
-                        _VALIDATED_CONTENT_ROOTS.add(root)
+                root = _validated_content_root(str(archive_version))
+                if root is not None:
                     return root
             marker = _course_active_marker(setup)
     except (OSError, ValueError):
         pass
     try:
         data = json.loads(marker.read_text(encoding="utf-8"))
-        version = str(data["content_version"])
-        root = content_directory() / "versions" / version
-        manifest = json.loads(
-            (root / "content-manifest.json").read_text(encoding="utf-8")
-        )
-        if root.is_dir() and isinstance(manifest, dict):
-            if root not in _VALIDATED_CONTENT_ROOTS:
-                _validate_content(root, manifest)
-                _VALIDATED_CONTENT_ROOTS.add(root)
-            return root
+        return _validated_content_root(str(data["content_version"])) or packaged_root
     except (OSError, ValueError, KeyError, TypeError):
         pass
     return packaged_root
