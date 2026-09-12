@@ -99,12 +99,12 @@ def test_tasks_reuse_one_progress_snapshot_for_initial_render():
     assert "cached_progress=progress" in source
 
 
-def test_setup_runtime_is_preloaded_off_the_ui_thread_and_rendered_lazily():
+def test_setup_runtime_is_loaded_on_demand_off_the_ui_thread():
     workspace = (GUIDE / "workspace_view.py").read_text(encoding="utf-8")
     setup = (GUIDE / "setup_view.py").read_text(encoding="utf-8")
 
     assert "nicegui_run.io_bound(inspect_setup_runtime, course)" in workspace
-    assert "ui.timer(0.25, preload_setup, once=True)" in workspace
+    assert "preload_setup" not in workspace
     assert workspace.count("render_setup_panel(") == 1
     assert workspace.index("async def load_setup") < workspace.index(
         "render_setup_panel("

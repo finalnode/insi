@@ -487,6 +487,36 @@ def test_course_preflight_marks_managed_package_mismatch_as_repairable(
     assert "Version 0.5.0" in " ".join(report.issues)
 
 
+@pytest.mark.parametrize("preferred_ready", [True, False])
+def test_course_preflight_discovers_alternatives_only_if_needed(tmp_path, monkeypatch, preferred_ready):
+    import insi.runtime as runtime
+
+    preferred = RuntimeCandidate(str(tmp_path / "preferred"), "3.11.9", "Ausgewählt", True, ())
+    alternative = RuntimeCandidate(str(tmp_path / "alternative"), "3.11.9", "System", True, ())
+    monkeypatch.setattr("insi.course.get_runtime_preference", lambda: preferred.executable)
+    monkeypatch.setattr(runtime, "_installed_manifest", lambda _: None)
+    monkeypatch.setattr(runtime, "inspect_runtime", lambda *_: preferred)
+    discovered, checked = [], []
+
+    def discover(_):
+        discovered.append(True)
+        return preferred, alternative
+
+    def packages(candidate, requirements):
+        checked.append(candidate)
+        ready = candidate == alternative or preferred_ready
+        return tuple(RuntimePackageCheck(item, "", ready) for item in requirements)
+
+    monkeypatch.setattr(runtime, "discover_runtimes", discover)
+    monkeypatch.setattr(runtime, "_package_checks", packages)
+    report = course_runtime_preflight(tmp_path)
+
+    assert report.ready
+    assert report.candidate == (preferred if preferred_ready else alternative)
+    assert discovered == ([] if preferred_ready else [True])
+    assert checked == ([preferred] if preferred_ready else [preferred, alternative])
+
+
 def test_course_preflight_offers_only_matching_base_python(tmp_path, monkeypatch):
     monkeypatch.setenv("PYKIM_CONFIG_DIR", str(tmp_path / "config"))
     course = tmp_path / "course"

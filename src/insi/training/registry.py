@@ -28,12 +28,13 @@ def activate(
     *,
     trainers_path: str = "Trainer",
     assignments_path: str = "Aufgaben",
+    lazy: bool = False,
 ) -> None:
     """Aktiviere Trainer und Aktivitäten atomar für genau einen Kursstand."""
     root = Path(content_root).expanduser().resolve()
     trainers = root / trainers_path
     assignments = root / assignments_path
-    exercises, engines = load_backend_exercises(trainers)
+    exercises, engines = load_backend_exercises(trainers, lazy=lazy)
     activities = (
         load_activities(trainers, assignments) if trainers.is_dir() else {}
     )

@@ -4,8 +4,15 @@ from __future__ import annotations
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from functools import cache
+from dataclasses import dataclass
+from typing import Callable
 
 import yaml
+try:
+    from yaml import CSafeLoader as SafeLoader
+except ImportError:
+    from yaml import SafeLoader
 import pykim
 
 from pykim.trainer.authoring import (
@@ -26,6 +33,28 @@ from .contracts import (
 )
 
 
+@dataclass(frozen=True)
+class _DeferredExercise:
+    """Metadaten bleiben sofort verfügbar, Fachmodulobjekte entstehen bei Bedarf."""
+
+    name: str
+    title: str
+    _load: Callable
+
+    def __getattr__(self, attribute):
+        return getattr(self._load()[self.name], attribute)
+
+
+def _load_document(source_name: str, normalized: dict) -> dict:
+    with TemporaryDirectory(prefix="insi-trainer-pykim-") as temporary:
+        target = Path(temporary) / source_name
+        target.write_text(
+            yaml.safe_dump(normalized, allow_unicode=True, sort_keys=False),
+            encoding="utf-8",
+        )
+        return load_exercises(target)
+
+
 def normalize_pykim_document(data: object, *, source_name: str = "Trainer") -> dict:
     """Überführe alte und neue PyKIM-Dokumente in das Fachmodulformat 1."""
     if not isinstance(data, dict):
@@ -42,7 +71,7 @@ def normalize_pykim_document(data: object, *, source_name: str = "Trainer") -> d
 
 def explicit_pykim_source(source: str) -> str:
     """Kennzeichne erzeugte Trainerdateien mit dem neuen in:si-Vertrag."""
-    data = normalize_pykim_document(yaml.safe_load(source))
+    data = normalize_pykim_document(yaml.load(source, Loader=SafeLoader))
     data["format"] = TRAINER_FORMAT
     data = {"format": data.pop("format"), "engine": "pykim", **data}
     return yaml.safe_dump(data, allow_unicode=True, sort_keys=False)
@@ -60,7 +89,7 @@ class PyKIMTrainerBackend:
     @staticmethod
     def parse_source(source: str) -> ExerciseLike:
         payload = normalize_pykim_document(
-            yaml.safe_load(source), source_name="Trainerdefinition"
+            yaml.load(source, Loader=SafeLoader), source_name="Trainerdefinition"
         )
         definitions = payload.get("exercises")
         if not isinstance(definitions, list) or len(definitions) != 1:
@@ -92,7 +121,7 @@ class PyKIMTrainerBackend:
             *sorted(directory.glob("*.yml")),
             *sorted((directory / "pykim").glob("*.yml")),
         ):
-            data = yaml.safe_load(source.read_text(encoding="utf-8"))
+            data = yaml.load(source.read_text(encoding="utf-8"), Loader=SafeLoader)
             if not isinstance(data, dict):
                 raise ValueError(f"{source.name}: unbekanntes Trainingsformat.")
             engine = data.get("engine")
@@ -113,6 +142,29 @@ class PyKIMTrainerBackend:
                     encoding="utf-8",
                 )
             return load_exercises(target)
+
+    def load_exercise_index(self, trainer_directory: Path) -> dict[str, ExerciseLike]:
+        """Indiziere installierte Trainer, ohne ihre Prüfer bereits aufzubauen."""
+        result = {}
+        for source, normalized in self._documents(trainer_directory):
+            # Jede Closure hält den Inhalt ihres Kursstands, nicht einen später
+            # möglicherweise ersetzten Dateipfad. Mehrfachzugriffe teilen das Ergebnis.
+            load = cache(lambda name=source.name, data=normalized: _load_document(name, data))
+            definitions = normalized.get("exercises", [normalized])
+            if not isinstance(definitions, list):
+                raise ValueError(f"{source.name}: exercises muss eine Liste sein.")
+            for definition in definitions:
+                if not isinstance(definition, dict):
+                    raise ValueError("Eine Aufgabe muss ein YAML-Objekt sein.")
+                if definition.get("mode") in {"answer", "matching"}:
+                    continue
+                name, title = definition.get("id"), definition.get("title")
+                if not isinstance(name, str) or not name or not isinstance(title, str):
+                    raise ValueError(f"{source.name}: ungültige Aufgabenkennung oder Titel.")
+                if name in result:
+                    raise ValueError(f"Die Aufgabenkennung {name!r} ist doppelt.")
+                result[name] = _DeferredExercise(name, title, load)
+        return result
 
     @staticmethod
     def evaluate(

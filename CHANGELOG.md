@@ -2,6 +2,13 @@
 
 ## 0.8.0 – in Entwicklung
 
+- Kursöffnen prüft zuerst die gewählte Runtime und sucht nur bei Bedarf nach
+  Alternativen; die vollständige Setup-Inventur läuft erst beim Öffnen des
+  Setup-Tabs. Trainerdaten nutzen den schnellen sicheren YAML-Loader, sofern
+  verfügbar;
+- Installierte PyKIM-Trainer laden zunächst Kennungen und Titel; die eigentlichen
+  Prüfer werden erst bei Verwendung aufgebaut. Importvalidierung bleibt
+  vollständig; bereits registrierte Engines vermeiden erneute Paketsuchen;
 - Lernstandsänderungen innerhalb der App serialisiert und ihre Zieldatei pro
   Vorgang festgehalten; Aufgabenaktionen und verspätete Prüfergebnisse bleiben
   auch nach einem Kurswechsel dem ursprünglichen Kurs zugeordnet;

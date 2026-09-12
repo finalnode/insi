@@ -373,6 +373,7 @@ def activate_installed_course_content(course: str | Path) -> None:
         root,
         trainers_path=getattr(info, "trainers_path", "Trainer"),
         assignments_path=getattr(info, "assignments_path", "Aufgaben"),
+        lazy=True,
     )
     provision_course_exercises(selected)
 

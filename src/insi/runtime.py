@@ -491,30 +491,28 @@ def course_runtime_preflight(
             "oder Reparatur kann Internetzugang benötigen."
         )
 
-    discovered = candidates if candidates is not None else discover_runtimes(root)
-    by_path = {
-        _executable_path(candidate.executable): candidate
-        for candidate in discovered
-    }
     preference = get_runtime_preference()
-    if preference:
-        preferred_path = _executable_path(preference)
-        preferred = by_path.pop(preferred_path, None) or inspect_runtime(
-            preference, "Ausgewählt"
-        )
-        ordered = (preferred, *by_path.values())
-    else:
-        ordered = tuple(by_path.values())
+    def ordered_candidates():
+        preferred_path = _executable_path(preference) if preference else None
+        if preference:
+            yield next(
+                (item for item in candidates or ()
+                 if _executable_path(item.executable) == preferred_path),
+                None,
+            ) or inspect_runtime(preference, "Ausgewählt")
+        for item in candidates if candidates is not None else discover_runtimes(root):
+            if _executable_path(item.executable) != preferred_path:
+                yield item
 
-    matching = tuple(
-        candidate for candidate in ordered
-        if _matches_python(candidate, required_python)
-    )
+    matching = []
     checked: dict[str, tuple[RuntimePackageCheck, ...]] = {}
     probe_errors: dict[str, str] = {}
     ready_candidate = None
     ready_packages: tuple[RuntimePackageCheck, ...] = ()
-    for candidate in matching:
+    for candidate in ordered_candidates():
+        if not _matches_python(candidate, required_python):
+            continue
+        matching.append(candidate)
         try:
             package_status = _package_checks(candidate, requirements)
         except RuntimeError as error:

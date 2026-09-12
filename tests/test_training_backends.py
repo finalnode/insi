@@ -53,6 +53,65 @@ class _WebExercise:
     title: str
 
 
+def test_pykim_index_defers_checker_and_retains_original_course_content(tmp_path, monkeypatch):
+    import insi.training.pykim_backend as module
+
+    source = tmp_path / "one.yml"
+    source.write_text(module.backend.generate_source("one", "Original", ("position",)), encoding="utf-8")
+    calls = []
+    original = module.load_exercises
+
+    def load(path):
+        calls.append(path)
+        return original(path)
+
+    monkeypatch.setattr(module, "load_exercises", load)
+    exercises = module.backend.load_exercise_index(tmp_path)
+    exercise = exercises["one"]
+    assert exercise.title == "Original"
+    assert module.backend.starter_files(exercise)
+    assert calls == []
+    source.unlink()
+    assert exercise.rules
+    assert callable(exercise.checker)
+    assert len(calls) == 1
+
+
+def test_pykim_full_validation_still_rejects_invalid_deferred_rules(tmp_path):
+    from insi.training.pykim_backend import backend
+
+    (tmp_path / "bad.yml").write_text(
+        "format: 1\nid: bad\ntitle: Bad\ntests:\n  - type: unknown-rule\n", encoding="utf-8"
+    )
+    exercise = backend.load_exercise_index(tmp_path)["bad"]
+    with pytest.raises(ValueError):
+        backend.load_exercises(tmp_path)
+    with pytest.raises(ValueError):
+        _ = exercise.checker
+
+
+def test_single_legacy_trainer_loads_without_previously_registered_backend(tmp_path, monkeypatch):
+    from insi.training.pykim_backend import backend
+
+    source = backend.generate_source("one", "One", ("position",))
+    (tmp_path / "one.yml").write_text(
+        source.replace("format: insi-trainer-v1", "format: 1").replace("engine: pykim\n", ""),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(backends, "_BACKENDS", {})
+    exercises, engines = backends.load_backend_exercises(tmp_path, lazy=True)
+    assert exercises["one"].title == "One"
+    assert engines == {"one": "pykim"}
+
+
+def test_registered_backend_does_not_rescan_installed_packages(monkeypatch):
+    from insi.training.pykim_backend import backend
+
+    monkeypatch.setattr(backends, "_BACKENDS", {"pykim": backend})
+    monkeypatch.setattr(backends, "_load_entrypoints", lambda: pytest.fail("Unnötige Paketsuche"))
+    assert backends.get_backend("pykim") is backend
+
+
 class _WebBackend:
     engine = "test-web"
 

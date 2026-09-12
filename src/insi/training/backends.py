@@ -8,6 +8,10 @@ from pathlib import Path
 import re
 
 import yaml
+try:
+    from yaml import CSafeLoader as SafeLoader
+except ImportError:
+    from yaml import SafeLoader
 
 from .contracts import (
     CheckReportLike,
@@ -114,7 +118,8 @@ def get_backend(engine: str) -> TrainerBackend:
         from .pykim_backend import backend as pykim_backend
 
         register_backend(pykim_backend)
-    _load_entrypoints()
+    if normalized not in _BACKENDS:
+        _load_entrypoints()
     try:
         return _BACKENDS[normalized]
     except KeyError:
@@ -150,7 +155,7 @@ def declared_engines(path: str | Path) -> frozenset[str]:
     directory = Path(path)
     result: set[str] = set()
     for source in sorted(directory.glob("*.yml")):
-        data = yaml.safe_load(source.read_text(encoding="utf-8"))
+        data = yaml.load(source.read_text(encoding="utf-8"), Loader=SafeLoader)
         if not isinstance(data, dict):
             continue
         engine = data.get("engine")
@@ -158,7 +163,9 @@ def declared_engines(path: str | Path) -> frozenset[str]:
             if not isinstance(engine, str) or not _ENGINE_NAME.fullmatch(engine):
                 raise ValueError(f"{source.name}: ungültige Trainer-Engine.")
             result.add(engine)
-        elif data.get("format") == 1 and isinstance(data.get("exercises"), list):
+        elif data.get("format") == 1 and (
+            isinstance(data.get("exercises"), list) or "id" in data
+        ):
             # Das historische numerische Format ist eindeutig der eingebaute
             # PyKIM-Adapter und bleibt ohne pauschalen Registry-Import lesbar.
             result.add("pykim")
@@ -168,7 +175,7 @@ def declared_engines(path: str | Path) -> frozenset[str]:
     return frozenset(result)
 
 
-def load_backend_exercises(path: str | Path) -> tuple[dict[str, ExerciseLike], dict[str, str]]:
+def load_backend_exercises(path: str | Path, *, lazy: bool = False) -> tuple[dict[str, ExerciseLike], dict[str, str]]:
     directory = Path(path)
     if not directory.is_dir():
         return {}, {}
@@ -191,7 +198,9 @@ def load_backend_exercises(path: str | Path) -> tuple[dict[str, ExerciseLike], d
     exercises: dict[str, ExerciseLike] = {}
     engines: dict[str, str] = {}
     for engine in sorted(available):
-        loaded = _BACKENDS[engine].load_exercises(directory)
+        backend = _BACKENDS[engine]
+        loader = getattr(backend, "load_exercise_index", backend.load_exercises) if lazy else backend.load_exercises
+        loaded = loader(directory)
         duplicate = sorted(set(exercises) & set(loaded))
         if duplicate:
             raise ValueError(f"Die Aufgabenkennung {duplicate[0]!r} ist doppelt.")

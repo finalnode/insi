@@ -106,7 +106,7 @@ def register_workspace(context) -> None:
                 with setup_panel:
                     with ui.row().classes("items-center gap-2"):
                         ui.spinner(size="sm", color="primary")
-                        ui.label("Setup wird im Hintergrund vorbereitet …")
+                        ui.label("Setup wird vorbereitet …")
             lazy_panel(
                 tools_tab,
                 lambda: render_tools_panel(
@@ -179,12 +179,6 @@ def register_workspace(context) -> None:
                 raise RuntimeError("Die Laufzeitprüfung wurde abgebrochen.")
             return snapshot
 
-        async def preload_setup() -> None:
-            try:
-                await setup_snapshot()
-            except Exception:
-                setup_state["task"] = None
-
         async def load_setup(event) -> None:
             if event.value != setup_tab.props["name"]:
                 return
@@ -240,4 +234,3 @@ def register_workspace(context) -> None:
 
         tabs.on_value_change(load_setup)
         tabs.on_value_change(load_lazy_view)
-        ui.timer(0.25, preload_setup, once=True)

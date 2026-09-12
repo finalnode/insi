@@ -44,6 +44,11 @@ and tools behind a simplified learning interface. Its educational principle is:
 
 - Assignment and project editors initialize when first opened and retain their
   state when switching views. Fewer repeated file and runtime checks reduce waits.
+- Opening a course checks the selected Python environment first and searches
+  alternatives only when needed. The full runtime inventory is prepared when
+  the Setup tab is opened.
+- Installed PyKIM trainers expose their metadata first and load their checkers
+  when needed. Course imports still undergo full validation.
 - Progress updates within one app instance are serialized. Results arriving
   after a course switch stay with their original course; reopen the course view
   before starting another assignment action.

@@ -7,6 +7,10 @@ from pathlib import Path
 import re
 
 import yaml
+try:
+    from yaml import CSafeLoader as SafeLoader
+except ImportError:
+    from yaml import SafeLoader
 
 from .backends import TRAINER_FORMAT
 
@@ -185,7 +189,7 @@ def load_activities(
     if core_directory.is_dir():
         sources.extend(sorted(core_directory.glob("*.yml")))
     for source in sources:
-        data = yaml.safe_load(source.read_text(encoding="utf-8"))
+        data = yaml.load(source.read_text(encoding="utf-8"), Loader=SafeLoader)
         if (
             not isinstance(data, dict)
             or data.get("format") not in {1, TRAINER_FORMAT}

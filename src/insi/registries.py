@@ -13,6 +13,7 @@ def activate_content_registries(
     *,
     trainers_path: str = "Trainer",
     assignments_path: str = "Aufgaben",
+    lazy: bool = False,
 ) -> None:
     """Richte Trainer, Aktivitäten und Aufgaben auf denselben Inhaltsstand."""
     root = Path(content_root).expanduser().resolve()
@@ -20,6 +21,7 @@ def activate_content_registries(
         root,
         trainers_path=trainers_path,
         assignments_path=assignments_path,
+        lazy=lazy,
     )
     refresh_assignments(root, assignments_path)
 

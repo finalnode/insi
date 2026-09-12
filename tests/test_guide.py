@@ -825,7 +825,7 @@ def test_startup_sync_uses_repository_from_installed_course_setup(tmp_path, monk
         (
             "registries",
             tmp_path / "old",
-            {"trainers_path": "Trainer", "assignments_path": "Aufgaben"},
+            {"trainers_path": "Trainer", "assignments_path": "Aufgaben", "lazy": True},
         ),
         ("provision", course.resolve()),
     ]

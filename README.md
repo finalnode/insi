@@ -67,6 +67,12 @@ Lernende, Lehrkräfte und Kursautorinnen beziehungsweise Kursautoren. Die
 - Aufgaben- und Projekteditoren werden beim ersten Öffnen aufgebaut und
   behalten beim Wechsel ihren Zustand. Weniger wiederholte Datei- und
   Runtimeprüfungen verkürzen die Wartezeiten.
+- Beim Kursöffnen wird zuerst die gewählte Python-Umgebung geprüft. Die Suche
+  nach Alternativen erfolgt nur bei Bedarf; die vollständige Runtimeübersicht
+  wird erst beim Öffnen des Setup-Tabs erstellt.
+- Installierte PyKIM-Trainer stellen zunächst nur ihre Metadaten bereit;
+  die eigentlichen Prüfer werden bei Verwendung geladen. Kursimporte werden
+  weiterhin vollständig validiert.
 - Lernstandsänderungen werden innerhalb einer App-Instanz nacheinander
   gespeichert. Auch nach einem Kurswechsel gehören verspätete Prüfergebnisse
   zum ursprünglichen Kurs; für neue Aufgabenaktionen die Kursansicht neu öffnen.

@@ -14,6 +14,14 @@ kommen keine weiteren Produktfunktionen hinzu.
 
 ## Was 0.8 sichtbar verbessert
 
+- Beim Öffnen wird zuerst die gewählte Runtime geprüft. Die breite
+  Interpretersuche erfolgt nur bei Bedarf, die Setup-Inventur erst im Setup-Tab.
+  Installierte PyKIM-Trainer laden zunächst Metadaten und erst bei Verwendung
+  ihre Prüfer. Bekannte Trainer-Engines vermeiden wiederholte Paketsuchen;
+  Kursimporte und explizite Validierung prüfen weiterhin alle Trainer.
+  Ein lokaler Vergleich desselben Kurses mit 97 PyKIM-Aufgaben ergab
+  6,97 Sekunden Vorbereitung auf `1d87570` gegenüber 0,89 Sekunden mit diesen
+  Änderungen (Migration, Aktivierung und Runtimeprüfung, ohne UI-Rendering).
 - Lernende können automatische und benannte Projektstände in einer Zeitleiste
   sehen, kommentieren und sicher wiederherstellen. Vor dem Rücksprung wird der
   aktuelle Arbeitsstand erneut gesichert.
