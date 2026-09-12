@@ -1,19 +1,19 @@
 """Zusammenstellen und Verschlüsseln eines portablen Lernstandexports."""
 
 import json
-import os
+from importlib.metadata import version
 import platform
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
-import pykim
 import insi
 from insi.course import exercise_file, get_student_name
 from insi.progress import load_progress
-from insi.training.registry import exercise_names
+from insi.training.backends import fingerprint_profile
+from insi.training.registry import exercise_engine, exercise_names
 
+from ..file_storage import atomic_write
 from .crypto import CertificateInfo, certificate_info, encrypt_payload
 from .fingerprints import code_fingerprints
 
@@ -34,11 +34,7 @@ def install_course_certificate(data: bytes, course: str | Path) -> CertificateIn
         verify_certificate_authorization(data, info.content)
         sync_certificate_content(info.content)
     target = course_certificate_path(course)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    with NamedTemporaryFile("wb", dir=target.parent, delete=False) as temporary:
-        temporary.write(data)
-        temporary_path = Path(temporary.name)
-    os.replace(temporary_path, target)
+    atomic_write(target, data)
     return info
 
 
@@ -85,14 +81,21 @@ def build_submission_payload(
     latest = _latest_attempts(progress)
     exercises = []
     for name in exercise_names():
+        engine = exercise_engine(name)
+        profile = fingerprint_profile(engine)
         path = exercise_file(name, root)
         source = path.read_text(encoding="utf-8") if path and path.exists() else ""
         attempt = latest.get(name)
         exercises.append(
             {
                 "exercise": name,
+                "engine": engine,
                 "source": source,
-                "fingerprints": code_fingerprints(source).as_dict(),
+                "fingerprints": code_fingerprints(
+                    source,
+                    protected_names=profile.protected_names,
+                    algorithm=profile.algorithm,
+                ).as_dict(),
                 "result": None if attempt is None else {
                     "timestamp": attempt.get("timestamp"),
                     "passed": attempt.get("passed", 0),
@@ -116,7 +119,7 @@ def build_submission_payload(
         },
         "environment": {
             "insi": insi.__version__,
-            "pykim": pykim.__version__,
+            "pykim": version("PyKIM"),
             "python": platform.python_version(),
             "platform": platform.system(),
         },

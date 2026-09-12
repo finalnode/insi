@@ -1,0 +1,2 @@
+# Einheitlicher pip-Stand für lokale und CI-Desktop-Buildumgebungen.
+pip==26.2.1

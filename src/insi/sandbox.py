@@ -408,11 +408,19 @@ class WindowsAppContainerAdapter:
     ) -> tuple[Path, ...]:
         roots = list(BubblewrapAdapter._runtime_roots(command, environment))
         if command:
-            executable = Path(command[0]).expanduser()
+            executable = Path(
+                shutil.which(str(command[0])) or command[0]
+            ).expanduser()
             try:
                 executable = executable.resolve()
             except (OSError, RuntimeError):
                 pass
+            # PyInstaller starts the executable first and then reopens its
+            # embedded PKG archive. Keep an explicit file ACL in addition to
+            # inherited directory access so that this second open is reliable
+            # inside AppContainer profiles.
+            if executable.is_file():
+                roots.append(executable)
             for candidate in (executable.parent.parent, executable.parent):
                 configuration = candidate / "pyvenv.cfg"
                 if not configuration.is_file():

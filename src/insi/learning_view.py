@@ -1,6 +1,7 @@
 """Wiederverwendbare Lernstands-, Test- und Fehlerdarstellung der Suite."""
 
 import re
+from pathlib import Path
 
 from insi.training.registry import get_activity, get_exercise
 
@@ -19,17 +20,26 @@ def latest_attempts(progress: dict[str, object]) -> dict[str, dict[str, object]]
     return latest
 
 
-def render_task_hints(ui, task: str, hints: tuple[str, ...]) -> None:
+def render_task_hints(
+    ui,
+    task: str,
+    hints: tuple[str, ...],
+    *,
+    progress: dict[str, object] | None = None,
+    course: Path | None = None,
+) -> None:
     """Zeige Autorenhinweise schrittweise und merke den geöffneten Stand."""
     if not hints:
         return
-    state = {"count": min(revealed_hint_count(task), len(hints))}
+    state = {
+        "count": min(revealed_hint_count(task, progress=progress, course=course), len(hints))
+    }
     container = ui.column().classes("w-full gap-2")
 
     def reveal_next() -> None:
         if state["count"] < len(hints):
             state["count"] += 1
-            save_revealed_hint_count(task, state["count"])
+            save_revealed_hint_count(task, state["count"], course=course)
             render()
 
     def render() -> None:
@@ -71,8 +81,17 @@ def render_task_sources(ui, sources) -> None:
                 ui.label(source.label)
 
 
-def render_test_results(ui, exercise_name: str) -> None:
-    attempt = latest_attempts(load_progress()).get(exercise_name)
+def render_test_results(
+    ui,
+    exercise_name: str,
+    *,
+    progress: dict[str, object] | None = None,
+    latest: dict[str, dict[str, object]] | None = None,
+    course: Path | None = None,
+) -> None:
+    if latest is None:
+        latest = latest_attempts(load_progress(course) if progress is None else progress)
+    attempt = latest.get(exercise_name)
     if attempt is None:
         empty_state(
             ui,
@@ -118,12 +137,13 @@ def render_test_results(ui, exercise_name: str) -> None:
 def render_overview(ui) -> None:
     progress = load_progress()
     latest = latest_attempts(progress)
+    names = task_names()
     completed = sum(bool(item.get("successful")) for item in latest.values())
     section_heading(ui, "Mein Lernstand")
-    ui.linear_progress(value=completed / max(1, len(task_names())))
-    ui.label(f"{completed} von {len(task_names())} Aufgaben vollständig gelöst")
+    ui.linear_progress(value=completed / max(1, len(names)))
+    ui.label(f"{completed} von {len(names)} Aufgaben vollständig gelöst")
     with ui.grid(columns=2).classes("w-full gap-4"):
-        for name in task_names():
+        for name in names:
             activity = get_activity(name)
             exercise = None if activity is not None else get_exercise(name)
             attempt = latest.get(name)

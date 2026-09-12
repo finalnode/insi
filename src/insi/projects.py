@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import hashlib
-import os
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -19,9 +18,9 @@ from .sandbox import sandbox_popen
 from .workspace_files import (
     project_files_directory,
     sandbox_readable_roots,
-    snapshot_project,
 )
-from tempfile import NamedTemporaryFile
+from .project_history import snapshot_project_if_changed
+from .file_storage import atomic_write, atomic_write_json as _write_json
 
 PROJECTS_DIRECTORY = "Projekte"
 METADATA_FILE = "projekt.json"
@@ -117,21 +116,6 @@ def _safe_child(directory: Path, value: str, label: str) -> Path:
     return path
 
 
-def _write_json(path: Path, data: dict[str, object]) -> None:
-    temporary_path: Path | None = None
-    try:
-        with NamedTemporaryFile(
-            "w", encoding="utf-8", dir=path.parent, prefix=".projekt-", delete=False
-        ) as temporary:
-            json.dump(data, temporary, ensure_ascii=False, indent=2)
-            temporary.write("\n")
-            temporary_path = Path(temporary.name)
-        os.replace(temporary_path, path)
-    finally:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
-
-
 def create_project(
     course: str | Path,
     name: str,
@@ -223,18 +207,7 @@ def save_project_text(
         raise RuntimeError(
             "Die Datei wurde außerhalb der Suite verändert. Lade das Projekt neu."
         )
-    temporary_path: Path | None = None
-    try:
-        with NamedTemporaryFile(
-            "w", encoding="utf-8", dir=target.parent,
-            prefix=f".{target.name}.", suffix=".tmp", delete=False,
-        ) as temporary:
-            temporary.write(value)
-            temporary_path = Path(temporary.name)
-        os.replace(temporary_path, target)
-    finally:
-        if temporary_path is not None:
-            temporary_path.unlink(missing_ok=True)
+    atomic_write(target, value)
     return target
 
 
@@ -261,14 +234,21 @@ def launch_project(project: StudentProject, course: str | Path) -> Path:
         raise FileNotFoundError(f"{project.entrypoint.name} wurde nicht gefunden.")
     if project.resources is not None and not project.resources.is_file():
         raise RuntimeError(
-            "Die Ressourcendatei fehlt noch. Öffne zuerst den Sprite- und Musikeditor "
+            "Die Ressourcendatei fehlt noch. Öffne zuerst den Sprite- oder Musikeditor "
             "und speichere die Ressourcen."
         )
-    from .runtime import selected_runtime
+    from .runtime import PYXEL_RUNTIME_REQUIREMENT, selected_runtime
 
-    python = selected_runtime(course_root).executable
+    python = (
+        selected_runtime(
+            course_root,
+            additional_requirements=(PYXEL_RUNTIME_REQUIREMENT,),
+        ).executable
+        if project.kind == "pyxel"
+        else selected_runtime(course_root).executable
+    )
     project_files = project_files_directory(project.directory, create=True)
-    snapshot_project(project.directory, course_root)
+    snapshot_project_if_changed(project.directory, course_root)
     policy = student_policy(
         project.directory,
         readable_roots=sandbox_readable_roots(course_root),
@@ -292,11 +272,18 @@ def launch_project(project: StudentProject, course: str | Path) -> Path:
     return project.entrypoint
 
 
-def launch_project_editor(project: StudentProject, course: str | Path) -> Path:
+def launch_project_editor(
+    project: StudentProject,
+    course: str | Path,
+    editor: str,
+) -> Path:
     if project.resources is None:
         raise ValueError("Dieses Projekt besitzt keine Pyxel-Ressourcendatei.")
-    from .runtime import selected_runtime
+    from .runtime import PYXEL_RUNTIME_REQUIREMENT, selected_runtime
     from .system import launch_pyxel_editor
 
-    python = selected_runtime(course).executable
-    return launch_pyxel_editor(project.resources, python=python)
+    python = selected_runtime(
+        course,
+        additional_requirements=(PYXEL_RUNTIME_REQUIREMENT,),
+    ).executable
+    return launch_pyxel_editor(project.resources, python=python, editor=editor)

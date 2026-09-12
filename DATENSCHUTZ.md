@@ -1,6 +1,6 @@
 # Datenschutz und Datenbestand
 
-Stand: 21. August 2026, in:si 0.7.0
+Stand: 23. August 2026, Entwicklungszweig in:si `0.8.0.dev0`
 
 Dieses Dokument beschreibt technisch, welche Daten in:si verarbeitet, wo sie
 gespeichert und wann sie übertragen werden. Es ist keine fertige
@@ -194,18 +194,28 @@ verloren geht.
   den Systempapierkorb verschieben. Erst das Leeren des Papierkorbs entfernt
   ihn endgültig. Exporte an anderen Orten und globale Dateien bleiben davon
   unberührt.
+- **Gesamtexport:** Unter **Werkzeuge → Meine lokalen Daten** entsteht ein
+  lokales ZIP mit Einstellungen, globalen Dateien und allen Daten erreichbarer
+  registrierter Kursordner. Dazu gehören auch Lösungen, Projekte, Lernstände
+  und Backups. Erneut ladbare Inhaltscaches und Runtimes werden nicht
+  dupliziert. Symbolische Links werden im Manifest genannt, aber nicht
+  verfolgt. Der Export wird nicht automatisch übertragen.
 - **Globale App-Daten:** Konfiguration, Inhaltscache, Runtime, Thonny-Profil und
-  globale Dateien liegen standardmäßig unter `~/.pykim`. Sie müssen bei Bedarf
-  gezielt über den Dateimanager entfernt werden; eine vollständige
-  Löschoberfläche ist für 0.8 geplant.
+  globale Dateien liegen standardmäßig unter `~/.pykim`. **Lokale Daten
+  entfernen** validiert zuerst alle erreichbaren registrierten Kurse und
+  verschiebt anschließend diese Kursordner sowie den vollständigen
+  App-Datenordner in den Systempapierkorb. Die Aktion verlangt die exakte
+  Bestätigung `ALLE LOKALEN DATEN`; erst das Leeren des Papierkorbs löscht die
+  Daten endgültig.
 - **Abgaben:** Lokal erzeugte und bereits an Moodle, Dateiserver, USB-Stick oder
   andere Stellen kopierte Abgaben müssen an jedem Speicherort entsprechend der
   schulischen Regelung gelöscht werden.
 
 Vor dem Löschen sollte geprüft werden, ob Projekte oder Kursdateien noch
-benötigt und in einen ausdrücklich gewählten Ordner exportiert werden sollen.
-Das bloße Deinstallieren der App entfernt lokale Kursordner und `~/.pykim`
-bewusst nicht automatisch.
+benötigt und exportiert werden sollen. Nicht erreichbare Kursordner, bereits
+weitergegebene Abgaben, Exporte und Kopien an anderen Orten werden von der
+lokalen Aktion nicht entfernt. Das bloße Deinstallieren der App entfernt lokale
+Kursordner und `~/.pykim` bewusst nicht automatisch.
 
 ## Schutzmaßnahmen und verbleibende Grenzen
 

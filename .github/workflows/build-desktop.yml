@@ -22,15 +22,15 @@ jobs:
     # supported 22.04 image instead of weakening or skipping it.
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Linux-Sandbox installieren
         run: sudo apt-get update && sudo apt-get install --yes bubblewrap
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install "git+https://github.com/finalnode/PyKIM.git@main"
+      - run: python -m pip install --upgrade --requirement requirements/build-bootstrap.txt
+      - run: python -m pip install --requirement requirements/pykim-0.6.0.txt
       - run: python -m pip install -e ".[test]"
       - run: python -m pytest
       - name: Release-Tag gegen Projektversion prüfen
@@ -42,18 +42,18 @@ jobs:
     needs: test
     runs-on: windows-2025
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
       - run: python tools/build_desktop_app.py
       - name: Eingebettetes Python prüfen
         shell: pwsh
-        run: '& "dist/windows/insi/insi-python.exe" --pykim-python -c "import clr, pykim; clr.AddReference(''System.Windows.Forms''); print(pykim.__version__)"'
+        run: '& "dist/windows/insi/insi-python.exe" --insi-python -c "import clr, pykim; clr.AddReference(''System.Windows.Forms''); print(pykim.__version__)"'
       - name: Windows-AppContainer und Job Object prüfen
         shell: pwsh
-        run: '& "dist/windows/insi/insi-python.exe" --pykim-python tools/check_windows_sandbox.py'
+        run: '& "dist/windows/insi/insi-python.exe" --insi-python tools/check_windows_sandbox.py'
       - name: Kompatible pythonnet-Runtime prüfen
         shell: pwsh
         run: |
@@ -68,15 +68,17 @@ jobs:
       - name: Echtes Windows-Fenster prüfen
         shell: pwsh
         run: ./tools/check_windows_desktop.ps1
+      - name: Kurs-Runtime aus paketiertem Wheelhouse neu aufbauen
+        run: python tools/verify_packaged_wheelhouse.py dist/windows/insi
       - name: Windows-Startdiagnose hochladen
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: insi-windows-startup-logs
           path: dist/windows-startup-logs/**
           if-no-files-found: warn
       - run: python tools/package_desktop_app.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: insi-windows-x86_64
           path: dist/releases/windows/*.zip
@@ -89,22 +91,22 @@ jobs:
     # namespaces so the packaged app can pass the real isolation probe.
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Linux-GUI-Abhängigkeiten installieren
         run: >-
           sudo apt-get update && sudo apt-get install --yes
           bubblewrap gcc libcairo2-dev libgirepository1.0-dev pkg-config python3-dev
           gir1.2-gtk-3.0 gir1.2-webkit2-4.1 libgtk-3-dev libwebkit2gtk-4.1-dev
           weston
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
       - run: python tools/build_desktop_app.py
       - name: Eingebettetes Python prüfen
-        run: '"dist/linux/insi/insi-python" --pykim-python -c "import pykim; print(pykim.__version__)"'
+        run: '"dist/linux/insi/insi-python" --insi-python -c "import pykim; print(pykim.__version__)"'
       - name: Linux-Bubblewrap und Ressourcengrenzen prüfen
-        run: '"dist/linux/insi/insi-python" --pykim-python tools/check_linux_sandbox.py'
+        run: '"dist/linux/insi/insi-python" --insi-python tools/check_linux_sandbox.py'
       - name: Geschütztes Linux-Wayland-Fenster prüfen
         shell: bash
         run: |
@@ -121,9 +123,11 @@ jobs:
             sleep 0.1
           done
           test -S "$runtime/$WAYLAND_DISPLAY"
-          "dist/linux/insi/insi-python" --pykim-python tools/check_linux_sandbox.py --gui
+          "dist/linux/insi/insi-python" --insi-python tools/check_linux_sandbox.py --gui
+      - name: Kurs-Runtime aus paketiertem Wheelhouse neu aufbauen
+        run: python tools/verify_packaged_wheelhouse.py dist/linux/insi
       - run: python tools/package_desktop_app.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: insi-linux-x86_64
           path: dist/releases/linux/*.tar.gz
@@ -142,21 +146,23 @@ jobs:
             runner: macos-15
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
       - run: python tools/build_macos_dmg.py --rebuild-app
       - name: Eingebettetes Python prüfen
-        run: '"dist/macos/insi.app/Contents/MacOS/insi-python" --pykim-python -c "import pykim; print(pykim.__version__)"'
+        run: '"dist/macos/insi.app/Contents/MacOS/insi-python" --insi-python -c "import pykim; print(pykim.__version__)"'
       - name: macOS-Seatbelt und Ressourcengrenzen prüfen
-        run: '"dist/macos/insi.app/Contents/MacOS/insi-python" --pykim-python tools/check_macos_sandbox.py'
+        run: '"dist/macos/insi.app/Contents/MacOS/insi-python" --insi-python tools/check_macos_sandbox.py'
+      - name: Kurs-Runtime aus paketiertem Wheelhouse neu aufbauen
+        run: python tools/verify_packaged_wheelhouse.py dist/macos/insi.app
       - name: Release-Datei in Buildordner kopieren
         run: |
           mkdir -p "dist/releases/macos-${{ matrix.architecture }}"
           cp dist/macos/*.dmg "dist/releases/macos-${{ matrix.architecture }}/"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: insi-macos-${{ matrix.architecture }}
           path: dist/releases/macos-${{ matrix.architecture }}/*.dmg
@@ -170,7 +176,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: insi-*
           path: dist/releases

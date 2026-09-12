@@ -200,9 +200,12 @@ def test_windows_adapter_wraps_student_command_in_validated_broker_payload(
     tmp_path, monkeypatch
 ):
     readable = tmp_path / "course" / "task.py"
+    runtime = tmp_path / "runtime" / "course-python.exe"
     writable = tmp_path / "project"
     readable.parent.mkdir()
     readable.write_text("print('ok')", encoding="utf-8")
+    runtime.parent.mkdir()
+    runtime.write_bytes(b"runner")
     writable.mkdir()
     adapter = WindowsAppContainerAdapter()
     monkeypatch.setattr(
@@ -228,7 +231,7 @@ def test_windows_adapter_wraps_student_command_in_validated_broker_payload(
     )
 
     launch = adapter.prepare(
-        ["course-python.exe", str(readable)],
+        [str(runtime), str(readable)],
         cwd=writable,
         environment={"PATH": "C:\\Windows\\System32"},
         policy=policy,
@@ -241,7 +244,8 @@ def test_windows_adapter_wraps_student_command_in_validated_broker_payload(
         "--payload",
     )
     payload = decode_payload(launch.command[4])
-    assert payload["command"] == ["course-python.exe", str(readable)]
+    assert payload["command"] == [str(runtime), str(readable)]
+    assert str(runtime.resolve()) in payload["readable_roots"]
     assert str(readable.resolve()) in payload["readable_roots"]
     assert payload["writable_roots"] == [str(writable.resolve())]
     assert payload["limits"]["max_processes"] == 3

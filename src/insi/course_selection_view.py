@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 from .branding import APP_DISPLAY_NAME
 from .desktop import browser_favicon
 from insi.course import (
+    approve_trainer_extension,
+    configuration_file,
+    course_name_confirmation_matches,
     get_course_directories,
     set_runtime_preference,
     set_course_directory,
@@ -15,7 +17,11 @@ from insi.course import (
 )
 from insi.course_archive import MAX_ARCHIVE_SIZE, parse_course_archive
 from insi.course_catalog import load_course_catalog
-from .course_import_dialogs import archive_runtime_details, confirm_external_course_import
+from .course_import_dialogs import (
+    archive_runtime_details,
+    confirm_external_course_import,
+    confirm_external_trainer_extensions,
+)
 from insi.course_setup import (
     activate_installed_course_content,
     course_import_target,
@@ -32,11 +38,8 @@ from insi.runtime import (
     provision_managed_runtime,
     repair_runtime,
 )
-
-
-def course_name_confirmation_matches(value: object, expected: str) -> bool:
-    """Prüfe den aktuellen Eingabewert ohne verzögerten UI-Zustand."""
-    return isinstance(value, str) and value == expected
+from insi.training.backends import BackendConsentRequired
+from .data_migrations import migrate_course_data, migrate_local_settings
 
 
 def render_course_selection(context) -> bool:
@@ -45,6 +48,20 @@ def render_course_selection(context) -> bool:
     nicegui_run = context.run
     course_sync_state = context.course_sync
     course_selection_state = context.course_selection
+
+    try:
+        migrate_local_settings(configuration_file())
+    except (OSError, ValueError) as error:
+        with ui.column().classes("w-full max-w-2xl mx-auto gap-3 p-6"):
+            ui.label("Lokale Einstellungen konnten nicht migriert werden").classes(
+                "text-xl font-bold text-negative"
+            )
+            ui.label(str(error))
+            ui.label(
+                "Die Datei wurde nicht verändert. Sichere oder repariere sie, "
+                "bevor du in:si erneut startest."
+            ).classes("text-sm text-grey-7")
+        return True
 
     async def choose_course_collision(info) -> str | None:
         """Frage bei einem belegten Ziel nach Kopie, Update oder Abbruch."""
@@ -183,17 +200,45 @@ def render_course_selection(context) -> bool:
                 # Die Animation ist rein visuell. Ein langsamer oder browserloser
                 # Client darf das eigentliche Öffnen des Kurses nicht verhindern.
                 pass
+            try:
+                await nicegui_run.io_bound(migrate_course_data, course)
+            except (OSError, ValueError) as error:
+                ui.notify(
+                    f"Kursdaten konnten nicht sicher migriert werden: {error}",
+                    type="negative",
+                    timeout=10000,
+                )
+                reset_opening_state()
+                return
             set_course_directory(course)
             # Die lokale Kurskopie wird ohne Netzwerk aktiviert. Ein Abgleich
             # mit dem Repository erfolgt später nur über den sichtbaren Button.
             course_sync_state.update(result=None, error="", pending=False)
             try:
-                await asyncio.gather(
-                    nicegui_run.io_bound(
-                        activate_installed_course_content, course
-                    ),
-                    asyncio.sleep(1.05),
+                await nicegui_run.io_bound(
+                    activate_installed_course_content, course
                 )
+            except BackendConsentRequired as error:
+                if not await confirm_external_trainer_extensions(
+                    ui, error.extensions
+                ):
+                    course_sync_state["pending"] = False
+                    reset_opening_state()
+                    return
+                for extension in error.extensions:
+                    approve_trainer_extension(extension.identity)
+                try:
+                    await nicegui_run.io_bound(
+                        activate_installed_course_content, course
+                    )
+                except Exception as retry_error:
+                    course_sync_state["error"] = str(retry_error)
+                    ui.notify(
+                        f"Kursinhalt konnte nicht aktiviert werden: {retry_error}",
+                        type="negative",
+                    )
+                    reset_opening_state()
+                    return
             except Exception as error:
                 course_sync_state["error"] = str(error)
                 course_sync_state["pending"] = False
@@ -246,7 +291,9 @@ def render_course_selection(context) -> bool:
             "w-full max-w-4xl mx-auto items-stretch gap-3 p-6"
         ):
             with ui.row().classes("w-full items-center gap-3"):
-                ui.image(browser_favicon()).classes("insi-selection-logo").props(
+                ui.image(browser_favicon()).classes(
+                    "flex-none w-12 h-12 rounded-xl drop-shadow-md"
+                ).props(
                     f'alt="{APP_DISPLAY_NAME}"'
                 )
                 ui.label("Kurs auswählen").classes("text-lg text-grey-7")
@@ -257,11 +304,14 @@ def render_course_selection(context) -> bool:
                     on_click=lambda: ui.navigate.to("/course-builder"),
                 ).props("flat")
             known_courses = get_course_directories()
+            installed_repositories = set()
             for course in known_courses:
                 try:
                     info = course_setup_info(course)
                 except (OSError, ValueError):
                     info = None
+                if info is not None:
+                    installed_repositories.add(info.repository.removesuffix(".git"))
                 with ui.card().classes(
                     "w-full py-2 px-3 shadow-none border gap-1"
                 ) as course_card:
@@ -379,30 +429,6 @@ def render_course_selection(context) -> bool:
                                 "Lokaler Kurs wird geladen · Online-Abgleich folgt"
                             ).classes("pykim-course-sync-dots text-sm font-medium")
                     course_sync_activity.set_visibility(False)
-                    pixel_palette = (
-                        ("#f36b2b", "#ffd166"),
-                        ("#00a8e8", "#70d6ff"),
-                        ("#9b5de5", "#f15bb5"),
-                        ("#21ba45", "#8bd450"),
-                        ("#ff9f1c", "#ff4d6d"),
-                    )
-                    ui.html(
-                        "".join(
-                            '<span style="'
-                            f'--pixel-x:{(index * 37 + index * index * 3) % 94 + 2}%;'
-                            f'--pixel-y:{(index * 53 + index * index * 7) % 78 + 8}%;'
-                            f'--pixel-size:{0.46 + (index % 4) * 0.12:.2f}rem;'
-                            f'--pixel-delay:-{(index * 0.23) % 3.7:.2f}s;'
-                            f'--pixel-duration:{2.25 + (index % 6) * 0.31:.2f}s;'
-                            f'--pixel-color-a:{pixel_palette[index % len(pixel_palette)][0]};'
-                            f'--pixel-color-b:{pixel_palette[index % len(pixel_palette)][1]}'
-                            '"></span>'
-                            for index in range(32)
-                        ),
-                        sanitize=False,
-                    ).classes("pykim-course-pixel-field").props(
-                        "aria-hidden=true"
-                    )
                     open_course_button.on(
                         "click",
                         lambda _, selected=course, card=course_card,
@@ -531,16 +557,6 @@ def render_course_selection(context) -> bool:
 
             def render_course_catalog() -> None:
                 catalog_container.clear()
-                installed_repositories = set()
-                for path in get_course_directories():
-                    try:
-                        installed_setup = course_setup_info(path)
-                    except (OSError, ValueError):
-                        installed_setup = None
-                    if installed_setup is not None:
-                        installed_repositories.add(
-                            installed_setup.repository.removesuffix(".git")
-                        )
                 with catalog_container:
                     for catalog_course in catalog_state["courses"]:
                         installed = (
@@ -653,4 +669,4 @@ def render_course_selection(context) -> bool:
     return False
 
 
-__all__ = ["course_name_confirmation_matches", "render_course_selection"]
+__all__ = ["render_course_selection"]

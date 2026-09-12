@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from .branding import APP_DISPLAY_NAME
@@ -15,9 +16,9 @@ from insi.course import (
 )
 from insi.course_archive import (
     MAX_ARCHIVE_SIZE,
-    course_content_source,
     parse_course_archive,
 )
+from insi.course_storage import course_content_source
 from .course_import_dialogs import archive_runtime_details, confirm_external_course_import
 from insi.course_setup import (
     course_setup_info,
@@ -35,6 +36,8 @@ from insi.execution_security import (
     DEFAULT_TIMEOUT_SECONDS,
 )
 from insi.runtime import (
+    RuntimeCandidate,
+    RuntimePreflight,
     bundled_wheelhouse,
     course_runtime_preflight,
     discover_runtimes,
@@ -53,6 +56,48 @@ IDE_LABELS = {
 }
 
 
+@dataclass(frozen=True, slots=True)
+class SetupRuntimeSnapshot:
+    """Threadtaugliches Ergebnis der langsamen Laufzeiterkennung."""
+
+    offline_wheels: bool
+    runtimes: tuple[RuntimeCandidate, ...]
+    preflight: RuntimePreflight
+
+
+def inspect_setup_runtime(course: str | Path) -> SetupRuntimeSnapshot:
+    """Erzeuge den Setup-Laufzeitstatus ohne NiceGUI-Elemente anzufassen."""
+    runtimes = discover_runtimes(course)
+    return SetupRuntimeSnapshot(
+        offline_wheels=bundled_wheelhouse() is not None,
+        runtimes=runtimes,
+        preflight=course_runtime_preflight(course, candidates=runtimes),
+    )
+
+
+def runtime_candidate_options(snapshot: SetupRuntimeSnapshot) -> dict[str, str]:
+    """Beschrifte Interpreter anhand des Kursvertrags, ohne UI-Abhängigkeit."""
+    preflight = snapshot.preflight
+    ready = preflight.candidate.executable if preflight.ready and preflight.candidate else None
+    options = {}
+    for candidate in snapshot.runtimes:
+        if candidate.executable == ready:
+            status = "bereit"
+        elif not candidate.supported:
+            status = "Python-Version ungeeignet"
+        elif (
+            preflight.required_python
+            and ".".join(candidate.version.split(".")[:2]) != preflight.required_python
+        ):
+            status = f"Kurs benötigt Python {preflight.required_python}"
+        else:
+            status = "Kursprofil nicht erfüllt"
+        options[candidate.executable] = (
+            f"Python {candidate.version or '?'} · {candidate.source} · {status}"
+        )
+    return options
+
+
 def preferred_ide_label() -> str:
     """Liefere die kurze, nutzerseitige Bezeichnung der gewählten IDE."""
     preference = get_ide_preference()
@@ -66,6 +111,7 @@ def render_setup_panel(
     context,
     ide_open_buttons: list,
     current_student: str,
+    runtime_snapshot: SetupRuntimeSnapshot,
 ) -> None:
     """Rendere Kursordner-, IDE-, Runtime- und Sicherheitskonfiguration."""
     ui = context.ui
@@ -77,7 +123,7 @@ def render_setup_panel(
         "Der Ordner darf auf einem lokalen, USB- oder eingebundenen "
         "WebDAV-Laufwerk liegen. Vorhandene Lösungen werden nicht überschrieben."
     )
-    default = str(get_course_directory() or Path.home() / "PyKIM-Kurs")
+    default = str(get_course_directory() or Path.home() / "in-si-Kurs")
     with ui.row().classes("w-full items-end gap-2"):
         path = ui.input("Kursordner", value=default).classes("grow")
 
@@ -230,52 +276,15 @@ def render_setup_panel(
         "Die Suite und die Entwicklungsumgebung verwenden für Schülerprogramme "
         "denselben geprüften Interpreter."
     ).classes("text-sm text-grey-7")
-    offline_wheels = bundled_wheelhouse()
+    offline_wheels = runtime_snapshot.offline_wheels
     ui.label(
         "Offline-Pakete gefunden: Die Einrichtung benötigt kein Internet."
         if offline_wheels
         else "Noch kein Offline-Paket eingebunden: Für die Einrichtung kann Internetzugang erforderlich sein."
     ).classes("text-sm text-positive" if offline_wheels else "text-sm text-orange")
-    runtimes = discover_runtimes(path.value or None)
-    preflight = course_runtime_preflight(path.value, candidates=runtimes)
-    runtime_options = {
-        item.executable: (
-            f"Python {item.version or '?'} · {item.source} · "
-            + (
-                "bereit"
-                if (
-                    preflight.ready
-                    and preflight.candidate is not None
-                    and item.executable == preflight.candidate.executable
-                )
-                else " · ".join(
-                    problem for problem, applies in (
-                        ("Python-Version ungeeignet", not item.supported),
-                        (
-                            f"Kurs benötigt Python {preflight.required_python}",
-                            bool(preflight.required_python)
-                            and ".".join(item.version.split(".")[:2])
-                            != preflight.required_python,
-                        ),
-                        ("PyKIM fehlt", not item.pykim),
-                        ("Pyxel fehlt", not item.pyxel),
-                        (
-                            "Paketstand nicht freigegeben",
-                            item.supported
-                            and item.pykim
-                            and item.pyxel
-                            and not (
-                                preflight.ready
-                                and preflight.candidate is not None
-                                and item.executable == preflight.candidate.executable
-                            ),
-                        ),
-                    ) if applies
-                )
-            )
-        )
-        for item in runtimes
-    }
+    runtimes = runtime_snapshot.runtimes
+    preflight = runtime_snapshot.preflight
+    runtime_options = runtime_candidate_options(runtime_snapshot)
     ready_runtime_paths = (
         {preflight.candidate.executable}
         if preflight.ready and preflight.candidate is not None
@@ -337,22 +346,17 @@ def render_setup_panel(
     runtime_choice.on_value_change(lambda _: save_runtime())
     if not ready_runtime_paths:
         ui.label(
-            "Noch keine vollständige Laufzeit mit PyKIM und Pyxel gefunden."
+            "Noch keine vollständige Laufzeit für das Kursprofil gefunden."
         ).classes("text-orange")
-    incomplete = [
-        item for item in runtimes
-        if not (item.supported and item.pykim and item.pyxel)
-    ]
-    for item in incomplete:
-        missing = []
-        if not item.supported:
-            missing.append("Python-Version ungeeignet")
-        if not item.pykim:
-            missing.append("PyKIM fehlt")
-        if not item.pyxel:
-            missing.append("Pyxel fehlt")
+    for item in runtimes:
+        if item.executable in ready_runtime_paths:
+            continue
+        problem = (
+            "Python-Version ungeeignet"
+            if not item.supported else "Kursprofil nicht erfüllt"
+        )
         ui.label(
-            f"{item.source}: {item.executable} – {', '.join(missing)}"
+            f"{item.source}: {item.executable} – {problem}"
         ).classes("text-xs text-grey-7")
 
     async def provision_selected_runtime() -> None:
@@ -369,11 +373,11 @@ def render_setup_panel(
                 selected,
             )
             ui.notify(
-                f"Python {ready.version}: PyKIM-Laufzeit ist bereit.",
+                f"Python {ready.version}: Kurslaufzeit ist bereit.",
                 type="positive",
             )
             runtime_choice.options[ready.executable] = (
-                f"Python {ready.version} · PyKIM-Kursumgebung · bereit"
+                f"Python {ready.version} · verwaltete Kursumgebung · bereit"
             )
             runtime_choice.set_value(ready.executable)
             runtime_choice.update()
@@ -386,10 +390,10 @@ def render_setup_panel(
             runtime_setup_button.enable()
 
     with ui.dialog() as runtime_setup_confirmation, ui.card():
-        ui.label("PyKIM-Laufzeit einrichten?").classes("text-xl font-bold")
+        ui.label("Kurslaufzeit einrichten?").classes("text-xl font-bold")
         ui.label(
             "Die Suite erstellt außerhalb des Kursordners eine isolierte "
-            "Python-Umgebung und installiert dort PyKIM und Pyxel."
+            "Python-Umgebung und installiert dort die Pakete des Kursprofils."
         )
         ui.label(
             "Aufgaben, Projekte und Lernstand werden nicht verändert."
@@ -457,10 +461,10 @@ def render_setup_panel(
         ).props("flat")
 
     with ui.dialog() as runtime_repair_confirmation, ui.card():
-        ui.label("PyKIM-Laufzeit reparieren?").classes("text-xl font-bold")
+        ui.label("Kurslaufzeit reparieren?").classes("text-xl font-bold")
         ui.label(
-            "PyKIM, Pyxel und benötigte Pakete werden in der verwalteten "
-            "Kursumgebung erneut installiert."
+            "Die im Kursvertrag festgelegten Pakete werden in einer neuen "
+            "Generation der verwalteten Kursumgebung installiert und geprüft."
         )
         ui.label("Schülerdateien werden nicht verändert.").classes("text-sm text-grey-7")
         with ui.row().classes("w-full justify-end"):
@@ -635,10 +639,10 @@ def render_setup_panel(
     with ui.column().classes("w-full gap-1"):
         status_line(
             f"Python {status.python}"
-            + ("" if status.python_supported else " – benötigt wird mindestens 3.10"),
+            + ("" if status.python_supported else " – benötigt wird mindestens 3.11"),
             status.python_supported,
         )
-        status_line(f"PyKIM {status.pykim}")
+        status_line(f"PyKIM-Fachmodul {status.pykim}")
         status_line("Pyxel installiert" if status.pyxel else "Pyxel fehlt", status.pyxel)
         status_line("Thonny gefunden" if status.thonny else "Thonny nicht gefunden", status.thonny)
         status_line("VS Code gefunden" if status.vscode else "VS Code nicht gefunden", status.vscode)
@@ -731,4 +735,10 @@ def render_setup_panel(
 
 
 
-__all__ = ["preferred_ide_label", "render_setup_panel"]
+__all__ = [
+    "SetupRuntimeSnapshot",
+    "inspect_setup_runtime",
+    "preferred_ide_label",
+    "render_setup_panel",
+    "runtime_candidate_options",
+]

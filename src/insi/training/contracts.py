@@ -93,6 +93,14 @@ class StarterFile:
     content: str
 
 
+@dataclass(frozen=True)
+class FingerprintProfile:
+    """Versionierte AST-Normalisierung eines Fachmoduls."""
+
+    algorithm: str
+    protected_names: frozenset[str] = frozenset()
+
+
 class TrainerBackend(Protocol):
     """Erweiterungspunkt eines Fachmoduls für deklarative Trainerdaten."""
 
@@ -109,15 +117,38 @@ class TrainerBackend(Protocol):
     def starter_files(self, exercise: ExerciseLike) -> tuple[StarterFile, ...]: ...
 
 
+@runtime_checkable
+class TrainerAuthoringBackend(Protocol):
+    """Optionale Autorenfunktionen eines Fachmoduls."""
+
+    rule_labels: Mapping[str, str]
+    rule_kinds: tuple[str, ...]
+
+    def parse_source(self, source: str) -> ExerciseLike: ...
+
+    def generate_source(
+        self,
+        name: str,
+        title: str,
+        rules: tuple[str, ...],
+        *,
+        optimal_lines: int | None = None,
+    ) -> str: ...
+
+    def audit(self, exercise: ExerciseLike) -> object: ...
+
+
 __all__ = [
     "CheckReport",
     "CheckReportLike",
     "CheckResult",
     "CheckResultLike",
     "ExerciseLike",
+    "FingerprintProfile",
     "OptimizationLike",
     "OptimizationResult",
     "StarterFile",
     "Submission",
     "TrainerBackend",
+    "TrainerAuthoringBackend",
 ]

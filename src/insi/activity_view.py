@@ -9,11 +9,12 @@ import re
 from insi.training.activities import Activity
 from insi.training.contracts import CheckReport, CheckResult
 
+from .course import get_course_directory
 from .progress import load_progress, record_attempt, save_task_answer
 
 
-def saved_activity_value(key: str) -> object:
-    answers = load_progress().get("answers", {})
+def saved_activity_value(key: str, *, progress: dict | None = None) -> object:
+    answers = (load_progress() if progress is None else progress).get("answers", {})
     item = answers.get(key, {}) if isinstance(answers, dict) else {}
     text = item.get("text", "") if isinstance(item, dict) else ""
     try:
@@ -22,9 +23,12 @@ def saved_activity_value(key: str) -> object:
         return None
 
 
-def render_matching_activity(ui, activity: Activity, *, paradigm: str) -> None:
+def render_matching_activity(
+    ui, activity: Activity, *, paradigm: str, progress: dict | None = None, course=None
+) -> None:
+    course = get_course_directory() if course is None else course
     key = f"{paradigm}/{activity.name}"
-    saved = saved_activity_value(key)
+    saved = saved_activity_value(key, progress=progress)
     previous = saved if isinstance(saved, dict) else {}
     choices = [pair.right for pair in reversed(activity.pairs)]
     fields = {}
@@ -41,7 +45,8 @@ def render_matching_activity(ui, activity: Activity, *, paradigm: str) -> None:
         def check() -> None:
             answers = {name: field.value for name, field in fields.items()}
             successful = activity.matching_is_correct(answers)
-            save_task_answer(key, json.dumps(answers, ensure_ascii=False))
+            source = json.dumps(answers, ensure_ascii=False)
+            save_task_answer(key, source, course=course)
             report = CheckReport(
                 activity.title,
                 (CheckResult(
@@ -51,7 +56,7 @@ def render_matching_activity(ui, activity: Activity, *, paradigm: str) -> None:
                     "Vergleiche Begriffe, Code und Wirkung noch einmal.",
                 ),),
             )
-            record_attempt(activity.name, report, json.dumps(answers, ensure_ascii=False))
+            record_attempt(activity.name, report, source, course=course)
             ui.notify(
                 "Alle Zuordnungen sind richtig." if successful else "Noch nicht ganz richtig.",
                 type="positive" if successful else "warning",

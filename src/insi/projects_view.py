@@ -19,6 +19,7 @@ from .workspace_files import (
     import_workspace_bytes,
     project_files_directory,
 )
+from .project_history_view import render_project_history
 
 
 TEMPLATE_LABELS = {
@@ -28,7 +29,12 @@ TEMPLATE_LABELS = {
 }
 
 
-def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
+def render_projects_view(
+    ui,
+    nicegui_run,
+    preferred_ide_label: str,
+    ide_open_buttons: list,
+):
     ui.label("Meine Projekte").classes("text-2xl font-bold")
     ui.markdown(
         "Wähle links ein Projekt und bearbeite rechts den Code oder seine "
@@ -61,6 +67,23 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
 
     def render_project(project) -> None:
         graphical = project.kind in {"pykim", "pyxel"}
+
+        async def start_project(success: str) -> None:
+            try:
+                await nicegui_run.io_bound(launch_project, project, course)
+                ui.notify(success, type="positive")
+            except (OSError, RuntimeError, ValueError) as error:
+                ui.notify(str(error), type="negative")
+
+        async def start_resource_editor(editor: str, label: str) -> None:
+            try:
+                await nicegui_run.io_bound(
+                    launch_project_editor, project, course, editor
+                )
+                ui.notify(f"{label} wurde gestartet.", type="positive")
+            except (OSError, RuntimeError, ValueError) as error:
+                ui.notify(str(error), type="negative")
+
         with ui.row().classes("w-full items-center gap-2"):
             ui.label(project.name).classes("text-xl font-bold")
             ui.badge(TEMPLATE_LABELS.get(project.kind, project.kind), color="secondary")
@@ -71,17 +94,14 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
 
         if project.resources is not None and not project.resources.exists():
             ui.label(
-                "Ressourcen noch nicht gespeichert – öffne zuerst den Sprite- und "
-                "Musikeditor."
+                "Ressourcen noch nicht gespeichert – öffne zuerst einen der "
+                "Ressourceneditoren und speichere dort."
             ).classes("text-sm text-orange")
 
         with ui.row().classes("items-center gap-2"):
             start_button = ui.button(
                 "Starten",
-                on_click=lambda selected=project: action(
-                    lambda: launch_project(selected, course),
-                    "Projekt wurde gestartet.",
-                ),
+                on_click=lambda: start_project("Projekt wurde gestartet."),
                 icon="play_arrow",
             )
             if not protection.available or (graphical and not protection.gui_available):
@@ -105,12 +125,14 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
             ).props("outline")
             if project.resources is not None:
                 ui.button(
-                    "Sprite- und Musikeditor",
-                    on_click=lambda selected=project: action(
-                        lambda: launch_project_editor(selected, course),
-                        "Pyxel-Ressourceneditor wurde gestartet.",
-                    ),
-                    icon="palette",
+                    "Spriteeditor",
+                    on_click=lambda: start_resource_editor("image", "Spriteeditor"),
+                    icon="image",
+                ).props("outline")
+                ui.button(
+                    "Musikeditor",
+                    on_click=lambda: start_resource_editor("music", "Musikeditor"),
+                    icon="music_note",
                 ).props("outline")
 
         async def import_project_file(event) -> None:
@@ -140,6 +162,33 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
                 f"Ablage: {project_files_directory(project.directory).relative_to(course)}"
             ).classes("text-xs text-grey-7")
 
+        def editor_actions(editor, path, source: str, message: str):
+            saved_hash = project_text_hash(source)
+            status = ui.label("Gespeichert").classes("text-xs text-grey-7")
+
+            def changed(_) -> None:
+                status.set_text("Ungespeicherte Änderungen")
+                status.classes(replace="text-xs text-orange-8")
+
+            def save(notify=True) -> bool:
+                nonlocal saved_hash
+                try:
+                    value = editor.value
+                    save_project_text(project, path, value, expected_hash=saved_hash)
+                    saved_hash = project_text_hash(value)
+                    status.set_text("Gespeichert")
+                    status.classes(replace="text-xs text-grey-7")
+                    if notify:
+                        ui.notify(message, type="positive")
+                    return True
+                except (OSError, RuntimeError, ValueError) as error:
+                    status.set_text("Speichern nicht möglich")
+                    status.classes(replace="text-xs text-negative")
+                    ui.notify(str(error), type="warning")
+                    return False
+
+            return save, changed
+
         with ui.tabs().classes("w-full") as editor_tabs:
             code_tab = ui.tab("Code", icon="code")
             docs_tab = ui.tab("Dokumentation", icon="description")
@@ -152,45 +201,19 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
                     language="Python",
                     line_wrapping=False,
                 ).classes("w-full").style("height: 34rem")
-                code_state = {"hash": project_text_hash(code_source)}
-                code_status = ui.label("Gespeichert").classes("text-xs text-grey-7")
-
-                def save_code(notify=True) -> bool:
-                    try:
-                        save_project_text(
-                            project,
-                            project.entrypoint,
-                            code_editor.value,
-                            expected_hash=code_state["hash"],
-                        )
-                        code_state["hash"] = project_text_hash(code_editor.value)
-                        code_status.set_text("Gespeichert")
-                        code_status.classes(replace="text-xs text-grey-7")
-                        if notify:
-                            ui.notify("Projektcode gespeichert.", type="positive")
-                        return True
-                    except (OSError, RuntimeError, ValueError) as error:
-                        code_status.set_text("Speichern nicht möglich")
-                        code_status.classes(replace="text-xs text-negative")
-                        ui.notify(str(error), type="warning")
-                        return False
-
-                def save_and_start() -> None:
-                    if save_code(notify=False):
-                        action(
-                            lambda: launch_project(project, course),
-                            "Projekt wurde gespeichert und gestartet.",
-                        )
-
-                code_editor.on(
-                    "change",
-                    lambda _: (
-                        code_status.set_text("Ungespeicherte Änderungen"),
-                        code_status.classes(replace="text-xs text-orange-8"),
-                    ),
+                save_code, code_changed = editor_actions(
+                    code_editor, project.entrypoint, code_source, "Projektcode gespeichert.",
                 )
+
+                async def save_and_start() -> None:
+                    if save_code(notify=False):
+                        await start_project(
+                            "Projekt wurde gespeichert und gestartet."
+                        )
+
+                code_editor.on("change", code_changed)
                 with ui.row().classes("items-center"):
-                    ui.button("Speichern", on_click=lambda: save_code(), icon="save")
+                    ui.button("Speichern", on_click=lambda: save_code(), icon="save").mark("save-project-code")
                     start_saved_button = ui.button(
                         "Speichern und starten", on_click=save_and_start, icon="play_arrow"
                     )
@@ -215,47 +238,54 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
                     height="32rem",
                     initial_mode="wysiwyg",
                 )
-                docs_state = {"hash": project_text_hash(documentation)}
-                docs_status = ui.label("Gespeichert").classes("text-xs text-grey-7")
-
-                def update_documentation_preview(_) -> None:
-                    docs_status.set_text("Ungespeicherte Änderungen")
-                    docs_status.classes(replace="text-xs text-orange-8")
-
-                docs_editor.on_value_change(update_documentation_preview)
-
-                def save_documentation() -> None:
-                    try:
-                        save_project_text(
-                            project,
-                            project.documentation,
-                            docs_editor.value,
-                            expected_hash=docs_state["hash"],
-                        )
-                        docs_state["hash"] = project_text_hash(docs_editor.value)
-                        docs_status.set_text("Gespeichert")
-                        docs_status.classes(replace="text-xs text-grey-7")
-                        ui.notify("Dokumentation gespeichert.", type="positive")
-                    except (OSError, RuntimeError, ValueError) as error:
-                        docs_status.set_text("Speichern nicht möglich")
-                        docs_status.classes(replace="text-xs text-negative")
-                        ui.notify(str(error), type="warning")
+                save_documentation, docs_changed = editor_actions(
+                    docs_editor, project.documentation, documentation, "Dokumentation gespeichert.",
+                )
+                docs_editor.on_value_change(docs_changed)
 
                 with ui.row().classes("items-center"):
                     ui.button(
                         "Dokumentation speichern",
                         on_click=save_documentation,
                         icon="save",
-                    )
+                    ).mark("save-project-documentation")
                     ui.button(
                         "Markdown kopieren",
                         on_click=lambda: ui.clipboard.write(docs_editor.value),
                         icon="content_copy",
                     ).props("outline")
 
+        render_project_history(
+            ui,
+            nicegui_run,
+            project,
+            course,
+            save_code,
+            save_documentation,
+            refresh,
+        )
+
     def refresh() -> None:
         workspace.clear()
+        ide_open_buttons[:] = [button for button in ide_open_buttons if not button.is_deleted]
         projects = student_projects(course)
+        pending = {}
+
+        def load_project(name) -> None:
+            if name not in pending:
+                return
+            project, panel = pending[name]
+            panel.clear()
+            try:
+                with panel:
+                    render_project(project)
+            except (OSError, RuntimeError, ValueError) as error:
+                panel.clear()
+                with panel:
+                    ui.label(f"Projekt konnte nicht geladen werden: {error}").classes("text-negative")
+                return
+            del pending[name]
+
         with workspace:
             if not projects:
                 ui.label("Du hast noch kein eigenes Projekt angelegt.").classes(
@@ -269,7 +299,9 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
                         "pykim-project-selector w-full"
                     ) as project_tabs:
                         project_tab_pairs = [
-                            (project, ui.tab(project.name, icon="folder"))
+                            (project, ui.tab(
+                                str(project.directory), label=project.name, icon="folder",
+                            ))
                             for project in projects
                         ]
                 with splitter.after:
@@ -277,8 +309,10 @@ def render_projects_view(ui, preferred_ide_label: str, ide_open_buttons: list):
                         project_tabs, value=project_tab_pairs[0][1]
                     ).props("vertical").classes("w-full"):
                         for project, project_tab in project_tab_pairs:
-                            with ui.tab_panel(project_tab):
-                                render_project(project)
+                            panel = ui.tab_panel(project_tab)
+                            pending[project_tab.props["name"]] = (project, panel)
+        project_tabs.on_value_change(lambda event: load_project(event.value))
+        load_project(project_tab_pairs[0][1].props["name"])
 
     with ui.dialog() as create_dialog, ui.card().classes("w-full max-w-xl"):
         ui.label("Neues Projekt").classes("text-xl font-bold")

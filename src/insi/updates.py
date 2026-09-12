@@ -12,7 +12,7 @@ import stat
 import tempfile
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from urllib.error import HTTPError
 from urllib.error import URLError
@@ -21,6 +21,7 @@ from urllib.parse import quote
 
 from . import __version__
 from .course import _config_directory
+from .file_storage import atomic_write_json
 from .network import urlopen
 from .course_runtime import RUNTIME_FILENAME, parse_runtime_manifest
 
@@ -151,6 +152,18 @@ def _bundled_content_version(packaged_root: Path) -> str:
         return "0"
 
 
+def _validated_content_root(version: str) -> Path | None:
+    """Prüfe ein installiertes Inhaltsverzeichnis unabhängig von seiner Quelle."""
+    root = content_directory() / "versions" / version
+    manifest = json.loads((root / "content-manifest.json").read_text(encoding="utf-8"))
+    if not root.is_dir() or not isinstance(manifest, dict):
+        return None
+    if root not in _VALIDATED_CONTENT_ROOTS:
+        _validate_content(root, manifest)
+        _VALIDATED_CONTENT_ROOTS.add(root)
+    return root
+
+
 def active_content_root(packaged_root: Path) -> Path:
     """Liefere ein geprüft aktiviertes Overlay oder die eingebauten Inhalte."""
     configured = os.environ.get("PYKIM_CONTENT_DIR")
@@ -158,10 +171,9 @@ def active_content_root(packaged_root: Path) -> Path:
         root = Path(configured).expanduser().resolve()
         return root if root.is_dir() else packaged_root
     marker = content_directory() / "active.json"
-    course_specific = False
     try:
         from .course import get_course_directory
-        from .course_archive import course_content_source
+        from .course_storage import course_content_source
         from .course_setup import course_setup_info
 
         course = get_course_directory()
@@ -170,37 +182,17 @@ def active_content_root(packaged_root: Path) -> Path:
             source = course_content_source(course)
             archive_version = source.get("content_version")
             if source.get("type") == "archive" and archive_version:
-                marker_data = {"content_version": archive_version}
-                version = str(marker_data["content_version"])
-                root = content_directory() / "versions" / version
-                manifest = json.loads(
-                    (root / "content-manifest.json").read_text(encoding="utf-8")
-                )
-                if root.is_dir() and isinstance(manifest, dict):
-                    if root not in _VALIDATED_CONTENT_ROOTS:
-                        _validate_content(root, manifest)
-                        _VALIDATED_CONTENT_ROOTS.add(root)
+                root = _validated_content_root(str(archive_version))
+                if root is not None:
                     return root
             marker = _course_active_marker(setup)
-            course_specific = True
     except (OSError, ValueError):
         pass
     try:
         data = json.loads(marker.read_text(encoding="utf-8"))
-        version = str(data["content_version"])
-        root = content_directory() / "versions" / version
-        manifest = json.loads(
-            (root / "content-manifest.json").read_text(encoding="utf-8")
-        )
-        if root.is_dir() and isinstance(manifest, dict):
-            if root not in _VALIDATED_CONTENT_ROOTS:
-                _validate_content(root, manifest)
-                _VALIDATED_CONTENT_ROOTS.add(root)
-            return root
+        return _validated_content_root(str(data["content_version"])) or packaged_root
     except (OSError, ValueError, KeyError, TypeError):
         pass
-    if course_specific:
-        return packaged_root
     return packaged_root
 
 
@@ -246,11 +238,22 @@ def check_content_update(packaged_root: Path, timeout: float = 5.0) -> ContentUp
     )
 
 
-def check_updates(packaged_root: Path, timeout: float = 5.0) -> UpdateStatus:
+def check_updates(
+    packaged_root: Path,
+    timeout: float = 5.0,
+    *, include_content: bool = True,
+) -> UpdateStatus:
     app = content = None
+    with ThreadPoolExecutor(max_workers=2 if include_content else 1) as executor:
+        app_future = executor.submit(check_app_update, timeout)
+        content_future = (
+            executor.submit(check_content_update, packaged_root, timeout)
+            if include_content
+            else None
+        )
     errors = []
     try:
-        app = check_app_update(timeout)
+        app = app_future.result()
     except HTTPError as error:
         if error.code == 404:
             app = AppUpdate(
@@ -264,26 +267,18 @@ def check_updates(packaged_root: Path, timeout: float = 5.0) -> UpdateStatus:
             errors.append(f"App: {error}")
     except (OSError, ValueError, KeyError) as error:
         errors.append(f"App: {error}")
-    try:
-        content = check_content_update(packaged_root, timeout)
-    except HTTPError as error:
-        if error.code == 404:
-            installed = installed_content_version(packaged_root)
-            content = ContentUpdate(installed, installed, False, True, {})
-        else:
+    if content_future is not None:
+        try:
+            content = content_future.result()
+        except HTTPError as error:
+            if error.code == 404:
+                installed = installed_content_version(packaged_root)
+                content = ContentUpdate(installed, installed, False, True, {})
+            else:
+                errors.append(f"Inhalte: {error}")
+        except (OSError, ValueError, KeyError) as error:
             errors.append(f"Inhalte: {error}")
-    except (OSError, ValueError, KeyError) as error:
-        errors.append(f"Inhalte: {error}")
-    status = UpdateStatus(app, content, " · ".join(errors))
-    cache = content_directory() / "update-status.json"
-    try:
-        cache.parent.mkdir(parents=True, exist_ok=True)
-        cache.write_text(
-            json.dumps(asdict(status), ensure_ascii=False, indent=2), encoding="utf-8"
-        )
-    except OSError:
-        pass
-    return status
+    return UpdateStatus(app, content, " · ".join(errors))
 
 
 def _safe_member(name: str) -> bool:
@@ -319,6 +314,16 @@ def _download(url: str, timeout: float) -> bytes:
     request = Request(url, headers={"User-Agent": f"insi/{__version__}"})
     with urlopen(request, timeout=timeout) as response:
         return response.read()
+
+
+def _activate_content_version(version: str, configuration=None) -> None:
+    """Aktiviere einen vollständig geprüften Inhaltsstand über atomare Marker."""
+    base = content_directory()
+    markers = [base / "active.json"]
+    if configuration is not None:
+        markers.append(_course_active_marker(configuration))
+    for marker in markers:
+        atomic_write_json(marker, {"content_version": version})
 
 
 def _hash_entries(data: object) -> dict[str, dict[str, object]]:
@@ -552,12 +557,7 @@ def sync_certificate_content(configuration, timeout: float = 20.0) -> Path:
             if target.exists():
                 shutil.rmtree(target)
             os.replace(staging, target)
-    marker_data = json.dumps({"content_version": revision}, indent=2)
-    for marker in (base / "active.json", _course_active_marker(configuration)):
-        marker.parent.mkdir(parents=True, exist_ok=True)
-        temporary_marker = marker.with_suffix(marker.suffix + ".tmp")
-        temporary_marker.write_text(marker_data, encoding="utf-8")
-        os.replace(temporary_marker, marker)
+    _activate_content_version(revision, configuration)
     return target
 
 
@@ -568,11 +568,9 @@ def install_content_update(manifest: dict[str, object], timeout: float = 30.0) -
     package_hash = str(manifest.get("package_sha256", "")).removeprefix("sha256:")
     if not version or not package_url or len(package_hash) != 64:
         raise ValueError("Das Inhaltsmanifest ist unvollständig.")
-    request = Request(package_url, headers={"User-Agent": f"insi/{__version__}"})
     archive: bytes | None = None
     try:
-        with urlopen(request, timeout=timeout) as response:
-            archive = response.read()
+        archive = _download(package_url, timeout)
     except (URLError, TimeoutError, ConnectionError, OSError):
         # Manche Schulnetze lassen raw.githubusercontent.com passieren, beenden
         # aber GitHubs Release-Asset-Verbindung. Die Einzeldateien bleiben durch
@@ -640,11 +638,5 @@ def install_content_update(manifest: dict[str, object], timeout: float = 30.0) -
             shutil.rmtree(target)
         os.replace(extracted, target)
 
-    marker = base / "active.json"
-    temporary_marker = base / "active.json.tmp"
-    temporary_marker.write_text(
-        json.dumps({"content_version": version}, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    os.replace(temporary_marker, marker)
+    _activate_content_version(version)
     return target

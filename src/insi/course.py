@@ -5,6 +5,9 @@ import os
 import shutil
 from pathlib import Path
 
+from .data_migrations import LOCAL_SETTINGS_FORMAT
+from .file_storage import atomic_write_json
+
 COURSE_ENV = "PYKIM_COURSE_DIR"
 CONFIG_DIR_ENV = "PYKIM_CONFIG_DIR"
 
@@ -23,25 +26,21 @@ def _config_directory() -> Path:
     return Path(configured).expanduser() if configured else Path.home() / ".pykim"
 
 
-def _config_file() -> Path:
+def configuration_file() -> Path:
     return _config_directory() / "config.json"
 
 
 def _load_config() -> dict[str, object]:
     try:
-        data = json.loads(_config_file().read_text(encoding="utf-8"))
+        data = json.loads(configuration_file().read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else {}
     except (FileNotFoundError, OSError, ValueError, TypeError):
         return {}
 
 
 def _save_config(data: dict[str, object]) -> None:
-    config_file = _config_file()
-    config_file.parent.mkdir(parents=True, exist_ok=True)
-    config_file.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    data.setdefault("format", LOCAL_SETTINGS_FORMAT)
+    atomic_write_json(configuration_file(), data)
 
 
 def get_course_directory() -> Path | None:
@@ -98,6 +97,30 @@ def clear_course_selection() -> None:
     _save_config(data)
 
 
+def course_name_confirmation_matches(value: object, expected: str) -> bool:
+    """Prüfe den aktuellen Eingabewert ohne verzögerten UI-Zustand."""
+    return isinstance(value, str) and value == expected
+
+
+def approved_trainer_extensions() -> frozenset[str]:
+    """Liefere explizit freigegebene Fachmodule als ``Paket==Version``."""
+    values = _load_config().get("approved_trainer_extensions", [])
+    if not isinstance(values, list):
+        return frozenset()
+    return frozenset(value for value in values if isinstance(value, str) and value)
+
+
+def approve_trainer_extension(identity: str) -> None:
+    """Merke die bewusste Zustimmung genau für diese Paketversion."""
+    if "==" not in identity or not all(part.strip() for part in identity.split("==", 1)):
+        raise ValueError("Die Fachmodulfreigabe benötigt Paket und Version.")
+    data = _load_config()
+    approved = set(approved_trainer_extensions())
+    approved.add(identity)
+    data["approved_trainer_extensions"] = sorted(approved)
+    _save_config(data)
+
+
 def forget_course_directory(path: str | Path) -> None:
     """Entferne einen Kurs aus der lokalen Auswahl, ohne Dateien anzufassen."""
     if os.environ.get(COURSE_ENV):
@@ -114,8 +137,8 @@ def forget_course_directory(path: str | Path) -> None:
     _save_config(data)
 
 
-def trash_course(path: str | Path) -> None:
-    """Verschiebe einen eindeutig erkannten PyKIM-Kurs in den Systempapierkorb."""
+def validate_registered_course(path: str | Path) -> Path:
+    """Validiere Kennung und Setup eines lokal registrierten Kurses."""
     course = Path(path).expanduser().resolve()
     if course not in get_course_directories():
         raise ValueError("Der Ordner ist kein lokal registrierter PyKIM-Kurs.")
@@ -131,6 +154,12 @@ def trash_course(path: str | Path) -> None:
         for name in (SETUP_FILENAME, LEGACY_SETUP_FILENAME)
     ):
         raise ValueError("Im Ordner fehlt die in:si-Setupdatei.")
+    return course
+
+
+def trash_course(path: str | Path) -> None:
+    """Verschiebe einen eindeutig erkannten PyKIM-Kurs in den Systempapierkorb."""
+    course = validate_registered_course(path)
     try:
         from send2trash import send2trash
     except ImportError as error:
@@ -282,6 +311,7 @@ def provision_course_exercises(path: str | Path) -> dict[str, list[str]]:
 
     course = Path(path).expanduser().resolve()
     trainable = set(exercise_names())
+    legacy_files: dict[str, Path] | None = None
     created: list[str] = []
     existing: list[str] = []
     for paradigm in PARADIGMS:
@@ -300,13 +330,18 @@ def provision_course_exercises(path: str | Path) -> dict[str, list[str]]:
                     existing.append(str(target.relative_to(course)))
                     continue
                 target.parent.mkdir(parents=True, exist_ok=True)
-                legacy = next(
-                    (candidate for candidate in course.rglob(target.name) if candidate != target),
-                    None,
-                )
-                if legacy is not None and len(relative.parts) == 1:
+                legacy = None
+                if len(relative.parts) == 1:
+                    if legacy_files is None:
+                        legacy_files = {}
+                        for candidate in course.rglob("*"):
+                            legacy_files.setdefault(candidate.name, candidate)
+                    legacy = legacy_files.get(target.name)
+                if legacy is not None:
                     shutil.copy2(legacy, target)
                 else:
                     target.write_text(starter.content, encoding="utf-8")
+                if legacy_files is not None:
+                    legacy_files.setdefault(target.name, target)
                 created.append(str(target.relative_to(course)))
     return {"created": created, "existing": existing}

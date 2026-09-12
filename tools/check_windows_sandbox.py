@@ -70,7 +70,7 @@ def _run_process_limit_probe(root: Path) -> None:
     program.write_text(
         "import subprocess, sys, time\n"
         "command=[sys.executable]\n"
-        "if getattr(sys,'frozen',False): command.append('--pykim-python')\n"
+        "if getattr(sys,'frozen',False): command.append('--insi-python')\n"
         "command += ['-c','import time; time.sleep(20)']\n"
         "children=[subprocess.Popen(command) for _ in range(5)]\n"
         "time.sleep(20)\n",

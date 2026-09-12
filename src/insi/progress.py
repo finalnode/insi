@@ -3,10 +3,12 @@
 import json
 import os
 import shutil
+import threading
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
+from .file_storage import atomic_write_json
 from .training.contracts import CheckReportLike
 
 from .course import get_course_directory
@@ -15,6 +17,7 @@ from .course import get_course_directory
 SANDBOX_PROGRESS_ENV = "INSI_PROGRESS_FILE"
 MAX_SANDBOX_ATTEMPTS_PER_RUN = 100
 MAX_SANDBOX_ATTEMPT_BYTES = 1024 * 1024
+_PROGRESS_LOCK = threading.RLock()
 
 
 def _empty_progress() -> dict[str, object]:
@@ -59,16 +62,8 @@ def merge_sandbox_progress(
     sandbox_attempts = sandbox_data.get("attempts", []) if isinstance(sandbox_data, dict) else []
     if not isinstance(sandbox_attempts, list):
         return 0
-    additions = sandbox_attempts[max(0, baseline_attempts):][
-        :MAX_SANDBOX_ATTEMPTS_PER_RUN
-    ]
-    if not additions:
-        return 0
-    course_path = Path(course).expanduser().resolve()
-    current = load_progress(course_path)
-    attempts = current.setdefault("attempts", [])
-    if not isinstance(attempts, list):
-        attempts = current["attempts"] = []
+    start = max(0, baseline_attempts)
+    additions = sandbox_attempts[start:start + MAX_SANDBOX_ATTEMPTS_PER_RUN]
     valid_additions = []
     for item in additions:
         if not isinstance(item, dict):
@@ -92,13 +87,24 @@ def merge_sandbox_progress(
         if len(encoded) > MAX_SANDBOX_ATTEMPT_BYTES:
             continue
         valid_additions.append(item)
-    attempts.extend(valid_additions)
-    _save(current, course_path)
-    return len(valid_additions)
+    if not valid_additions:
+        return 0
+    with _progress_update(course) as (target, current):
+        if target is None:
+            return 0
+        attempts = current.setdefault("attempts", [])
+        if not isinstance(attempts, list):
+            attempts = current["attempts"] = []
+        attempts.extend(valid_additions)
+        atomic_write_json(target, current)
+        return len(valid_additions)
 
 
 def load_progress(course: Path | None = None) -> dict[str, object]:
-    target = progress_file(course)
+    return _load_progress_file(progress_file(course))
+
+
+def _load_progress_file(target: Path | None) -> dict[str, object]:
     if target is None or not target.exists():
         return _empty_progress()
     try:
@@ -108,18 +114,12 @@ def load_progress(course: Path | None = None) -> dict[str, object]:
         return _empty_progress()
 
 
-def _save(data: dict[str, object], course: Path | None = None) -> None:
-    target = progress_file(course)
-    if target is None:
-        return
-    target.parent.mkdir(parents=True, exist_ok=True)
-    # Schreiben und Ersetzen verhindert halbe JSON-Dateien bei Abbruch oder Sync.
-    with NamedTemporaryFile(
-        "w", encoding="utf-8", dir=target.parent, delete=False
-    ) as temporary:
-        json.dump(data, temporary, ensure_ascii=False, indent=2)
-        temporary_path = Path(temporary.name)
-    os.replace(temporary_path, target)
+@contextmanager
+def _progress_update(course: Path | None):
+    """Serialisiere Änderungen in der App und halte die Zieldatei währenddessen fest."""
+    target = progress_file(Path(course).expanduser().resolve() if course is not None else None)
+    with _PROGRESS_LOCK:
+        yield target, _load_progress_file(target)
 
 
 def record_attempt(
@@ -130,39 +130,54 @@ def record_attempt(
     course: Path | None = None,
 ) -> bool:
     """Speichere einen Trainerlauf; ohne Kurskonfiguration geschieht nichts."""
-    target = progress_file(course)
-    if target is None:
-        return False
-    data = load_progress(course)
-    attempts = data.setdefault("attempts", [])
-    if not isinstance(attempts, list):
-        attempts = data["attempts"] = []
-    optimization = report.optimization
-    attempts.append(
-        {
-            "exercise": exercise,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "passed": report.passed,
-            "total": len(report.results),
-            "successful": report.successful,
-            "optimization": None if optimization is None else {
-                "score": optimization.score,
-                "maximum": optimization.maximum,
-            },
-            "tests": [
-                {
-                    "index": index,
-                    "passed": result.passed,
-                    "message": result.message,
-                    "hint": result.hint if not result.passed else "",
-                }
-                for index, result in enumerate(report.results, start=1)
-            ],
-            "source": source,
+    with _progress_update(course) as (target, data):
+        if target is None:
+            return False
+        attempts = data.setdefault("attempts", [])
+        if not isinstance(attempts, list):
+            attempts = data["attempts"] = []
+        optimization = report.optimization
+        attempts.append(
+            {
+                "exercise": exercise,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "passed": report.passed,
+                "total": len(report.results),
+                "successful": report.successful,
+                "optimization": None if optimization is None else {
+                    "score": optimization.score,
+                    "maximum": optimization.maximum,
+                },
+                "tests": [
+                    {
+                        "index": index,
+                        "passed": result.passed,
+                        "message": result.message,
+                        "hint": result.hint if not result.passed else "",
+                    }
+                    for index, result in enumerate(report.results, start=1)
+                ],
+                "source": source,
+            }
+        )
+        atomic_write_json(target, data)
+        return True
+
+
+def _save_text_entry(
+    section: str, key: str, text: str, course: Path | None,
+) -> None:
+    with _progress_update(course) as (target, data):
+        if target is None:
+            return
+        entries = data.setdefault(section, {})
+        if not isinstance(entries, dict):
+            entries = data[section] = {}
+        entries[key] = {
+            "text": text,
+            "updated": datetime.now(timezone.utc).isoformat(),
         }
-    )
-    _save(data, course)
-    return True
+        atomic_write_json(target, data)
 
 
 def save_journal_entry(
@@ -171,15 +186,7 @@ def save_journal_entry(
     *,
     course: Path | None = None,
 ) -> None:
-    data = load_progress(course)
-    journal = data.setdefault("journal", {})
-    if not isinstance(journal, dict):
-        journal = data["journal"] = {}
-    journal[exercise] = {
-        "text": text,
-        "updated": datetime.now(timezone.utc).isoformat(),
-    }
-    _save(data, course)
+    _save_text_entry("journal", exercise, text, course)
 
 
 def save_task_answer(
@@ -189,19 +196,16 @@ def save_task_answer(
     course: Path | None = None,
 ) -> None:
     """Speichere eine freie Antwort auf eine Aufgabe ohne Trainer."""
-    data = load_progress(course)
-    answers = data.setdefault("answers", {})
-    if not isinstance(answers, dict):
-        answers = data["answers"] = {}
-    answers[task] = {
-        "text": text,
-        "updated": datetime.now(timezone.utc).isoformat(),
-    }
-    _save(data, course)
+    _save_text_entry("answers", task, text, course)
 
 
-def revealed_hint_count(task: str, *, course: Path | None = None) -> int:
-    data = load_progress(course)
+def revealed_hint_count(
+    task: str,
+    *,
+    course: Path | None = None,
+    progress: dict[str, object] | None = None,
+) -> int:
+    data = load_progress(course) if progress is None else progress
     hints = data.get("hints", {})
     value = hints.get(task, 0) if isinstance(hints, dict) else 0
     return max(0, value) if isinstance(value, int) and not isinstance(value, bool) else 0
@@ -214,68 +218,68 @@ def save_revealed_hint_count(
     course: Path | None = None,
 ) -> None:
     """Merke, wie viele gestufte Hinweise bereits geöffnet wurden."""
-    data = load_progress(course)
-    hints = data.setdefault("hints", {})
-    if not isinstance(hints, dict):
-        hints = data["hints"] = {}
-    hints[task] = max(0, int(count))
-    _save(data, course)
+    with _progress_update(course) as (target, data):
+        if target is None:
+            return
+        hints = data.setdefault("hints", {})
+        if not isinstance(hints, dict):
+            hints = data["hints"] = {}
+        hints[task] = max(0, int(count))
+        atomic_write_json(target, data)
 
 
 def remove_packaged_example_attempts(course: Path | None = None) -> int:
     """Entferne irrtümlich erfasste Musterlösungen und sichere den alten Stand."""
-    target = progress_file(course)
-    if target is None or not target.exists():
-        return 0
-    from .examples import example_programs
+    with _progress_update(course) as (target, data):
+        if target is None or not target.exists():
+            return 0
+        from .examples import example_programs
 
-    example_sources = {example.source for example in example_programs()}
-    data = load_progress(course)
-    attempts = data.get("attempts", [])
-    if not isinstance(attempts, list):
-        return 0
-    retained = [
-        attempt
-        for attempt in attempts
-        if not isinstance(attempt, dict) or attempt.get("source") not in example_sources
-    ]
-    removed = len(attempts) - len(retained)
-    if removed:
-        backup = target.with_name("progress.before-example-cleanup.json")
-        if not backup.exists():
-            shutil.copy2(target, backup)
-        data["attempts"] = retained
-        _save(data, course)
-    return removed
+        example_sources = {example.source for example in example_programs()}
+        attempts = data.get("attempts", [])
+        if not isinstance(attempts, list):
+            return 0
+        retained = [
+            attempt
+            for attempt in attempts
+            if not isinstance(attempt, dict) or attempt.get("source") not in example_sources
+        ]
+        removed = len(attempts) - len(retained)
+        if removed:
+            backup = target.with_name("progress.before-example-cleanup.json")
+            if not backup.exists():
+                shutil.copy2(target, backup)
+            data["attempts"] = retained
+            atomic_write_json(target, data)
+        return removed
 
 
 def clear_exercise_progress(exercise: str, course: Path | None = None) -> int:
     """Entferne Versuche und geöffnete Hinweise einer Aufgabe mit Backup."""
-    target = progress_file(course)
-    if target is None or not target.exists():
-        return 0
-    data = load_progress(course)
-    attempts = data.get("attempts", [])
-    if not isinstance(attempts, list):
-        return 0
-    retained = [
-        attempt
-        for attempt in attempts
-        if not isinstance(attempt, dict) or attempt.get("exercise") != exercise
-    ]
-    removed = len(attempts) - len(retained)
-    hints = data.get("hints", {})
-    removed_hint = False
-    if isinstance(hints, dict):
-        for key in tuple(hints):
-            if key == exercise or key.endswith(f"/{exercise}"):
-                del hints[key]
-                removed_hint = True
-    if removed or removed_hint:
-        backup_directory = target.parent / "backups"
-        backup_directory.mkdir(exist_ok=True)
-        stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-        shutil.copy2(target, backup_directory / f"progress-{exercise}-{stamp}.json")
-        data["attempts"] = retained
-        _save(data, course)
-    return removed
+    with _progress_update(course) as (target, data):
+        if target is None or not target.exists():
+            return 0
+        attempts = data.get("attempts", [])
+        if not isinstance(attempts, list):
+            return 0
+        retained = [
+            attempt
+            for attempt in attempts
+            if not isinstance(attempt, dict) or attempt.get("exercise") != exercise
+        ]
+        removed = len(attempts) - len(retained)
+        hints = data.get("hints", {})
+        removed_hint = False
+        if isinstance(hints, dict):
+            for key in tuple(hints):
+                if key == exercise or key.endswith(f"/{exercise}"):
+                    del hints[key]
+                    removed_hint = True
+        if removed or removed_hint:
+            backup_directory = target.parent / "backups"
+            backup_directory.mkdir(exist_ok=True)
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+            shutil.copy2(target, backup_directory / f"progress-{exercise}-{stamp}.json")
+            data["attempts"] = retained
+            atomic_write_json(target, data)
+        return removed

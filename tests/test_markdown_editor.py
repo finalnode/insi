@@ -3,9 +3,23 @@ from pathlib import Path
 import pytest
 
 from insi.author_workspace import (
+    compose_task_fields,
     compose_task_markdown,
     split_task_markdown,
 )
+
+
+def test_task_fields_normalize_multiline_metadata():
+    assert compose_task_fields(
+        "Test", "Text", "einfach",
+        hints=" Erst denken \n\n Dann testen ",
+        tags=" schleifen, test ",
+        sources=" Doku | https://example.org \n",
+    ) == (
+        "# Test\n@difficulty:einfach\n@tags: schleifen, test\n"
+        "@hint: Erst denken\n@hint: Dann testen\n"
+        "@source: Doku | https://example.org\n\nText\n"
+    )
 from insi.markdown_editor import insert_course_annotation, validate_editor_markdown
 
 
@@ -99,7 +113,11 @@ def test_course_plugin_uses_toast_toolbar_and_live_server_validation():
 
 def test_global_code_actions_ignore_toast_prosemirror_dom():
     source = (
-        Path(__file__).resolve().parents[1] / "src" / "insi" / "theme.py"
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "insi"
+        / "assets"
+        / "theme_code_actions.js"
     ).read_text(encoding="utf-8")
 
     exclusion = "pre.closest('.toastui-editor-defaultUI, .ProseMirror')"

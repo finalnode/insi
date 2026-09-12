@@ -20,14 +20,17 @@ ordinary code block automatically.
 
 **Assignments** combines instructions, staged hints, an editor and trainer
 feedback. Saving and running are separate actions. Progress is stored locally
-inside the course workspace.
+inside the course workspace. Running assignments and delayed results stay tied
+to the course from which they were started. Reopen an old assignment view after
+switching courses.
 
 ## Build projects
 
 **My projects** stores longer programs, documentation and optional Pyxel
-resources as ordinary files. in:si creates a limited local snapshot before an
-integrated project start. A user-facing restoration workflow is planned for
-0.8.
+resources as ordinary files. Before execution, in:si creates a limited local
+snapshot when the project has changed. Learners can also save named states with
+a short comment. The timeline validates and restores older states after first
+saving the current working state.
 
 ## Integrated execution and external IDEs
 
@@ -37,6 +40,10 @@ a real self-test. in:si does not silently fall back to an unrestricted process.
 **Open in IDE** deliberately leaves the in:si sandbox and starts Thonny,
 VS Code or another configured IDE with the normal permissions of the user
 account.
+
+Do not edit the same synchronized course folder from multiple in:si instances
+or devices at the same time. Concurrent changes are coordinated inside one app
+instance, but not across separate processes or cloud-sync clients.
 
 ## More information
 

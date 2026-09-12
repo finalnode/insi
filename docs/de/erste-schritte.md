@@ -24,14 +24,18 @@ Kapitels gestartet.
 
 Unter **Aufgaben** stehen Aufgabenstellung, Hinweise, Editor und Trainerfeedback
 zusammen. Speichern und Ausführen sind getrennte Aktionen. Der Lernstand wird
-lokal im Kursordner gespeichert.
+lokal im Kursordner gespeichert. Laufende Aufgaben und ihre Ergebnisse bleiben
+dem Kurs zugeordnet, in dem sie gestartet wurden. Nach einem Kurswechsel muss
+eine bereits offene Aufgabenansicht neu geöffnet werden.
 
 ## 3. Eigene Projekte
 
 Unter **Meine Projekte** entstehen längere Programme mit Quellcode,
-Dokumentation und optionalen Pyxel-Ressourcen. Vor einem integrierten Start legt
-in:si einen begrenzten lokalen Projektstand an. Diese Stände sind noch keine
-vollständige Wiederherstellungsoberfläche; die folgt laut Roadmap in 0.8.
+Dokumentation und optionalen Pyxel-Ressourcen. in:si legt vor einer Ausführung
+bei verändertem Inhalt automatisch einen begrenzten Projektstand an. Zusätzlich
+lassen sich benannte Stände mit einem kurzen Kommentar speichern. Die Zeitleiste
+prüft und restauriert ältere Stände, nachdem sie den aktuellen Arbeitsstand
+noch einmal gesichert hat.
 
 ## 4. Integrierter Start und externe IDE
 
@@ -49,6 +53,9 @@ Der aktive Kursordner ist im Footer sichtbar und lässt sich öffnen. Persönlic
 Lösungen, Projekte, Notizen und Lernstand sollten wie andere wichtige
 Unterrichtsdateien regelmäßig gesichert werden. Auf synchronisierten Laufwerken
 soll derselbe Kurs nicht gleichzeitig auf mehreren Geräten bearbeitet werden.
+Das gilt auch für mehrere gleichzeitig geöffnete in:si-Instanzen: Die App
+koordiniert parallele Änderungen innerhalb einer Instanz, nicht zwischen
+getrennten Prozessen oder Geräten.
 
 ## Hilfe und Grenzen
 

@@ -35,7 +35,7 @@ def configure_desktop_logging() -> Path:
     sys.stderr = _DESKTOP_LOG
     faulthandler.enable(_DESKTOP_LOG)
     print(
-        f"\n[{datetime.now().isoformat()}] PyKIM-Prozess startet "
+        f"\n[{datetime.now().isoformat()}] in:si-Prozess startet "
         f"(PID {os.getpid()}, Argumente: {sys.argv!r})"
     )
     return log_file
@@ -82,10 +82,10 @@ def run_app() -> None:
 if __name__ == "__main__":
     # multiprocessing.freeze_support() übernimmt den nativen Fensterprozess,
     # bevor run_app() erreicht wird. Das Log muss deshalb bereits hier stehen.
-    if "--pykim-python" not in sys.argv:
+    if "--insi-python" not in sys.argv:
         configure_desktop_logging()
     multiprocessing.freeze_support()
-    if len(sys.argv) > 1 and sys.argv[1] == "--pykim-python":
+    if len(sys.argv) > 1 and sys.argv[1] == "--insi-python":
         restore_standard_streams()
         status = run_python(sys.argv[2:])
         sys.stdout.flush()

@@ -37,6 +37,29 @@ for step in range(distance):
     assert first_hashes.structural_sha256 != code_fingerprints(renamed.replace("5", "6")).structural_sha256
 
 
+def test_fingerprint_names_can_be_protected_by_a_training_engine():
+    first = "right = 1\nprint(right)\n"
+    renamed = "left = 1\nprint(left)\n"
+
+    assert code_fingerprints(first).algorithm == "insi-python-ast-v1"
+    assert (
+        code_fingerprints(first).structural_sha256
+        == code_fingerprints(renamed).structural_sha256
+    )
+    assert (
+        code_fingerprints(
+            first,
+            protected_names=frozenset({"right"}),
+            algorithm="example-ast-v1",
+        ).structural_sha256
+        != code_fingerprints(
+            renamed,
+            protected_names=frozenset({"right"}),
+            algorithm="example-ast-v1",
+        ).structural_sha256
+    )
+
+
 def test_invalid_python_receives_no_structural_fingerprint():
     result = code_fingerprints("for x in:")
 
@@ -70,11 +93,53 @@ def test_certificate_export_decrypt_and_tamper_detection(tmp_path, monkeypatch):
     assert payload["summary"]["total"] == 11
     assert len(payload["exercises"]) == 11
     assert all(item["fingerprints_verified"] for item in payload["exercises"])
+    assert all(item["engine"] == "pykim" for item in payload["exercises"])
+    assert all(
+        item["fingerprints"]["algorithm"] == "pykim-ast-v1"
+        for item in payload["exercises"]
+    )
 
     envelope = json.loads(submission.read_text(encoding="utf-8"))
     envelope["ciphertext"] = envelope["ciphertext"][:-2] + "AA"
     with pytest.raises(Exception):
         decrypt_payload(envelope, private_key.read_bytes(), "sehr-geheim")
+
+
+def test_teacher_verifies_legacy_pykim_fingerprint_without_engine_field(tmp_path):
+    from insi.submission.crypto import encrypt_payload
+    from insi.training.backends import fingerprint_profile
+
+    certificate, private_key = generate_course_credentials(
+        tmp_path / "keys",
+        teacher="Frau Beispiel",
+        school="OSZ KIM",
+        course="Altbestand",
+        password="sehr-geheim",
+    )
+    source = "right = 1\nprint(right)\n"
+    profile = fingerprint_profile("pykim")
+    payload = {
+        "exercises": [
+            {
+                "exercise": "alt",
+                "source": source,
+                "fingerprints": code_fingerprints(
+                    source,
+                    protected_names=profile.protected_names,
+                    algorithm=profile.algorithm,
+                ).as_dict(),
+            }
+        ]
+    }
+    submission = tmp_path / "legacy.pykim-abgabe"
+    submission.write_text(
+        json.dumps(encrypt_payload(payload, certificate.read_bytes())),
+        encoding="utf-8",
+    )
+
+    restored = decrypt_submission(submission, private_key, "sehr-geheim")
+
+    assert restored["exercises"][0]["fingerprints_verified"]
 
 
 def test_certificate_contains_hashed_content_repository_configuration(tmp_path, monkeypatch):
