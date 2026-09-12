@@ -9,9 +9,8 @@
 **Dieser Entwicklungszweig baut in:si 0.8.0.dev0.** Er ist noch kein
 veröffentlichtes Release. **in:si 0.7.1** bleibt die aktuelle stabile
 Veröffentlichung der lokalen Desktop-Lernumgebung für modulare Informatikkurse.
-Der aktuelle Arbeitsstand liegt auf
-[`develop/v0.8`](https://github.com/finalnode/insi/tree/develop/v0.8); `main`
-bleibt bis zur geprüften Freigabe auf dem 0.7-Stand.
+`main` enthält den Entwicklungsstand von 0.8. Die veröffentlichten
+0.7.1-Pakete bleiben bis zur Freigabe von 0.8 der stabile Download.
 
 Die Anwendung bringt Kursinstallation, Lerntexte, interaktive Aufgaben,
 automatische Tests, Lernstand, Projekte und Autorenwerkzeuge in eine gemeinsame
@@ -39,7 +38,7 @@ fertig implementiert.
 > ändern. Der macOS-Build ist nur lokal ad-hoc, nicht mit einer Developer-ID
 > signiert und nicht notarisiert; die übrigen Desktop-Builds sind unsigniert.
 
-> **Aktueller Buildnachweis:** `develop/v0.8` wurde auf Commit `f60df90` für
+> **Aktueller Buildnachweis:** `develop/v0.8` wurde auf Commit `805ac2a` für
 > Windows, Linux sowie beide macOS-Architekturen erfolgreich gebaut. Windows-
 > AppContainer und echter Fensterstart, Linux-Bubblewrap/Wayland sowie beide
 > macOS-Seatbelt-Prüfungen bestanden. Zusätzlich wurde auf jeder Plattform eine
@@ -51,8 +50,8 @@ fertig implementiert.
 > Startpfade und ein fachlich besser testbarer Kern umgesetzt. Der
 > aktuelle lokale Nachweis umfasst 573 bestandene, eine plattformbedingt
 > übersprungene und zusätzlich acht bestandene
-> E2E-Prüfungen. Die jüngsten lokalen Änderungen sind noch nicht durch den oben
-> genannten GitHub-Build abgedeckt. Fortschritt und
+> E2E-Prüfungen. Auch die GitHub-Prüfungen auf Python 3.11–3.13 und die
+> UI-Tests haben auf `805ac2a` bestanden. Fortschritt und
 > verbleibende Freigabeblocker stehen im
 > [Entwurf der 0.8-Release-Notes](docs/release-notes-0.8.md). Der geschlossene
 > Funktionsumfang und die noch offenen Nachweise stehen kompakt im
@@ -566,7 +565,6 @@ Voraussetzungen: Python 3.11 oder neuer und Git.
 git clone https://github.com/finalnode/insi.git
 
 cd insi
-git switch develop/v0.8
 python -m venv venv
 source venv/bin/activate
 python -m pip install --requirement requirements/pykim-0.6.0.txt

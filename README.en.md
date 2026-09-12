@@ -12,9 +12,8 @@ desktop learning environment for modular computer science courses. The app combi
 installation, learning texts, interactive assignments, automated feedback,
 progress, projects and authoring tools in one application that remains largely
 offline after setup.
-The current work is available on
-[`develop/v0.8`](https://github.com/finalnode/insi/tree/develop/v0.8); `main`
-remains on the 0.7 state until the new version passes its release checks.
+`main` contains the 0.8 development state. Published 0.7.1 packages remain the
+stable download until 0.8 passes its release checks.
 
 The name **in:si** stands for **informatica simplicissima**: computer science
 should be made as accessible as possible without hiding real languages, files
@@ -25,7 +24,7 @@ and tools behind a simplified learning interface. Its educational principle is:
 > Desktop builds are not production-signed. The macOS build is ad-hoc signed
 > but not notarized.
 
-> **Current build evidence:** Commit `f60df90` of `develop/v0.8` built
+> **Current build evidence:** Commit `805ac2a` of `develop/v0.8` built
 > successfully for Windows, Linux and both macOS architectures. Windows
 > AppContainer and real window launch, Linux Bubblewrap/Wayland and both macOS
 > Seatbelt checks passed. Each platform also rebuilt a fresh course runtime
@@ -35,8 +34,8 @@ and tools behind a simplified learning interface. Its educational principle is:
 > **0.8.0.dev0 development state:** `develop/v0.8` now includes versioned data
 > migration, visible project snapshots, local data control, faster startup
 > paths and a more focused test structure. The current local check reports 573
-> passed tests, one platform-related skip and eight passing E2E tests. The latest
-> local changes are not yet covered by the GitHub build above. See the
+> passed tests, one platform-related skip and eight passing E2E tests. GitHub
+> checks on Python 3.11–3.13 and the UI tests also passed on `805ac2a`. See the
 > [draft 0.8 release notes](docs/release-notes-0.8.md) for progress and release
 > blockers. The [0.8 scope-cut protocol](docs/v0.8-abschlussprotokoll.md)
 > separates completed scope from outstanding release evidence.
@@ -112,7 +111,6 @@ Python 3.11 or newer is required for a source installation:
 ```bash
 git clone https://github.com/finalnode/insi.git
 cd insi
-git switch develop/v0.8
 python -m venv venv
 source venv/bin/activate
 python -m pip install --requirement requirements/pykim-0.6.0.txt
