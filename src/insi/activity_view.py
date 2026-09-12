@@ -9,6 +9,7 @@ import re
 from insi.training.activities import Activity
 from insi.training.contracts import CheckReport, CheckResult
 
+from .course import get_course_directory
 from .progress import load_progress, record_attempt, save_task_answer
 
 
@@ -23,8 +24,9 @@ def saved_activity_value(key: str, *, progress: dict | None = None) -> object:
 
 
 def render_matching_activity(
-    ui, activity: Activity, *, paradigm: str, progress: dict | None = None
+    ui, activity: Activity, *, paradigm: str, progress: dict | None = None, course=None
 ) -> None:
+    course = get_course_directory() if course is None else course
     key = f"{paradigm}/{activity.name}"
     saved = saved_activity_value(key, progress=progress)
     previous = saved if isinstance(saved, dict) else {}
@@ -44,7 +46,7 @@ def render_matching_activity(
             answers = {name: field.value for name, field in fields.items()}
             successful = activity.matching_is_correct(answers)
             source = json.dumps(answers, ensure_ascii=False)
-            save_task_answer(key, source)
+            save_task_answer(key, source, course=course)
             report = CheckReport(
                 activity.title,
                 (CheckResult(
@@ -54,7 +56,7 @@ def render_matching_activity(
                     "Vergleiche Begriffe, Code und Wirkung noch einmal.",
                 ),),
             )
-            record_attempt(activity.name, report, source)
+            record_attempt(activity.name, report, source, course=course)
             ui.notify(
                 "Alle Zuordnungen sind richtig." if successful else "Noch nicht ganz richtig.",
                 type="positive" if successful else "warning",

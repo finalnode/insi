@@ -20,7 +20,9 @@ ordinary code block automatically.
 
 **Assignments** combines instructions, staged hints, an editor and trainer
 feedback. Saving and running are separate actions. Progress is stored locally
-inside the course workspace.
+inside the course workspace. Running assignments and delayed results stay tied
+to the course from which they were started. Reopen an old assignment view after
+switching courses.
 
 ## Build projects
 
@@ -38,6 +40,10 @@ a real self-test. in:si does not silently fall back to an unrestricted process.
 **Open in IDE** deliberately leaves the in:si sandbox and starts Thonny,
 VS Code or another configured IDE with the normal permissions of the user
 account.
+
+Do not edit the same synchronized course folder from multiple in:si instances
+or devices at the same time. Concurrent changes are coordinated inside one app
+instance, but not across separate processes or cloud-sync clients.
 
 ## More information
 

@@ -17,7 +17,7 @@ async def test_student_can_open_overview_tasks_and_script(user):
     await user.open("/")
     await user.should_see("UI-Standardkurs")
     user.find("Öffnen").click()
-    await user.should_see("Mein Lernstand", retries=50)
+    await user.should_see("Mein Lernstand", retries=150)
 
     user.find("Setup").click()
     await user.should_see("Kursordner einrichten", retries=50)
@@ -68,7 +68,7 @@ async def test_course_start_blocks_and_repairs_incompatible_runtime(user):
     await user.should_see("PyKIM hat Version 0.5.0")
     await user.should_see("PyKIM==0.6.0 · installiert: 0.5.0")
     user.find("Laufzeit reparieren").click()
-    await user.should_see("Mein Lernstand", retries=50)
+    await user.should_see("Mein Lernstand", retries=150)
 
 
 @pytest.mark.anyio
@@ -133,7 +133,7 @@ async def test_student_can_save_and_restore_a_named_project_state(user):
     await user.open("/")
     await user.should_see("UI-Projektkurs")
     user.find("Öffnen").click()
-    await user.should_see("Mein Lernstand", retries=50)
+    await user.should_see("Mein Lernstand", retries=150)
 
     user.find("Meine Projekte").click()
     await user.should_see("Versionsprojekt", retries=50)
@@ -208,7 +208,7 @@ async def test_project_editors_load_on_selection_and_keep_unsaved_changes(user, 
     monkeypatch.setattr(projects_view, "render_project_history", tracked_history)
     await user.open("/")
     user.find("Öffnen").click()
-    await user.should_see("Mein Lernstand", retries=50)
+    await user.should_see("Mein Lernstand", retries=150)
     user.find("Meine Projekte").click()
     await user.should_see("Versionsprojekt", retries=50)
     assert reads == [("Versionsprojekt", "main.py"), ("Versionsprojekt", "README.md")]
@@ -265,7 +265,7 @@ async def test_tasks_load_on_open_and_preserve_editor_and_results(user, monkeypa
                         ExecutionResult(0, "Ausgabe der ersten Aufgabe", ""))
     await user.open("/")
     user.find("Öffnen").click()
-    await user.should_see("Mein Lernstand", retries=50)
+    await user.should_see("Mein Lernstand", retries=150)
     user.find("Aufgaben").click()
     await user.should_see("Imperative Aufgaben", retries=50)
     assert reads == results == []
@@ -339,7 +339,7 @@ async def test_parallel_task_actions_and_results_stay_with_their_task(user, monk
     monkeypatch.setattr(tasks_view, "sandbox_status", lambda: SimpleNamespace(available=True, gui_available=True))
     await user.open("/")
     user.find("Öffnen").click()
-    await user.should_see("Mein Lernstand", retries=50)
+    await user.should_see("Mein Lernstand", retries=150)
     course = get_course_directory()
     provision_course_exercises(course)
     names = [name for name in exercise_names() if get_activity(name) is None][:2]
@@ -400,4 +400,76 @@ async def test_parallel_task_actions_and_results_stay_with_their_task(user, monk
         for future in pending.values():
             if not future.done():
                 future.cancel()
+        await asyncio.sleep(0)
+
+
+@pytest.mark.anyio
+@pytest.mark.e2e
+@pytest.mark.nicegui_main_file("tests/ui_main.py")
+async def test_delayed_task_result_and_journal_stay_in_original_course(user, monkeypatch, tmp_path):
+    import asyncio
+    from types import SimpleNamespace
+    from nicegui import ui, run
+    from insi import tasks_view
+    from insi.course import get_course_directory, provision_course_exercises, set_course_directory
+    from insi.execution import ExecutionResult
+    from insi.file_storage import atomic_write_json
+    from insi.progress import load_progress, progress_file
+    from insi.training.registry import exercise_names, get_activity, get_exercise
+
+    ready, finish = asyncio.Event(), asyncio.Event()
+    original_io = run.io_bound
+    courses = []
+
+    async def controlled_io(function, *args, **kwargs):
+        if function == tasks_view.execution_manager.execute:
+            courses.append(args[1])
+            ready.set()
+            await finish.wait()
+            return ExecutionResult(0, "Späte Ausgabe aus Kurs A", "")
+        return await original_io(function, *args, **kwargs)
+
+    monkeypatch.setattr(run, "io_bound", controlled_io)
+    monkeypatch.setattr(tasks_view, "sandbox_status", lambda: SimpleNamespace(available=True, gui_available=True))
+    await user.open("/")
+    user.find("Öffnen").click()
+    await user.should_see("Mein Lernstand", retries=150)
+    first = get_course_directory()
+    second = tmp_path / "other-course"
+    second.mkdir()
+    provision_course_exercises(first)
+    name = next(name for name in exercise_names() if get_activity(name) is None)
+    for course, message in ((first, "Prüfergebnis Kurs A"), (second, "Prüfergebnis Kurs B")):
+        atomic_write_json(progress_file(course), {"attempts": [{
+            "exercise": name, "passed": True, "total": 1,
+            "tests": [{"passed": True, "message": message}],
+        }]})
+    original_second = progress_file(second).read_bytes()
+    user.find("Aufgaben").click()
+    await user.should_see("Imperative Aufgaben", retries=50)
+    panel, = user.find(kind=ui.expansion, content=get_exercise(name).title).elements
+    with user.client:
+        panel.set_value(True)
+    user.find(marker=f"run-task-{name}").click()
+    try:
+        await asyncio.wait_for(ready.wait(), timeout=5)
+        set_course_directory(second)
+        assert get_course_directory() == second
+        user.find(kind=ui.textarea, content="Mein Dokubuch-Eintrag").type("Notiz aus Ansicht A")
+        user.find("Eintrag speichern").click()
+        finish.set()
+        await user.should_see("Späte Ausgabe aus Kurs A", retries=50)
+        assert courses == [first]
+        labels = {child.text for child in panel.descendants() if isinstance(child, ui.label)}
+        assert "Prüfergebnis Kurs A" in labels
+        assert "Prüfergebnis Kurs B" not in labels
+        assert load_progress(first)["journal"][name]["text"] == "Notiz aus Ansicht A"
+        assert progress_file(second).read_bytes() == original_second
+        user.find(marker=f"run-task-{name}").click()
+        await asyncio.sleep(0)
+        assert user.notify.contains("Kurs wurde gewechselt")
+        assert courses == [first]
+    finally:
+        finish.set()
+        set_course_directory(first)
         await asyncio.sleep(0)

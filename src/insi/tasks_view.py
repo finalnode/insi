@@ -74,6 +74,17 @@ def render_tasks_panel(
             "externen IDE gestartet."
         ).classes("text-sm text-orange-8")
     tasks_course = get_course_directory()
+
+    def course_is_current() -> bool:
+        if get_course_directory() == tasks_course:
+            return True
+        ui.notify("Der Kurs wurde gewechselt. Öffne die Aufgabe erneut.", type="warning")
+        return False
+
+    def refresh_current_overview() -> None:
+        if get_course_directory() == tasks_course:
+            refresh_overview()
+
     has_course_setup = (
         tasks_course is not None
         and course_setup_info(tasks_course) is not None
@@ -102,12 +113,12 @@ def render_tasks_panel(
         ).classes("prose max-w-none")
         render_task_sources(ui, task_sources(material.content))
         render_task_hints(
-            ui, hint_key, task_hints(material.content), progress=progress
+            ui, hint_key, task_hints(material.content), progress=progress, course=tasks_course
         )
         activity = get_activity(material.name)
         if activity is not None and activity.mode == "matching":
             render_matching_activity(
-                ui, activity, paradigm=material.paradigm, progress=progress
+                ui, activity, paradigm=material.paradigm, progress=progress, course=tasks_course
             )
             return
         answer_key = hint_key
@@ -127,7 +138,7 @@ def render_tasks_panel(
         ui.button(
             "Antwort speichern",
             on_click=lambda key=answer_key, field=answer: (
-                save_task_answer(key, field.value),
+                save_task_answer(key, field.value, course=tasks_course),
                 ui.notify(
                     "Antwort wurde gespeichert.",
                     type="positive",
@@ -156,9 +167,9 @@ def render_tasks_panel(
             ui,
             f"{task_document.paradigm}/{name}",
             task_hints(task_document.content),
-            progress=progress,
+            progress=progress, course=tasks_course,
         )
-        target = exercise_file(name)
+        target = exercise_file(name, tasks_course)
         activity = get_activity(name)
         if (
             activity is not None
@@ -197,7 +208,7 @@ def render_tasks_panel(
             ) -> None:
                 container.clear()
                 with container:
-                    render_exercise_test_results(ui, exercise_name)
+                    render_exercise_test_results(ui, exercise_name, course=tasks_course)
 
             parsons_run_state = {"running": False}
 
@@ -207,7 +218,11 @@ def render_tasks_panel(
                 refresh=refresh_parsons_tests,
             ) -> None:
                 """Führe das Puzzle nach Abschluss des Browser-Events aus."""
-                selected_course = get_course_directory()
+                if not course_is_current():
+                    parsons_run_state["running"] = False
+                    parsons_run_button.enable()
+                    return
+                selected_course = tasks_course
                 if selected_course is None:
                     ui.notify("Richte zuerst einen Kursordner ein.", type="warning")
                     parsons_run_state["running"] = False
@@ -228,7 +243,7 @@ def render_tasks_panel(
                         or f"Programm beendet (Code {result.returncode}), ohne Ausgabe."
                     )
                     refresh()
-                    refresh_overview()
+                    refresh_current_overview()
                     parsons_preview_button.set_visibility(
                         result.returncode == 0
                     )
@@ -256,7 +271,9 @@ def render_tasks_panel(
                 if parsons_run_state["running"]:
                     ui.notify("Diese Aufgabe läuft bereits.", type="warning")
                     return
-                selected_course = get_course_directory()
+                if not course_is_current():
+                    return
+                selected_course = tasks_course
                 if selected_course is None:
                     ui.notify("Richte zuerst einen Kursordner ein.", type="warning")
                     return
@@ -275,7 +292,7 @@ def render_tasks_panel(
                 try:
                     source = puzzle.assemble(current_order)
                     save_task_answer(
-                        key, json.dumps(current_order, ensure_ascii=False)
+                        key, json.dumps(current_order, ensure_ascii=False), course=tasks_course
                     )
                 except (OSError, ValueError, SourceConflictError) as error:
                     parsons_run_button.enable()
@@ -326,7 +343,9 @@ def render_tasks_panel(
                 ui.timer(0.1, execute_parsons, once=True)
 
             async def launch_parsons_preview(path=target) -> None:
-                selected_course = get_course_directory()
+                if not course_is_current():
+                    return
+                selected_course = tasks_course
                 if selected_course is None:
                     ui.notify("Richte zuerst einen Kursordner ein.", type="warning")
                     return
@@ -361,7 +380,7 @@ def render_tasks_panel(
                 parsons_preview_button.set_visibility(False)
             return
         if target is not None:
-            course = get_course_directory()
+            course = tasks_course
             try:
                 source = (
                     read_student_source(target, course)
@@ -420,7 +439,7 @@ def render_tasks_panel(
                 container.clear()
                 with container:
                     render_exercise_test_results(
-                        ui, exercise_name, progress=cached_progress, latest=cached_latest
+                        ui, exercise_name, progress=cached_progress, latest=cached_latest, course=tasks_course
                     )
 
             render_test_results(cached_progress=progress, cached_latest=latest)
@@ -429,7 +448,7 @@ def render_tasks_panel(
                 path=target, editor=source_editor, state=editor_state,
                 label=save_state, exercise_name=name, notify=True,
             ) -> bool:
-                selected_course = get_course_directory()
+                selected_course = tasks_course
                 if selected_course is None:
                     ui.notify("Richte zuerst einen Kursordner ein.", type="warning")
                     return False
@@ -468,12 +487,14 @@ def render_tasks_panel(
                 editor=source_editor,
                 output_view=execution_output,
                 refresh_tests=render_test_results,
-                refresh_summary=refresh_overview,
+                refresh_summary=refresh_current_overview,
                 save_current=save_task,
                 exercise_name=name,
                 code_editor=source_editor,
             ) -> None:
-                selected_course = get_course_directory()
+                if not course_is_current():
+                    return
+                selected_course = tasks_course
                 if selected_course is None:
                     ui.notify("Richte zuerst einen Kursordner ein.", type="warning")
                     return
@@ -532,7 +553,7 @@ def render_tasks_panel(
                 path=target, editor=source_editor, state=editor_state,
                 label=save_state, exercise_name=name,
             ) -> None:
-                selected_course = get_course_directory()
+                selected_course = tasks_course
                 if selected_course is None:
                     return
                 try:
@@ -553,9 +574,11 @@ def render_tasks_panel(
                 exercise_name=name, editor=source_editor,
                 state=editor_state, label=save_state,
                 refresh_tests=render_test_results,
-                refresh_summary=refresh_overview,
+                refresh_summary=refresh_current_overview,
             ) -> None:
-                selected_course = get_course_directory()
+                if not course_is_current():
+                    return
+                selected_course = tasks_course
                 if selected_course is None:
                     return
                 try:
@@ -643,7 +666,7 @@ def render_tasks_panel(
         ui.button(
             "Eintrag speichern",
             on_click=lambda exercise=name, field=notes: (
-                save_journal_entry(exercise, field.value),
+                save_journal_entry(exercise, field.value, course=tasks_course),
                 ui.notify("Dokubuch gespeichert", type="positive"),
             ),
         )
@@ -657,9 +680,11 @@ def render_tasks_panel(
             nonlocal loaded
             if not event.value or loaded:
                 return
+            if not course_is_current():
+                return
             content.clear()
             with content:
-                renderer(document, load_progress())
+                renderer(document, load_progress(tasks_course))
             loaded = True
 
         expansion.on_value_change(load)

@@ -131,7 +131,7 @@ def test_empty_or_invalid_sandbox_additions_do_not_access_host_progress(tmp_path
         pytest.fail("Ohne gültige neue Versuche darf der Kurslernstand nicht gelesen oder geschrieben werden.")
 
     monkeypatch.setattr(progress_module, "load_progress", unexpected_access)
-    monkeypatch.setattr(progress_module, "_save", unexpected_access)
+    monkeypatch.setattr(progress_module, "atomic_write_json", unexpected_access)
     assert progress_module.merge_sandbox_progress(source, tmp_path, baseline_attempts=baseline) == 0
 
 

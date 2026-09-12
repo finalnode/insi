@@ -2,6 +2,9 @@
 
 ## 0.8.0 – in Entwicklung
 
+- Lernstandsänderungen innerhalb der App serialisiert und ihre Zieldatei pro
+  Vorgang festgehalten; Aufgabenaktionen und verspätete Prüfergebnisse bleiben
+  auch nach einem Kurswechsel dem ursprünglichen Kurs zugeordnet;
 - Der Kursarchivexport schreibt Kursdateien und Offline-Wheels blockweise ins
   ZIP, statt zusätzliche vollständige Dateikopien im Speicher zu halten;
 - Archivkurse und synchronisierte Inhalte verwenden dieselbe Prüfung ihres

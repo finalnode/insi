@@ -5,20 +5,22 @@ auf echten Schulgeräten oder im Unterricht stattfinden müssen.
 
 ## Aktueller Nachweis für 0.8
 
-Auf `develop/v0.8` umfasst der normale Testlauf für `0.8.0.dev0` am
-27. August 2026 insgesamt 483 bestandene Prüfungen und eine auf macOS erwartbar
-übersprungene Linux-Bubblewrap-Prüfung. Alle vier bewusst separat markierten
-NiceGUI-E2E-Prüfungen bestehen ebenfalls als eigener Job im
-[PR-CI-Lauf auf Commit `c3e2923`](https://github.com/finalnode/insi/actions/runs/33114177915).
+Auf `develop/v0.8` umfasst der lokale Testlauf für `0.8.0.dev0` am
+11. September 2026 insgesamt 573 bestandene Prüfungen und eine auf macOS erwartbar
+übersprungene Linux-Bubblewrap-Prüfung. Alle acht bewusst separat markierten
+NiceGUI-E2E-Prüfungen bestehen ebenfalls lokal. Der zuletzt gepushte Stand mit
+567 normalen und sieben E2E-Prüfungen bestand im
+[PR-CI-Lauf auf Commit `f60df90`](https://github.com/finalnode/insi/actions/runs/34625661591).
 Die Zahl ist ein fortzuschreibender Entwicklungsstand, kein Ersatz für die
 unten aufgeführte Plattformmatrix.
 
-Der [Desktop-Workflow auf Commit `c3e2923`](https://github.com/finalnode/insi/actions/runs/33114183180)
+Der [Desktop-Workflow auf Commit `f60df90`](https://github.com/finalnode/insi/actions/runs/34625670353)
 bestand unter Windows, Linux und beiden macOS-Architekturen. Windows bestand
 AppContainer-, Job-Object- und echten Fensterstart, Linux Bubblewrap und den
-geschützten Wayland-Start, beide macOS-Builds den Seatbelt-Selbsttest. Die
-komprimierten Artefakte messen 72,0 MiB unter Windows, 127,6 MiB unter Linux,
-80,8 MiB unter macOS Intel und 78,6 MiB unter macOS ARM. Alle vier enthalten
+geschützten Wayland-Start, beide macOS-Builds den Seatbelt-Selbsttest. Die auf
+Commit `c3e2923` separat protokollierten komprimierten Artefakte messen 72,0 MiB
+unter Windows, 127,6 MiB unter Linux, 80,8 MiB unter macOS Intel und 78,6 MiB
+unter macOS ARM. Alle vier Builds auf `f60df90` enthalten
 Build- und Wheelhouse-Manifeste mit dem PyKIM-Commit
 `7494db55a84e95b6dc13fc4a32a586b62fb5830d` und Prüfsummen der Offline-Wheels.
 In allen vier Jobs wurde zusätzlich eine leere Kurs-Runtime mit `--no-index`
@@ -26,7 +28,7 @@ ausschließlich aus dem jeweils paketierten Wheelhouse aufgebaut; Manifest,
 Prüfsummen und die anschließenden Importe von PyKIM, Pyxel und PyYAML bestanden.
 Alle vier Builds lösten ihre App- und Buildabhängigkeiten dabei gegen den
 eingecheckten Lock der jeweiligen Zielplattform auf.
-Der erste Windows-Versuch konnte einmalig das eingebettete PyInstaller-PKG der
+Ein früherer Windows-Versuch konnte einmalig das eingebettete PyInstaller-PKG der
 Hilfs-EXE nicht erneut öffnen. Der unveränderte Wiederholungslauf bestand die
 vollständige Windows-Matrix; der Befund bleibt bis zur realen Geräteprobe als
 sporadischer CI-Hinweis dokumentiert.
@@ -49,6 +51,10 @@ weichen 100-MiB-Ziel akzeptiert. Die echte Schulgeräteprobe bleibt offen.
 - atomisches Speichern und Erkennen externer Dateiänderungen
 - Backups beim Zurücksetzen einer Aufgabe
 - portable Lernstände innerhalb des Kursordners
+- serialisierte Lernstandsänderungen innerhalb einer App-Instanz ohne verlorene
+  parallele Antworten, Notizen, Hinweise oder Trainerergebnisse
+- Bindung laufender Aufgaben und verspäteter Ergebnisse an den Kurs, aus dem
+  die zugehörige Ansicht geöffnet wurde
 - kontrolliertes Starten, Stoppen und Live-Streaming lokaler Prozesse
 - Fail-closed-Verhalten ohne verfügbaren Sandbox-Adapter
 - validierte Windows-Brokerkonfiguration ohne Netzwerkfähigkeit und mit

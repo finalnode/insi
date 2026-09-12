@@ -94,7 +94,7 @@ def test_inactive_workspace_views_are_rendered_only_on_first_selection():
 def test_tasks_reuse_one_progress_snapshot_for_initial_render():
     source = (GUIDE / "tasks_view.py").read_text(encoding="utf-8")
 
-    assert source.count("load_progress()") == 1
+    assert source.count("load_progress(tasks_course)") == 1
     assert "progress=progress" in source
     assert "cached_progress=progress" in source
 

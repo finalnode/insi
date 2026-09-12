@@ -39,7 +39,7 @@ fertig implementiert.
 > ändern. Der macOS-Build ist nur lokal ad-hoc, nicht mit einer Developer-ID
 > signiert und nicht notarisiert; die übrigen Desktop-Builds sind unsigniert.
 
-> **Aktueller Buildnachweis:** `develop/v0.8` wurde auf Commit `c3e2923` für
+> **Aktueller Buildnachweis:** `develop/v0.8` wurde auf Commit `f60df90` für
 > Windows, Linux sowie beide macOS-Architekturen erfolgreich gebaut. Windows-
 > AppContainer und echter Fensterstart, Linux-Bubblewrap/Wayland sowie beide
 > macOS-Seatbelt-Prüfungen bestanden. Zusätzlich wurde auf jeder Plattform eine
@@ -49,9 +49,10 @@ fertig implementiert.
 > **Entwicklungsstand 0.8.0.dev0:** Auf `develop/v0.8` sind die versionierte
 > Datenmigration, sichtbare Projektstände, lokale Datenkontrolle, schnellere
 > Startpfade und ein fachlich besser testbarer Kern umgesetzt. Der
-> aktuelle Nachweis umfasst 483 bestandene, eine plattformbedingt
-> übersprungene und zusätzlich vier im eigenen CI-Job bestandene
-> E2E-Prüfungen. Fortschritt und
+> aktuelle lokale Nachweis umfasst 573 bestandene, eine plattformbedingt
+> übersprungene und zusätzlich acht bestandene
+> E2E-Prüfungen. Die jüngsten lokalen Änderungen sind noch nicht durch den oben
+> genannten GitHub-Build abgedeckt. Fortschritt und
 > verbleibende Freigabeblocker stehen im
 > [Entwurf der 0.8-Release-Notes](docs/release-notes-0.8.md). Der geschlossene
 > Funktionsumfang und die noch offenen Nachweise stehen kompakt im
@@ -61,6 +62,23 @@ Die kompakte, offline auslieferbare Dokumentation beginnt unter
 [docs/de](docs/de/erste-schritte.md). Sie enthält getrennte Einstiege für
 Lernende, Lehrkräfte und Kursautorinnen beziehungsweise Kursautoren. Die
 [englische Dokumentation](docs/en/getting-started.md) besitzt dieselbe Struktur.
+
+## Aktuelle Verbesserungen in 0.8
+
+- Aufgaben- und Projekteditoren werden beim ersten Öffnen aufgebaut und
+  behalten beim Wechsel ihren Zustand. Weniger wiederholte Datei- und
+  Runtimeprüfungen verkürzen die Wartezeiten.
+- Lernstandsänderungen werden innerhalb einer App-Instanz nacheinander
+  gespeichert. Auch nach einem Kurswechsel gehören verspätete Prüfergebnisse
+  zum ursprünglichen Kurs; für neue Aufgabenaktionen die Kursansicht neu öffnen.
+- Kursdateien und Offline-Wheels werden beim ZIP-Export blockweise geschrieben,
+  wodurch große Kurspakete weniger Arbeitsspeicher benötigen.
+- Gemeinsame Abläufe für atomare Dateizugriffe, Kursinstallation und
+  Inhaltsaktivierung reduzieren doppelte Implementierungen.
+
+Mehrere App-Instanzen oder Geräte sollten denselben synchronisierten Kursordner
+nicht gleichzeitig bearbeiten. Der Schutz vor konkurrierenden
+Lernstandsänderungen gilt innerhalb einer App-Instanz.
 
 ## Warum in:si existiert
 
@@ -548,6 +566,7 @@ Voraussetzungen: Python 3.11 oder neuer und Git.
 git clone https://github.com/finalnode/insi.git
 
 cd insi
+git switch develop/v0.8
 python -m venv venv
 source venv/bin/activate
 python -m pip install --requirement requirements/pykim-0.6.0.txt

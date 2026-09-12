@@ -25,7 +25,7 @@ and tools behind a simplified learning interface. Its educational principle is:
 > Desktop builds are not production-signed. The macOS build is ad-hoc signed
 > but not notarized.
 
-> **Current build evidence:** Commit `c3e2923` of `develop/v0.8` built
+> **Current build evidence:** Commit `f60df90` of `develop/v0.8` built
 > successfully for Windows, Linux and both macOS architectures. Windows
 > AppContainer and real window launch, Linux Bubblewrap/Wayland and both macOS
 > Seatbelt checks passed. Each platform also rebuilt a fresh course runtime
@@ -34,12 +34,27 @@ and tools behind a simplified learning interface. Its educational principle is:
 
 > **0.8.0.dev0 development state:** `develop/v0.8` now includes versioned data
 > migration, visible project snapshots, local data control, faster startup
-> paths and a more focused test structure. The current check reports 483
-> passed tests, one platform-related skip and four additional E2E tests passing
-> in their dedicated CI job. See the
+> paths and a more focused test structure. The current local check reports 573
+> passed tests, one platform-related skip and eight passing E2E tests. The latest
+> local changes are not yet covered by the GitHub build above. See the
 > [draft 0.8 release notes](docs/release-notes-0.8.md) for progress and release
 > blockers. The [0.8 scope-cut protocol](docs/v0.8-abschlussprotokoll.md)
 > separates completed scope from outstanding release evidence.
+
+## Recent improvements in 0.8
+
+- Assignment and project editors initialize when first opened and retain their
+  state when switching views. Fewer repeated file and runtime checks reduce waits.
+- Progress updates within one app instance are serialized. Results arriving
+  after a course switch stay with their original course; reopen the course view
+  before starting another assignment action.
+- Course files and offline wheels are streamed into ZIP exports to reduce
+  memory use for large course packages.
+- Atomic file writes, course installation and content activation share common
+  implementation paths.
+
+Avoid editing the same synced course folder concurrently from multiple app
+instances or devices. Progress protection applies within one app instance.
 
 ## Why in:si exists
 
@@ -97,9 +112,12 @@ Python 3.11 or newer is required for a source installation:
 ```bash
 git clone https://github.com/finalnode/insi.git
 cd insi
+git switch develop/v0.8
 python -m venv venv
 source venv/bin/activate
-python -m pip install -e .
+python -m pip install --requirement requirements/pykim-0.6.0.txt
+python -m pip install -e '.[test]'
+python -m pytest
 insi
 ```
 
@@ -112,6 +130,10 @@ venv\Scripts\activate
 The visible `venv` directory name also avoids inherited Finder hidden flags on
 macOS with Python 3.14, which can otherwise disable the `.pth` file of an
 editable installation.
+
+The requirements file pins PyKIM and its standard runtime to the checked version
+used by CI and desktop builds. These commands install the 0.8 development branch;
+use a published desktop package for the stable release.
 
 The desktop packages for `0.7.1` are built automatically from the corresponding
 version tag and published in the official GitHub release:

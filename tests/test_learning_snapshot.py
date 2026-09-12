@@ -20,7 +20,7 @@ def test_test_results_use_index_without_reading_or_rescanning(monkeypatch):
 
 def test_refresh_without_index_loads_new_result_each_time(monkeypatch):
     progress = {"attempts": [{"exercise": "task", "tests": [], "passed": 0, "total": 1}]}
-    monkeypatch.setattr(learning_view, "load_progress", lambda: progress)
+    monkeypatch.setattr(learning_view, "load_progress", lambda course=None: progress)
     ui = MagicMock()
     learning_view.render_test_results(ui, "task")
     ui.badge.assert_called_with("0 / 1 bestanden", color="negative")

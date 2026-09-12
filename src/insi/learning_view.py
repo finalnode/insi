@@ -1,6 +1,7 @@
 """Wiederverwendbare Lernstands-, Test- und Fehlerdarstellung der Suite."""
 
 import re
+from pathlib import Path
 
 from insi.training.registry import get_activity, get_exercise
 
@@ -25,19 +26,20 @@ def render_task_hints(
     hints: tuple[str, ...],
     *,
     progress: dict[str, object] | None = None,
+    course: Path | None = None,
 ) -> None:
     """Zeige Autorenhinweise schrittweise und merke den geöffneten Stand."""
     if not hints:
         return
     state = {
-        "count": min(revealed_hint_count(task, progress=progress), len(hints))
+        "count": min(revealed_hint_count(task, progress=progress, course=course), len(hints))
     }
     container = ui.column().classes("w-full gap-2")
 
     def reveal_next() -> None:
         if state["count"] < len(hints):
             state["count"] += 1
-            save_revealed_hint_count(task, state["count"])
+            save_revealed_hint_count(task, state["count"], course=course)
             render()
 
     def render() -> None:
@@ -85,9 +87,10 @@ def render_test_results(
     *,
     progress: dict[str, object] | None = None,
     latest: dict[str, dict[str, object]] | None = None,
+    course: Path | None = None,
 ) -> None:
     if latest is None:
-        latest = latest_attempts(load_progress() if progress is None else progress)
+        latest = latest_attempts(load_progress(course) if progress is None else progress)
     attempt = latest.get(exercise_name)
     if attempt is None:
         empty_state(

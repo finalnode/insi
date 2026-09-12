@@ -1,6 +1,6 @@
 # Bekannte Probleme und Einschränkungen
 
-Stand: 27. August 2026, Entwicklungsstand `0.8.0.dev0` auf `develop/v0.8`
+Stand: 11. September 2026, Entwicklungsstand `0.8.0.dev0` auf `develop/v0.8`
 
 Diese Liste nennt bekannte, reproduzierbare Probleme und bewusst noch nicht
 erfüllte Produktzusagen. Sie ist keine vollständige Sammlung zukünftiger
@@ -18,8 +18,9 @@ entfernt oder im [Changelog](CHANGELOG.md) als erledigt dokumentiert.
 
 | Einschränkung | Bedeutung und sicherer Umgang | Geplante Einordnung |
 |---|---|---|
-| Das Linux-x86_64-Paket liegt mit 127,6 MiB über dem weichen 100-MiB-Ziel. | Der Mehrumfang stammt aus der vollständigen GTK/WebKit-Laufzeit und dem geprüften Offline-Wheelhouse; Funktion und Offline-Neuaufbau sind auf Commit `c3e2923` nachgewiesen. Für 0.8 ist dies eine akzeptierte Größenabweichung, kein Sicherheits- oder Funktionsfehler. | Nach 0.8 weiter verkleinern, sofern dies ohne schwächere Offline- oder Plattformzusage möglich ist. |
+| Das zuletzt separat vermessene Linux-x86_64-Paket liegt mit 127,6 MiB über dem weichen 100-MiB-Ziel. | Der Mehrumfang stammt aus der vollständigen GTK/WebKit-Laufzeit und dem geprüften Offline-Wheelhouse; Funktion und Offline-Neuaufbau sind zuletzt auf Commit `f60df90` nachgewiesen. Für 0.8 ist dies eine akzeptierte Größenabweichung, kein Sicherheits- oder Funktionsfehler. | Nach 0.8 weiter verkleinern, sofern dies ohne schwächere Offline- oder Plattformzusage möglich ist. |
 | Die Desktop-Pakete sind noch nicht produktionssigniert; der macOS-Build ist nur ad-hoc signiert und nicht notarisiert. | Betriebssysteme können Warnungen anzeigen oder den Start blockieren. Pakete nur aus den offiziellen GitHub Releases beziehungsweise den zugehörigen dokumentierten Builds beziehen. | Produktionsverteilung spätestens für 1.0. |
+| Derselbe synchronisierte Kursordner ist nicht für gleichzeitige Bearbeitung durch mehrere App-Instanzen oder Geräte ausgelegt. | Atomare Schreibvorgänge und die Sperre innerhalb einer App schützen vor Teilständen und konkurrierenden Threads, koordinieren aber keine getrennten Prozesse oder Cloud-Sync-Konflikte. | Pro Kurs nur eine App-Instanz verwenden und vor einem Gerätewechsel vollständig synchronisieren; ein prozessübergreifender Konfliktvertrag gehört in einen späteren Änderungsschnitt. |
 | Ein unter einem synchronisierten macOS-`Documents`-Ordner erzeugter loser `.app`-Ordner kann nach dem Signieren erneut Finder-/File-Provider-Metadaten erhalten. | `codesign --verify` kann für den losen lokalen Build fehlschlagen, obwohl der Buildinhalt korrekt ist. | Für die Verteilung `build_macos_dmg.py` verwenden; es bereinigt und signiert den tatsächlichen Payload im privaten Tempordner. Der erzeugte 0.7-DMG-Payload wurde lokal erfolgreich verifiziert. | Dauerhafte Buildumgebungen außerhalb synchronisierter Ordner verwenden; der CI- und Releaseweg bleibt der DMG. |
 | Der macOS-Runner verwendet derzeit `/usr/bin/sandbox-exec` und eine von Apple nicht als stabile öffentliche API zugesagte Profilsprache. | Nach einem macOS-Update kann der Selbsttest scheitern. in:si startet Fremdcode dann nicht ungeschützt, sondern sperrt den integrierten Start. | Signierter und notarisierter Sandbox-Helper für 1.0. |
 | Unter Linux benötigt der integrierte Fremdcodestart Bubblewrap. Grafische Sandboxstarts funktionieren nur über Wayland, nicht über einen pauschal freigegebenen X11-Socket. | Ohne funktionsfähiges Bubblewrap bleibt der integrierte Start gesperrt. Unter X11 oder für besondere Geräte ist **In IDE öffnen** der bewusste Ausweichweg; dort gilt die in:si-Sandbox nicht. | Unterstützte Linux-Konfigurationen bis 1.0 abschließend festlegen und dokumentieren. |
@@ -47,7 +48,7 @@ den heutigen Einsatz:
 ## Kürzlich behoben
 
 Der Windows-AppContainer erhält neben dem Runtimeordner eine explizite
-Lesefreigabe auf die gestartete PyInstaller-EXE. Auf Commit `c3e2923` bestanden
+Lesefreigabe auf die gestartete PyInstaller-EXE. Zuletzt auf Commit `f60df90` bestanden
 dadurch AppContainer- und Job-Object-Selbsttest sowie der echte Fensterstart in
 der Windows-Buildmatrix gemeinsam.
 
