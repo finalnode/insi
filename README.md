@@ -66,12 +66,17 @@ Lernende, Lehrkräfte und Kursautorinnen beziehungsweise Kursautoren. Die
 
 ## Aktuelle Verbesserungen in 0.8
 
+- Die Lernstandsübersicht zeigt zunächst 24 Aufgabenkarten; weitere lassen sich
+  bei Bedarf einblenden. Der Gesamtfortschritt umfasst weiterhin alle Aufgaben.
+- Hilfe-, Lizenz- und Quelleninhalte werden erst beim ersten Öffnen ihres Dialogs geladen
+  und aufbereitet, anschließend innerhalb der Kursansicht wiederverwendet.
 - Aufgaben- und Projekteditoren werden beim ersten Öffnen aufgebaut und
   behalten beim Wechsel ihren Zustand. Weniger wiederholte Datei- und
   Runtimeprüfungen verkürzen die Wartezeiten.
 - Beim Kursöffnen wird zuerst die gewählte Python-Umgebung geprüft. Die Suche
   nach Alternativen erfolgt nur bei Bedarf; die vollständige Runtimeübersicht
   wird erst beim Öffnen des Setup-Tabs erstellt.
+  Die erste Paketbestandsaufnahme beschränkt sich auf die Kursanforderungen.
 - Installierte PyKIM-Trainer stellen zunächst nur ihre Metadaten bereit;
   die eigentlichen Prüfer werden bei Verwendung geladen. Kursimporte werden
   weiterhin vollständig validiert.

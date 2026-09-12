@@ -13,7 +13,27 @@ def anyio_backend():
 @pytest.mark.anyio
 @pytest.mark.e2e
 @pytest.mark.nicegui_main_file("tests/ui_main.py")
-async def test_student_can_open_overview_tasks_and_script(user):
+async def test_student_can_open_overview_tasks_and_script(user, monkeypatch):
+    from insi import layout
+
+    reads = []
+    source_reads = []
+    source_reader = layout.source_references
+
+    def counted_sources(setup):
+        source_reads.append(setup)
+        return source_reader(setup)
+
+    monkeypatch.setattr(layout, "source_references", counted_sources)
+    for attribute in ("documentation_text", "legal_document_text"):
+        reader = getattr(layout, attribute)
+
+        def counted(key, reader=reader, attribute=attribute):
+            reads.append((attribute, key))
+            return reader(key)
+
+        monkeypatch.setattr(layout, attribute, counted)
+
     await user.open("/")
     await user.should_see("UI-Standardkurs")
     user.find("Öffnen").click()
@@ -45,16 +65,29 @@ async def test_student_can_open_overview_tasks_and_script(user):
     await user.should_see("Aufgabenprüfung")
     await user.should_see("Kurswerkstatt öffnen")
 
+    assert reads == []
     user.find("Hilfe").click()
     await user.should_see("Dokumentation · Documentation")
     await user.should_see("Erste Schritte mit in:si")
+    assert reads == [("documentation_text", "de"), ("documentation_text", "en")]
     user.find("Schließen").click()
 
+    user.find("Hilfe").click()
+    await user.should_see("Erste Schritte mit in:si")
+    assert len(reads) == 2
+    user.find("Schließen").click()
+
+    assert source_reads == []
     user.find("Quellen").click()
     await user.should_see("AGPL-3.0-or-later von in:si")
+    assert len(source_reads) == 1
     await user.should_see("Copyright © 2026 in:si contributors")
     user.find("Lizenztexte offline lesen").click()
     await user.should_see("Lizenz und rechtliche Hinweise")
+    assert reads[2:] == [
+        ("legal_document_text", "agpl"), ("legal_document_text", "scope"),
+        ("legal_document_text", "third-party"),
+    ]
 
 
 @pytest.mark.anyio

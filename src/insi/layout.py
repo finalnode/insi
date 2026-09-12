@@ -114,124 +114,112 @@ def render_workspace_footer(ui) -> None:
         setup = course_setup_info(configured) if configured is not None else None
     except (OSError, ValueError):
         setup = None
-    references = source_references(setup)
 
-    documentation: dict[str, str] = {}
-    documentation_error = ""
-    try:
-        documentation = {
-            "de": documentation_text("de"),
-            "en": documentation_text("en"),
-        }
-    except (OSError, ValueError) as error:
-        documentation_error = str(error)
+    def text_dialog(title, icon, reader, documents):
+        """Lade Hilfs- und Lizenztexte erst beim Öffnen und behalte den Dialog."""
+        with ui.dialog() as dialog, ui.card().classes(
+            "w-full max-w-5xl max-h-[min(90vh,58rem)]"
+        ):
+            with ui.row().classes("w-full items-center gap-2"):
+                ui.icon(icon, color="primary", size="md")
+                ui.label(title).classes("text-xl font-bold")
+            content = ui.column().classes("w-full")
+            with ui.row().classes("w-full justify-end"):
+                ui.button("Schließen", on_click=dialog.close).props("flat")
+        loaded = False
 
-    with ui.dialog() as documentation_dialog, ui.card().classes(
-        "w-full max-w-5xl max-h-[min(90vh,58rem)]"
-    ):
-        with ui.row().classes("w-full items-center gap-2"):
-            ui.icon("menu_book", color="primary", size="md")
-            ui.label("Dokumentation · Documentation").classes("text-xl font-bold")
-        if documentation_error:
-            ui.label(documentation_error).classes("text-negative")
-        else:
-            with ui.tabs().classes("w-full") as documentation_tabs:
-                german_tab = ui.tab("Deutsch")
-                english_tab = ui.tab("English")
-            with ui.tab_panels(
-                documentation_tabs, value=german_tab, animated=False
-            ).classes("w-full min-h-[28rem] max-h-[68vh] overflow-y-auto"):
-                with ui.tab_panel(german_tab):
-                    ui.markdown(documentation["de"]).classes("prose max-w-none")
-                with ui.tab_panel(english_tab):
-                    ui.markdown(documentation["en"]).classes("prose max-w-none")
-        with ui.row().classes("w-full justify-end"):
-            ui.button("Schließen", on_click=documentation_dialog.close).props("flat")
-
-    legal_texts: dict[str, str] = {}
-    legal_error = ""
-    try:
-        legal_texts = {
-            "agpl": legal_document_text("agpl"),
-            "scope": legal_document_text("scope"),
-            "third-party": legal_document_text("third-party"),
-        }
-    except (OSError, ValueError) as error:
-        legal_error = str(error)
-
-    with ui.dialog() as legal_dialog, ui.card().classes(
-        "w-full max-w-5xl max-h-[min(90vh,58rem)]"
-    ):
-        with ui.row().classes("w-full items-center gap-2"):
-            ui.icon("gavel", color="primary", size="md")
-            ui.label("Lizenz und rechtliche Hinweise").classes("text-xl font-bold")
-        if legal_error:
-            ui.label(legal_error).classes("text-negative")
-        else:
-            with ui.tabs().classes("w-full") as legal_tabs:
-                agpl_tab = ui.tab("AGPL-3.0+")
-                scope_tab = ui.tab("Lizenzumfang")
-                third_party_tab = ui.tab("Drittanbieter")
-            with ui.tab_panels(legal_tabs, value=agpl_tab).classes(
-                "w-full min-h-[28rem]"
-            ):
-                with ui.tab_panel(agpl_tab):
-                    ui.textarea(value=legal_texts["agpl"]).props(
-                        "readonly outlined rows=22"
-                    ).classes("w-full insi-license-text")
-                with ui.tab_panel(scope_tab):
-                    ui.markdown(legal_texts["scope"]).classes("prose max-w-none")
-                with ui.tab_panel(third_party_tab):
-                    ui.markdown(legal_texts["third-party"]).classes(
-                        "prose max-w-none"
-                    )
-        with ui.row().classes("w-full justify-end"):
-            ui.button("Schließen", on_click=legal_dialog.close).props("flat")
-
-    with ui.dialog() as sources_dialog, ui.card().classes("w-full max-w-2xl"):
-        with ui.row().classes("w-full items-center gap-2"):
-            ui.icon("source", color="primary", size="md")
-            ui.label("Quellen, Lizenzen und Verantwortung").classes(
-                "text-xl font-bold"
-            )
-        if setup is not None:
-            with ui.column().classes("w-full gap-0"):
-                ui.label(f"Kurs: {setup.course}").classes("font-bold")
-                ui.label(f"Verantwortlich: {setup.teacher}")
-                if setup.school:
-                    ui.label(f"Organisation: {setup.school}")
-        ui.separator()
-        with ui.column().classes("w-full gap-1"):
-            ui.label("Copyright © 2026 in:si contributors").classes("font-bold")
-            ui.label(
-                "in:si ist freie Software unter AGPL-3.0-or-later. "
-                "Weitergabe und Änderungen sind nach den Lizenzbedingungen "
-                "erlaubt; die Software kommt ohne Gewährleistung."
-            ).classes("text-sm text-grey-8")
-            ui.button(
-                "Lizenztexte offline lesen",
-                icon="gavel",
-                on_click=legal_dialog.open,
-            ).props("outline dense")
-        ui.separator()
-        with ui.column().classes("w-full gap-2"):
-            for reference in references:
-                with ui.row().classes("w-full items-center gap-2 no-wrap"):
-                    ui.icon(
-                        "license" if reference.kind == "license" else "open_in_new",
-                        size="xs",
-                    ).classes("text-grey-7")
-                    if reference.url:
-                        ui.link(
-                            reference.label, reference.url, new_tab=True
-                        ).classes("text-primary break-all")
+        def open_dialog():
+            nonlocal loaded
+            if not loaded:
+                content.clear()
+                with content:
+                    try:
+                        texts = {key: reader(key) for key, _, _ in documents}
+                    except (OSError, ValueError) as error:
+                        ui.label(str(error)).classes("text-negative")
                     else:
-                        ui.label(reference.label)
-        ui.label(
-            "Aufgabenspezifische Quellen erscheinen zusätzlich direkt bei der Aufgabe."
-        ).classes("text-sm text-grey-7")
-        with ui.row().classes("w-full justify-end"):
-            ui.button("Schließen", on_click=sources_dialog.close).props("flat")
+                        with ui.tabs().classes("w-full") as tabs:
+                            pages = [ui.tab(label) for _, label, _ in documents]
+                        with ui.tab_panels(tabs, value=pages[0], animated=False).classes(
+                            "w-full min-h-[28rem] max-h-[68vh] overflow-y-auto"
+                        ):
+                            for (key, _, plain), page in zip(documents, pages):
+                                with ui.tab_panel(page):
+                                    if plain:
+                                        ui.textarea(value=texts[key]).props(
+                                            "readonly outlined rows=22"
+                                        ).classes("w-full insi-license-text")
+                                    else:
+                                        ui.markdown(texts[key]).classes("prose max-w-none")
+                        loaded = True
+            dialog.open()
+
+        return open_dialog
+
+    open_documentation = text_dialog(
+        "Dokumentation · Documentation", "menu_book", documentation_text,
+        (("de", "Deutsch", False), ("en", "English", False)),
+    )
+    open_legal = text_dialog(
+        "Lizenz und rechtliche Hinweise", "gavel", legal_document_text,
+        (("agpl", "AGPL-3.0+", True), ("scope", "Lizenzumfang", False),
+         ("third-party", "Drittanbieter", False)),
+    )
+
+    sources_dialog = None
+
+    def open_sources():
+        nonlocal sources_dialog
+        if get_course_directory() != configured:
+            ui.notify("Der Kurs wurde gewechselt. Öffne die Kursansicht erneut.", type="warning")
+            return
+        if sources_dialog is None:
+            references = source_references(setup)
+            with ui.dialog() as sources_dialog, ui.card().classes("w-full max-w-2xl"):
+                with ui.row().classes("w-full items-center gap-2"):
+                    ui.icon("source", color="primary", size="md")
+                    ui.label("Quellen, Lizenzen und Verantwortung").classes(
+                        "text-xl font-bold"
+                    )
+                if setup is not None:
+                    with ui.column().classes("w-full gap-0"):
+                        ui.label(f"Kurs: {setup.course}").classes("font-bold")
+                        ui.label(f"Verantwortlich: {setup.teacher}")
+                        if setup.school:
+                            ui.label(f"Organisation: {setup.school}")
+                ui.separator()
+                with ui.column().classes("w-full gap-1"):
+                    ui.label("Copyright © 2026 in:si contributors").classes("font-bold")
+                    ui.label(
+                        "in:si ist freie Software unter AGPL-3.0-or-later. "
+                        "Weitergabe und Änderungen sind nach den Lizenzbedingungen "
+                        "erlaubt; die Software kommt ohne Gewährleistung."
+                    ).classes("text-sm text-grey-8")
+                    ui.button(
+                        "Lizenztexte offline lesen",
+                        icon="gavel",
+                        on_click=open_legal,
+                    ).props("outline dense")
+                ui.separator()
+                with ui.column().classes("w-full gap-2"):
+                    for reference in references:
+                        with ui.row().classes("w-full items-center gap-2 no-wrap"):
+                            ui.icon(
+                                "license" if reference.kind == "license" else "open_in_new",
+                                size="xs",
+                            ).classes("text-grey-7")
+                            if reference.url:
+                                ui.link(
+                                    reference.label, reference.url, new_tab=True
+                                ).classes("text-primary break-all")
+                            else:
+                                ui.label(reference.label)
+                ui.label(
+                    "Aufgabenspezifische Quellen erscheinen zusätzlich direkt bei der Aufgabe."
+                ).classes("text-sm text-grey-7")
+                with ui.row().classes("w-full justify-end"):
+                    ui.button("Schließen", on_click=sources_dialog.close).props("flat")
+        sources_dialog.open()
 
     with ui.element("footer").classes(
         "fixed inset-x-0 bottom-0 z-[2000] w-full min-h-7 q-px-md q-py-xs "
@@ -255,12 +243,12 @@ def render_workspace_footer(ui) -> None:
                 ui.button(
                     "Hilfe",
                     icon="menu_book",
-                    on_click=documentation_dialog.open,
+                    on_click=open_documentation,
                 ).props("flat dense color=white").classes("pykim-footer-link")
                 ui.button(
                     "Quellen",
                     icon="source",
-                    on_click=sources_dialog.open,
+                    on_click=open_sources,
                 ).props("flat dense color=white").classes("pykim-footer-link")
 
 

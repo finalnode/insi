@@ -1,6 +1,7 @@
 import hashlib
 import io
 import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
@@ -35,6 +36,17 @@ from insi.runtime import (
     managed_runtime_path,
     selected_runtime,
 )
+
+
+@pytest.mark.parametrize("packages", [("pytest", "insi-package-that-does-not-exist"), ()])
+def test_runtime_inspection_limits_package_inventory_without_rejecting_missing_packages(packages):
+    from insi.runtime import inspect_runtime
+
+    candidate = inspect_runtime(sys.executable, "Gezielte Prüfung", packages)
+    assert candidate.supported
+    assert candidate.error == ""
+    assert candidate.version == ".".join(map(str, sys.version_info[:3]))
+    assert candidate.packages == (("pytest",) if packages else ())
 
 
 def course_source(tmp_path: Path) -> Path:

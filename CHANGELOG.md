@@ -2,6 +2,15 @@
 
 ## 0.8.0 – in Entwicklung
 
+- Die bevorzugte Kurs-Runtime inventarisiert beim Öffnen nur die benötigten
+  Pakete; Python-Kompatibilität und exakte Paketversionen werden weiter geprüft;
+- Die Lernstandsübersicht baut zunächst 24 Aufgabenkarten auf; weitere Karten
+  werden auf Wunsch ergänzt. Gesamtfortschritt und Kurszuordnung bleiben erhalten;
+- Der Quellen-Dialog sammelt aufgabenspezifische Quellen erst beim ersten
+  Öffnen; geschlossene Dialoge lesen keine Aufgabenmaterialien mehr ein;
+- Hilfe- und Lizenzdialoge laden ihre Texte erst beim ersten Öffnen und
+  verwenden sie danach weiter; ein gemeinsamer Dialogablauf reduziert
+  Vorarbeit beim Seitenaufbau und doppelte UI-Logik;
 - Kursöffnen prüft zuerst die gewählte Runtime und sucht nur bei Bedarf nach
   Alternativen; die vollständige Setup-Inventur läuft erst beim Öffnen des
   Setup-Tabs. Trainerdaten nutzen den schnellen sicheren YAML-Loader, sofern

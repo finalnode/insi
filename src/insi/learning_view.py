@@ -142,20 +142,34 @@ def render_overview(ui) -> None:
     section_heading(ui, "Mein Lernstand")
     ui.linear_progress(value=completed / max(1, len(names)))
     ui.label(f"{completed} von {len(names)} Aufgaben vollständig gelöst")
-    with ui.grid(columns=2).classes("w-full gap-4"):
-        for name in names:
-            activity = get_activity(name)
-            exercise = None if activity is not None else get_exercise(name)
-            attempt = latest.get(name)
-            with ui.card().classes("w-full"):
-                ui.label(activity.title if exercise is None else exercise.title).classes("font-bold")
-                if attempt is None:
-                    ui.label("Noch nicht begonnen").classes("text-grey")
-                else:
-                    ui.label(f"Tests: {attempt['passed']}/{attempt['total']}")
-                    optimization = attempt.get("optimization")
-                    if isinstance(optimization, dict):
-                        ui.label(f"Optimierung: {optimization['score']} %")
+    # Halte die Titel gemeinsam mit dem Lernstand fest: spätere Karten dürfen
+    # bei einem Kurswechsel nicht aus der inzwischen neuen Registry lesen.
+    titles = {
+        name: (get_activity(name) or get_exercise(name)).title for name in names
+    }
+    cards = ui.grid(columns=2).classes("w-full gap-4")
+    shown = 0
+
+    def show_more():
+        nonlocal shown
+        batch = names[shown:shown + 24]
+        with cards:
+            for name in batch:
+                attempt = latest.get(name)
+                with ui.card().classes("w-full"):
+                    ui.label(titles[name]).classes("font-bold")
+                    if attempt is None:
+                        ui.label("Noch nicht begonnen").classes("text-grey")
+                    else:
+                        ui.label(f"Tests: {attempt['passed']}/{attempt['total']}")
+                        optimization = attempt.get("optimization")
+                        if isinstance(optimization, dict):
+                            ui.label(f"Optimierung: {optimization['score']} %")
+        shown += len(batch)
+        more.set_visibility(shown < len(names))
+
+    more = ui.button("Weitere Aufgaben anzeigen", on_click=show_more).props("outline")
+    show_more()
 
 
 def friendly_python_error(stderr: str) -> tuple[int | None, str]:

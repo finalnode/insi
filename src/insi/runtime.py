@@ -308,19 +308,29 @@ def _suite_packages() -> tuple[str, ...]:
     return tuple(sorted(names - {""}))
 
 
-def inspect_runtime(executable: str | Path, source: str = "Benutzerdefiniert") -> RuntimeCandidate:
-    """Prüfe einen Interpreter in einem getrennten Prozess."""
+def inspect_runtime(
+    executable: str | Path, source: str = "Benutzerdefiniert",
+    package_names: tuple[str, ...] | None = None,
+) -> RuntimeCandidate:
+    """Prüfe einen Interpreter und wahlweise nur die angefragten Paketnamen."""
     path = _executable_path(executable)
     if not path.is_file():
         return RuntimeCandidate(str(path), "", source, False, (), "Nicht gefunden")
     probe = (
         "import importlib.metadata as m,json,sys;"
+        + (
+            "packages=sorted({d.metadata.get('Name','') for d in m.distributions()} - {''});"
+            if package_names is None else
+            "packages=[];exec(\"for name in sys.argv[1:]:\\n"
+            " try: m.version(name); packages.append(name)\\n"
+            " except m.PackageNotFoundError: pass\");"
+        ) +
         "print(json.dumps({'version':list(sys.version_info[:3]),"
-        "'packages':sorted({d.metadata.get('Name','') for d in m.distributions()} - {''})}))"
+        "'packages':packages}))"
     )
     try:
         completed = subprocess.run(
-            [*command_for(str(path)), "-c", probe],
+            [*command_for(str(path)), "-c", probe, *(package_names or ())],
             capture_output=True,
             text=True,
             timeout=5,
@@ -499,7 +509,9 @@ def course_runtime_preflight(
                 (item for item in candidates or ()
                  if _executable_path(item.executable) == preferred_path),
                 None,
-            ) or inspect_runtime(preference, "Ausgewählt")
+            ) or inspect_runtime(
+                preference, "Ausgewählt", tuple(item.split("==", 1)[0] for item in requirements)
+            )
         for item in candidates if candidates is not None else discover_runtimes(root):
             if _executable_path(item.executable) != preferred_path:
                 yield item
