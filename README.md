@@ -38,20 +38,22 @@ fertig implementiert.
 > ändern. Der macOS-Build ist nur lokal ad-hoc, nicht mit einer Developer-ID
 > signiert und nicht notarisiert; die übrigen Desktop-Builds sind unsigniert.
 
-> **Aktueller Buildnachweis:** `develop/v0.8` wurde auf Commit `805ac2a` für
+> **Aktueller Buildnachweis:** `main` wurde auf Commit `a91a614` für
 > Windows, Linux sowie beide macOS-Architekturen erfolgreich gebaut. Windows-
 > AppContainer und echter Fensterstart, Linux-Bubblewrap/Wayland sowie beide
 > macOS-Seatbelt-Prüfungen bestanden. Zusätzlich wurde auf jeder Plattform eine
 > frische Kurs-Runtime ausschließlich aus dem paketierten Offline-Wheelhouse
-> aufgebaut. Die Abnahme auf echten Schulgeräten bleibt verbindlich.
+> aufgebaut. [Desktop-Buildmatrix](https://github.com/finalnode/insi/actions/runs/34683048695).
+> Windows bestand nach einem Wiederholungslauf wegen eines PyInstaller-
+> Startfehlers im AppContainer. Die Abnahme auf echten Schulgeräten bleibt offen.
 
-> **Entwicklungsstand 0.8.0.dev0:** Auf `develop/v0.8` sind die versionierte
+> **Entwicklungsstand 0.8.0.dev0:** Auf `main` sind die versionierte
 > Datenmigration, sichtbare Projektstände, lokale Datenkontrolle, schnellere
 > Startpfade und ein fachlich besser testbarer Kern umgesetzt. Der
-> aktuelle lokale Nachweis umfasst 573 bestandene, eine plattformbedingt
-> übersprungene und zusätzlich acht bestandene
-> E2E-Prüfungen. Auch die GitHub-Prüfungen auf Python 3.11–3.13 und die
-> UI-Tests haben auf `805ac2a` bestanden. Fortschritt und
+> [GitHub-Testlauf auf `a91a614`](https://github.com/finalnode/insi/actions/runs/34683048752)
+> umfasst je 579 bestandene Prüfungen auf Python 3.11–3.13, eine übersprungene
+> Sandboxprüfung pro Version und acht separat bestandene UI-Tests. Die echte
+> Linux-Sandboxprüfung besteht im Desktop-Workflow. Fortschritt und
 > verbleibende Freigabeblocker stehen im
 > [Entwurf der 0.8-Release-Notes](docs/release-notes-0.8.md). Der geschlossene
 > Funktionsumfang und die noch offenen Nachweise stehen kompakt im
@@ -84,6 +86,10 @@ Lernende, Lehrkräfte und Kursautorinnen beziehungsweise Kursautoren. Die
 Mehrere App-Instanzen oder Geräte sollten denselben synchronisierten Kursordner
 nicht gleichzeitig bearbeiten. Der Schutz vor konkurrierenden
 Lernstandsänderungen gilt innerhalb einer App-Instanz.
+
+Im lokalen Vergleich mit demselben Kurs und 97 PyKIM-Aufgaben sank die
+Vorbereitung von 6,97 auf 0,89 Sekunden. Gemessen wurden Migration,
+Kursaktivierung und Runtimeprüfung; Seitenaufbau und Darstellung kommen hinzu.
 
 ## Warum in:si existiert
 

@@ -24,18 +24,21 @@ and tools behind a simplified learning interface. Its educational principle is:
 > Desktop builds are not production-signed. The macOS build is ad-hoc signed
 > but not notarized.
 
-> **Current build evidence:** Commit `805ac2a` of `develop/v0.8` built
+> **Current build evidence:** Commit `a91a614` of `main` built
 > successfully for Windows, Linux and both macOS architectures. Windows
 > AppContainer and real window launch, Linux Bubblewrap/Wayland and both macOS
 > Seatbelt checks passed. Each platform also rebuilt a fresh course runtime
 > exclusively from its packaged offline wheelhouse. Verification on real school
-> devices remains required.
+> devices remains required. [Desktop build matrix](https://github.com/finalnode/insi/actions/runs/34683048695).
+> Windows passed on retry after a PyInstaller startup failure in the AppContainer.
 
-> **0.8.0.dev0 development state:** `develop/v0.8` now includes versioned data
+> **0.8.0.dev0 development state:** `main` now includes versioned data
 > migration, visible project snapshots, local data control, faster startup
-> paths and a more focused test structure. The current local check reports 573
-> passed tests, one platform-related skip and eight passing E2E tests. GitHub
-> checks on Python 3.11–3.13 and the UI tests also passed on `805ac2a`. See the
+> paths and a more focused test structure. The
+> [GitHub test run on `a91a614`](https://github.com/finalnode/insi/actions/runs/34683048752)
+> reports 579 passing tests and one skipped sandbox test on each of Python
+> 3.11–3.13, plus eight passing UI tests. The real Linux sandbox test passes
+> separately in the desktop workflow. See the
 > [draft 0.8 release notes](docs/release-notes-0.8.md) for progress and release
 > blockers. The [0.8 scope-cut protocol](docs/v0.8-abschlussprotokoll.md)
 > separates completed scope from outstanding release evidence.
@@ -59,6 +62,10 @@ and tools behind a simplified learning interface. Its educational principle is:
 
 Avoid editing the same synced course folder concurrently from multiple app
 instances or devices. Progress protection applies within one app instance.
+
+A local comparison using the same course with 97 PyKIM assignments reduced
+preparation from 6.97 to 0.89 seconds. This covers migration, content activation
+and runtime checks; page construction and rendering add to the visible opening time.
 
 ## Why in:si exists
 
@@ -135,7 +142,7 @@ macOS with Python 3.14, which can otherwise disable the `.pth` file of an
 editable installation.
 
 The requirements file pins PyKIM and its standard runtime to the checked version
-used by CI and desktop builds. These commands install the 0.8 development branch;
+used by CI and desktop builds. These commands install the 0.8 development state on `main`;
 use a published desktop package for the stable release.
 
 The desktop packages for `0.7.1` are built automatically from the corresponding

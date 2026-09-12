@@ -1,5 +1,11 @@
 # Herkunft und Übertragung des PyKIM-Skripts
 
+Dieses Verzeichnis enthält die mit in:si ausgelieferten Markdown-Lerntexte.
+Der Einstieg beginnt mit [Ersten Schritten](imperativ/01_erste_befehle.md),
+die Einführung in Objekte mit [Objekten](oop/01_objekte.md).
+Installierte Kurse können eigene Skripte und Trainer mitbringen; ihr aktiver
+Inhaltsstand kann vom hier gebündelten Beispielkurs abweichen.
+
 Die ausführlichen Grundlagen orientieren sich didaktisch am bereitgestellten
 Turtle-Kursskript aus `turtle.zip`. Allgemeine Python-Themen wurden erhalten,
 inhaltlich überarbeitet und mit PyKIM-Beispielen neu formuliert.
@@ -56,5 +62,17 @@ Paketcode wird von der lokalen Ausführungsschnittstelle akzeptiert.
 
 Die automatisierte Qualitätsprüfung klassifiziert sämtliche Run-Blöcke und
 führt Konsolen- sowie PyKIM-Programme mit `PYKIM_HEADLESS=1` vollständig ohne
-Grafikfenster aus. Das Pflegewerkzeug `tools/curate_script_examples.py`
+Grafikfenster aus. Das Pflegewerkzeug
+[curate_script_examples.py](../../../tools/curate_script_examples.py)
 entfernt ungeeignete Run-Markierungen reproduzierbar.
+
+## Pflege und Laden
+
+Die Skriptansicht wird erst beim Öffnen des entsprechenden Tabs aufgebaut.
+PyKIM-Trainer stellen beim Kursöffnen zunächst Kennungen und Titel bereit;
+ihre Prüfer werden erst bei Verwendung geladen. Kursimporte und die explizite
+Kursvalidierung prüfen weiterhin sämtliche Trainer.
+
+Bei Änderungen an gebündelten Lerntexten müssen die zugehörigen SHA-256-Werte
+in [content-manifest.json](../content-manifest.json) mit aktualisiert werden.
+Die Konsistenz wird durch die automatisierten Inhaltstests geprüft.
