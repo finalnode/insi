@@ -6,11 +6,14 @@
 
 **Sprache:** Deutsch · [English](README.en.md)
 
-**Dieser Entwicklungszweig baut in:si 0.8.0.dev0.** Er ist noch kein
-veröffentlichtes Release. **in:si 0.7.1** bleibt die aktuelle stabile
+**Dieser Entwicklungszweig baut in:si 0.8.0.dev0.** Ein Windows-Testpaket ist
+als Vorabversion verfügbar; die stabile Freigabe von 0.8 steht noch aus.
+**in:si 0.7.1** bleibt die aktuelle stabile
 Veröffentlichung der lokalen Desktop-Lernumgebung für modulare Informatikkurse.
 `main` enthält den Entwicklungsstand von 0.8. Die veröffentlichten
 0.7.1-Pakete bleiben bis zur Freigabe von 0.8 der stabile Download.
+
+**[Windows-Testversion 0.8.0.dev0 herunterladen (ZIP, 72 MB)](https://github.com/finalnode/insi/releases/download/windows-test-0.8.0.dev0-20260912/insi-0.8.0.dev0-windows-x86_64.zip)**
 
 Die Anwendung bringt Kursinstallation, Lerntexte, interaktive Aufgaben,
 automatische Tests, Lernstand, Projekte und Autorenwerkzeuge in eine gemeinsame
@@ -331,7 +334,21 @@ Noch offene Arbeiten stehen ausschließlich in der [Roadmap](#roadmap).
 
 ## Herunterladen und ausprobieren
 
-### Desktop-App
+### Windows-Testversion 0.8.0.dev0
+
+**[Windows x86_64: Testpaket direkt herunterladen (ZIP, 72 MB)](https://github.com/finalnode/insi/releases/download/windows-test-0.8.0.dev0-20260912/insi-0.8.0.dev0-windows-x86_64.zip)**
+
+Vorabversion vom 12. September 2026, gebaut aus Commit `83ae707`.
+Die [automatisierten Windows-Prüfungen](https://github.com/finalnode/insi/actions/runs/34714102088)
+für eingebettetes Python, AppContainer, Job Object, echten Fensterstart und
+Offline-Kurs-Runtime sind bestanden. Die Abnahme auf Schulgeräten und die
+Bestätigung für den unter 0.7.1 beobachteten Startfehler stehen noch aus.
+
+Das ZIP vollständig in einen neuen Ordner entpacken und `insi.exe` starten.
+Die enthaltene `insi-python.exe` gehört zum Paket und muss im Ordner bleiben.
+Details stehen im [Prerelease](https://github.com/finalnode/insi/releases/tag/windows-test-0.8.0.dev0-20260912).
+
+### Stabile Desktop-App 0.7.1
 
 Die Pakete für `0.7.1` werden automatisiert aus dem zugehörigen Versionstag
 gebaut und im offiziellen GitHub Release veröffentlicht:
@@ -347,8 +364,9 @@ Jede Änderung auf `main` wird durch
 [GitHub Actions](https://github.com/finalnode/insi/actions/workflows/build-desktop.yml)
 auf allen vier Zielsystemen getestet und gebaut. Dauerhaft veröffentlichte,
 direkt herunterladbare Pakete stehen unter
-[GitHub Releases](https://github.com/finalnode/insi/releases); sie entstehen aus
-einem Versionstag wie `v0.7.1`.
+[GitHub Releases](https://github.com/finalnode/insi/releases); stabile Pakete entstehen aus
+einem Versionstag wie `v0.7.1`. Das Windows-Testpaket oben wird separat als
+Vorabversion aus dem angegebenen erfolgreichen Build bereitgestellt.
 
 ### PyKIM-Beispielkurs
 
