@@ -13,7 +13,7 @@ Veröffentlichung der lokalen Desktop-Lernumgebung für modulare Informatikkurse
 `main` enthält den Entwicklungsstand von 0.8. Die veröffentlichten
 0.7.1-Pakete bleiben bis zur Freigabe von 0.8 der stabile Download.
 
-**[Windows-Testversion 0.8.0.dev0 herunterladen (ZIP, 72 MB)](https://github.com/finalnode/insi/releases/download/windows-test-0.8.0.dev0-20260912/insi-0.8.0.dev0-windows-x86_64.zip)**
+**[Windows-Testversion 0.8.0.dev0 herunterladen (ZIP, 72 MB)](https://github.com/finalnode/insi/releases/download/windows-test-0.8.0.dev0-20260914/insi-0.8.0.dev0-windows-x86_64.zip)**
 
 Die Anwendung bringt Kursinstallation, Lerntexte, interaktive Aufgaben,
 automatische Tests, Lernstand, Projekte und Autorenwerkzeuge in eine gemeinsame
@@ -336,17 +336,21 @@ Noch offene Arbeiten stehen ausschließlich in der [Roadmap](#roadmap).
 
 ### Windows-Testversion 0.8.0.dev0
 
-**[Windows x86_64: Testpaket direkt herunterladen (ZIP, 72 MB)](https://github.com/finalnode/insi/releases/download/windows-test-0.8.0.dev0-20260912/insi-0.8.0.dev0-windows-x86_64.zip)**
+**[Windows x86_64: Testpaket direkt herunterladen (ZIP, 72 MB)](https://github.com/finalnode/insi/releases/download/windows-test-0.8.0.dev0-20260914/insi-0.8.0.dev0-windows-x86_64.zip)**
 
-Vorabversion vom 12. September 2026, gebaut aus Commit `83ae707`.
-Die [automatisierten Windows-Prüfungen](https://github.com/finalnode/insi/actions/runs/34714102088)
-für eingebettetes Python, AppContainer, Job Object, echten Fensterstart und
-Offline-Kurs-Runtime sind bestanden. Die Abnahme auf Schulgeräten und die
+Vorabversion vom 14. September 2026, gebaut aus Commit `43ac53a`.
+Dieser Build korrigiert den Windows-Fehler „Lokale Einstellungen konnten nicht
+migriert werden“ beim Anlegen der Sicherungskopie. Bestehende Einstellungen
+und Lernstände werden vor der Migration weiterhin gesichert.
+Die [automatisierten Windows-Prüfungen](https://github.com/finalnode/insi/actions/runs/34831752942)
+für eingebettetes Python, AppContainer, Job Object, echten Fensterstart,
+Offline-Kurs-Runtime und die Migration bestehender Einstellungen und Lernstände
+sind bestanden. Die Abnahme auf Schulgeräten und die
 Bestätigung für den unter 0.7.1 beobachteten Startfehler stehen noch aus.
 
 Das ZIP vollständig in einen neuen Ordner entpacken und `insi.exe` starten.
 Die enthaltene `insi-python.exe` gehört zum Paket und muss im Ordner bleiben.
-Details stehen im [Prerelease](https://github.com/finalnode/insi/releases/tag/windows-test-0.8.0.dev0-20260912).
+Details stehen im [Prerelease](https://github.com/finalnode/insi/releases/tag/windows-test-0.8.0.dev0-20260914).
 
 ### Stabile Desktop-App 0.7.1
 
