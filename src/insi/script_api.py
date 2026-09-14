@@ -8,6 +8,7 @@ from .sandbox import SandboxUnavailableError
 def register_script_api(app) -> None:
     """Registriere die Lauf- und Statusrouten genau einmal an der NiceGUI-App."""
     from fastapi import HTTPException, Request
+    from starlette.concurrency import run_in_threadpool
 
     allowed_examples = script_code_examples()
 
@@ -21,7 +22,12 @@ def register_script_api(app) -> None:
                 detail="Dieses Beispiel gehört nicht zum Skript.",
             )
         try:
-            return {"job_id": script_example_manager.start(source.rstrip())}
+            # Der Sandbox-Selbsttest kann beim ersten Start mehrere Sekunden
+            # dauern. Währenddessen müssen UI und Statusrouten erreichbar bleiben.
+            job_id = await run_in_threadpool(
+                script_example_manager.start, source.rstrip()
+            )
+            return {"job_id": job_id}
         except SandboxUnavailableError as error:
             raise HTTPException(status_code=503, detail=str(error)) from error
 

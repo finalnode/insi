@@ -2,6 +2,8 @@
 
 ## 0.8.0 – in Entwicklung
 
+- Skriptstarts führen die blockierende Sandbox-Vorbereitung außerhalb des
+  UI-Eventloops aus; Statusabfragen bleiben während des Starts erreichbar;
 - Windows-Migration bestehender Einstellungen und Lernstände korrigiert:
   Sicherungskopien werden mit einem schreibbaren Dateihandle synchronisiert.
   Der Desktop-Build prüft beide Migrationen mit dem paketierten Windows-Python;
