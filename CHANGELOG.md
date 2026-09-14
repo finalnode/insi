@@ -2,6 +2,9 @@
 
 ## 0.8.0 – in Entwicklung
 
+- Windows-Migration bestehender Einstellungen und Lernstände korrigiert:
+  Sicherungskopien werden mit einem schreibbaren Dateihandle synchronisiert.
+  Der Desktop-Build prüft beide Migrationen mit dem paketierten Windows-Python;
 - Die bevorzugte Kurs-Runtime inventarisiert beim Öffnen nur die benötigten
   Pakete; Python-Kompatibilität und exakte Paketversionen werden weiter geprüft;
 - Die Lernstandsübersicht baut zunächst 24 Aufgabenkarten auf; weitere Karten

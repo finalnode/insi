@@ -54,6 +54,9 @@ jobs:
       - name: Windows-AppContainer und Job Object prüfen
         shell: pwsh
         run: '& "dist/windows/insi/insi-python.exe" --insi-python tools/check_windows_sandbox.py'
+      - name: Migration bestehender Einstellungen und Lernstände prüfen
+        shell: pwsh
+        run: '& "dist/windows/insi/insi-python.exe" --insi-python tools/check_packaged_migrations.py'
       - name: Kompatible pythonnet-Runtime prüfen
         shell: pwsh
         run: |

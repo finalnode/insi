@@ -1,5 +1,6 @@
 import json
 import errno
+import os
 
 import pytest
 
@@ -12,6 +13,59 @@ from insi.data_migrations import (
     migrate_course_data,
     migrate_local_settings,
 )
+
+
+def test_settings_backup_is_synced_with_write_access(tmp_path, monkeypatch):
+    """Windows verweigert fsync für nur lesend geöffnete Dateien."""
+    from insi import data_migrations
+
+    settings = tmp_path / "config.json"
+    original = b'{"course_directory": "C:/Kurse", "unknown": true}\n'
+    settings.write_bytes(original)
+    real_fsync = os.fsync
+    synced = []
+
+    def require_write_access(fd):
+        # Ein leerer Schreibversuch prüft das Handle ohne Daten zu verändern.
+        # Damit ist die Windows-Anforderung auch unter POSIX reproduzierbar.
+        os.write(fd, b"")
+        real_fsync(fd)
+        synced.append(fd)
+
+    monkeypatch.setattr(data_migrations.os, "fsync", require_write_access)
+    migrate_local_settings(settings)
+
+    backup = tmp_path / "backups/migrations/0.7-to-0.8/config.json"
+    assert backup.read_bytes() == original
+    assert json.loads(settings.read_text())["format"] == LOCAL_SETTINGS_FORMAT
+    assert len(synced) == 2
+    assert migrate_local_settings(settings).changed == ()
+
+
+def test_settings_backup_sync_failure_preserves_original_and_can_retry(
+    tmp_path, monkeypatch
+):
+    from insi import data_migrations
+
+    settings = tmp_path / "config.json"
+    original = b'{"course_directory": "C:/Kurse"}\n'
+    settings.write_bytes(original)
+    backup = tmp_path / "backups/migrations/0.7-to-0.8/config.json"
+    real_fsync = os.fsync
+
+    def fail_sync(fd):
+        raise OSError(errno.EIO, "Sicherung konnte nicht synchronisiert werden")
+
+    monkeypatch.setattr(data_migrations.os, "fsync", fail_sync)
+    with pytest.raises(MigrationStorageError, match="Quelldatei wurde nicht verändert"):
+        migrate_local_settings(settings)
+    assert settings.read_bytes() == original
+    assert not backup.exists()
+    assert not list(backup.parent.glob("*.tmp"))
+
+    monkeypatch.setattr(data_migrations.os, "fsync", real_fsync)
+    assert migrate_local_settings(settings).changed == ("config.json",)
+    assert backup.read_bytes() == original
 
 
 def test_legacy_settings_are_backed_up_versioned_and_idempotent(tmp_path):

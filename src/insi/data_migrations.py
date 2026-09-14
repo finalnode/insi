@@ -83,7 +83,9 @@ def _backup_once(source: Path, target: Path) -> None:
         ) as handle:
             temporary = Path(handle.name)
         shutil.copy2(source, temporary)
-        with temporary.open("rb") as copied:
+        # Windows benötigt für fsync/FlushFileBuffers ein schreibbares Handle.
+        # r+b erhält den bereits kopierten Inhalt unverändert.
+        with temporary.open("r+b") as copied:
             os.fsync(copied.fileno())
         os.replace(temporary, target)
     except OSError as error:
